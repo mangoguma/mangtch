@@ -52,10 +52,20 @@
 
 Download the latest `.app` from the [**Releases**](https://github.com/mangoguma/mangtch/releases) page, move it to `/Applications`, and launch.
 
-### Build from Source
+### Build with Xcode
+
+1. Clone the repo and open `NotchApp/Package.swift` in Xcode
+   ```bash
+   git clone https://github.com/mangoguma/mangtch.git
+   open mangtch/NotchApp/Package.swift
+   ```
+2. Select the **NotchApp** scheme and **My Mac** as the run destination
+3. `Cmd+R` to build & run, or `Cmd+B` to build only
+4. To export a `.app` bundle: **Product → Archive → Distribute App**
+
+### Build from Source (CLI)
 
 ```bash
-# Clone
 git clone https://github.com/mangoguma/mangtch.git
 cd mangtch/NotchApp
 
