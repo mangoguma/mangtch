@@ -9,8 +9,8 @@ final class NotchViewModel {
 
     // MARK: - State
 
-    private(set) var currentState: NotchState = .hovering
-    private(set) var previousState: NotchState = .hovering
+    private(set) var currentState: NotchState = .idle
+    private(set) var previousState: NotchState = .idle
     private(set) var notchGeometry: NotchGeometry
 
     /// Current expanded panel height (animated)
@@ -66,22 +66,22 @@ final class NotchViewModel {
         performTransition(to: .expanded)
     }
 
-    /// Collapse back to hovering (resting state with wings visible)
+    /// Collapse back to idle (right wing hidden)
     func collapse() {
         hoverDebounceTask?.cancel()
         collapseDelayTask?.cancel()
-        performTransition(to: .hovering)
+        performTransition(to: .idle)
     }
 
-    /// Toggle between hovering ↔ expanded
+    /// Toggle between states
     func toggleExpand() {
         switch currentState {
+        case .idle:
+            hover()
         case .hovering:
             expand()
         case .expanded:
             collapse()
-        default:
-            break
         }
     }
 
