@@ -1,0 +1,23 @@
+# Swift / SPM
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj/xcuserdata/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Internal docs
+docs/
+
+# AI tool configs
+.claude/
+.omc/
+.agent/
+.gemini/
