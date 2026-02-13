@@ -102,17 +102,23 @@ final class NotchWindow: NSPanel {
         let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
         let panelHeight: CGFloat = contentHeight + hudExtra + margin
 
-        // Always keep window wide enough for both wings to avoid resize jank.
-        // SwiftUI handles which wings are actually visible via opacity/transitions.
-        let fullWidth = geo.notchWidth + (viewModel.wingWidth * 2) + 40
         let targetWidth: CGFloat
         if viewModel.isHUDVisible {
-            targetWidth = max(fullWidth, 320)
+            targetWidth = max(viewModel.panelWidth + 40, 320)
         } else {
-            targetWidth = fullWidth
+            targetWidth = viewModel.panelWidth + 40
         }
 
-        let panelX = screen.frame.midX - targetWidth / 2
+        // In idle state (asymmetric — only left wing visible),
+        // shift panel left so left wing extends from notch's left edge
+        let panelX: CGFloat
+        if viewModel.currentState == .idle {
+            // Center of notch, then offset left by half of notch+leftWing
+            let notchCenterX = screen.frame.midX
+            panelX = notchCenterX - (geo.notchWidth / 2) - viewModel.wingWidth - 20
+        } else {
+            panelX = screen.frame.midX - targetWidth / 2
+        }
 
         let panelY: CGFloat
         if geo.isFloatingMode {
