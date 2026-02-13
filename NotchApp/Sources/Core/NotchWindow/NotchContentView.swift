@@ -51,7 +51,7 @@ struct NotchContentView: View {
     @ViewBuilder
     private func wingsRow(in geo: GeometryProxy) -> some View {
         HStack(spacing: 0) {
-            // Left wing
+            // Left wing (always visible)
             leftWing
                 .frame(width: viewModel.wingWidth)
                 .frame(height: viewModel.notchGeometry.notchHeight)
@@ -60,10 +60,13 @@ struct NotchContentView: View {
             Spacer()
                 .frame(width: viewModel.notchGeometry.notchWidth)
 
-            // Right wing
-            rightWing
-                .frame(width: viewModel.wingWidth)
-                .frame(height: viewModel.notchGeometry.notchHeight)
+            // Right wing (only on hover/expanded)
+            if viewModel.currentState == .hovering || viewModel.currentState == .expanded {
+                rightWing
+                    .frame(width: viewModel.wingWidth)
+                    .frame(height: viewModel.notchGeometry.notchHeight)
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
         }
     }
 

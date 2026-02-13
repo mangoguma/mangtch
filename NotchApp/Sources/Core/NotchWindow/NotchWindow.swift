@@ -108,7 +108,17 @@ final class NotchWindow: NSPanel {
         } else {
             targetWidth = viewModel.panelWidth + 40
         }
-        let panelX = screen.frame.midX - targetWidth / 2
+
+        // In idle state (asymmetric — only left wing visible),
+        // shift panel left so left wing extends from notch's left edge
+        let panelX: CGFloat
+        if viewModel.currentState == .idle {
+            // Center of notch, then offset left by half of notch+leftWing
+            let notchCenterX = screen.frame.midX
+            panelX = notchCenterX - (geo.notchWidth / 2) - viewModel.wingWidth - 20
+        } else {
+            panelX = screen.frame.midX - targetWidth / 2
+        }
 
         let panelY: CGFloat
         if geo.isFloatingMode {
@@ -135,7 +145,8 @@ final class NotchWindow: NSPanel {
     private func handleStateChange(_ state: NotchState) {
         switch state {
         case .idle:
-            self.ignoresMouseEvents = true
+            // Left wing still visible and interactive in idle
+            self.ignoresMouseEvents = false
         case .hovering:
             self.ignoresMouseEvents = false
         case .expanded:

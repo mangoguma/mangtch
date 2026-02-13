@@ -122,7 +122,8 @@ final class NotchViewModel {
             switch currentState {
             case .idle:
                 expandedHeight = 0
-                panelWidth = notchGeometry.notchWidth
+                // Left wing always visible, right wing hidden
+                panelWidth = notchGeometry.notchWidth + wingWidth
             case .hovering:
                 expandedHeight = 0
                 panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
