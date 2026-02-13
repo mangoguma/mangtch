@@ -5,7 +5,7 @@ final class FileShelfWidget: NotchWidget {
     let id = "file-shelf"
     let displayName = "File Shelf"
     let icon = "tray"
-    let preferredPosition: WidgetPosition = .leftWing
+    let preferredPosition: WidgetPosition = .rightWing
     var isEnabled: Bool = true
 
     private let viewModel = FileShelfViewModel()

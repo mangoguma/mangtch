@@ -5,7 +5,7 @@ final class MusicPlayerWidget: NotchWidget {
     let id = "music-player"
     let displayName = "Music Player"
     let icon = "music.note"
-    let preferredPosition: WidgetPosition = .rightWing
+    let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
 
     let viewModel = MusicPlayerViewModel()
