@@ -122,8 +122,8 @@ final class NotchViewModel {
             switch currentState {
             case .idle:
                 expandedHeight = 0
-                // Left wing always visible, right wing hidden
-                panelWidth = notchGeometry.notchWidth + wingWidth
+                // Window stays full width; SwiftUI hides right wing visually
+                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
             case .hovering:
                 expandedHeight = 0
                 panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
