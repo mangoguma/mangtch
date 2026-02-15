@@ -1,12 +1,13 @@
 import AppKit
 import SwiftUI
 import Combine
+import Sparkle
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSLog("[NotchApp] applicationDidFinishLaunching started")
+        NSLog("[Mangtch] applicationDidFinishLaunching started")
 
         // Set as accessory app (no dock icon)
         NSApplication.shared.setActivationPolicy(.accessory)
@@ -14,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ensure app is activated and connected to WindowServer
         NSApplication.shared.activate(ignoringOtherApps: true)
 
-        NSLog("[NotchApp] NSApplication activated")
+        NSLog("[Mangtch] NSApplication activated")
 
         // Initialize settings
         _ = SettingsManager.shared
@@ -46,6 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ShortcutManager.shared.setup()
         }
 
+        // Start Sparkle auto-updater
+        UpdateManager.shared.start()
+
+        // Show onboarding if needed (first launch or missing permissions)
+        if OnboardingWindow.shared.shouldShow {
+            OnboardingWindow.shared.show()
+        }
+
         // Setup notch window with delay to ensure WindowServer connection
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             Task { @MainActor in
@@ -63,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        print("[NotchApp] Launch complete")
+        print("[Mangtch] Launch complete")
     }
 
     func applicationWillTerminate(_ notification: Notification) {

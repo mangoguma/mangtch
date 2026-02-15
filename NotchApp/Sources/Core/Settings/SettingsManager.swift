@@ -23,6 +23,8 @@ final class SettingsManager {
         static let panelWidthMultiplier = "panelWidthMultiplier"
         static let showInMenuBar = "showInMenuBar"
         static let suppressSystemHUD = "suppressSystemHUD"
+        static let automaticallyCheckForUpdates = "automaticallyCheckForUpdates"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
     }
 
     // MARK: - Properties
@@ -92,6 +94,19 @@ final class SettingsManager {
         set { defaults.set(newValue, forKey: Keys.suppressSystemHUD) }
     }
 
+    var automaticallyCheckForUpdates: Bool {
+        get { defaults.bool(forKey: Keys.automaticallyCheckForUpdates) }
+        set {
+            defaults.set(newValue, forKey: Keys.automaticallyCheckForUpdates)
+            UpdateManager.shared.updater.automaticallyChecksForUpdates = newValue
+        }
+    }
+
+    var hasCompletedOnboarding: Bool {
+        get { defaults.bool(forKey: Keys.hasCompletedOnboarding) }
+        set { defaults.set(newValue, forKey: Keys.hasCompletedOnboarding) }
+    }
+
     // MARK: - Initialization
 
     private init() {
@@ -112,6 +127,8 @@ final class SettingsManager {
             Keys.panelWidthMultiplier: 1.0,
             Keys.showInMenuBar: true,
             Keys.suppressSystemHUD: false,
+            Keys.automaticallyCheckForUpdates: true,
+            Keys.hasCompletedOnboarding: false,
         ])
     }
 
@@ -134,7 +151,7 @@ final class SettingsManager {
     // MARK: - Reset
 
     func resetToDefaults() {
-        let domain = Bundle.main.bundleIdentifier ?? "com.yojeong.notchapp"
+        let domain = Bundle.main.bundleIdentifier ?? "com.yojeong.mangtch"
         defaults.removePersistentDomain(forName: domain)
         registerDefaults()
     }

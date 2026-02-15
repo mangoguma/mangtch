@@ -1,6 +1,6 @@
 # Theme System
 
-Centralized theme management for NotchApp visual tokens.
+Centralized theme management for Mangtch visual tokens.
 
 ## Overview
 
@@ -80,7 +80,7 @@ Theme selection is automatically persisted to UserDefaults and restored on app l
 ## Current Values
 
 ### DefaultTheme
-- Matches existing NotchApp design
+- Matches existing Mangtch design
 - Material: `.ultraThinMaterial`
 - Corner radius: `16`
 - HUD slider fill: `.white`

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Default theme matching the current NotchApp visual design
+/// Default theme matching the current Mangtch visual design
 struct DefaultTheme: NotchTheme {
     // MARK: - Materials & Effects
 

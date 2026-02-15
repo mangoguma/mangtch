@@ -1,6 +1,6 @@
 import XCTest
 import Combine
-@testable import NotchApp
+@testable import Mangtch
 
 final class EventBusTests: XCTestCase {
     var cancellables = Set<AnyCancellable>()

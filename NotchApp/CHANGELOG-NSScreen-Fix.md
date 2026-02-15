@@ -2,7 +2,7 @@
 
 ## Problem
 
-When running NotchApp via `swift run`, `NSScreen.main` returned `nil` or the wrong screen, causing:
+When running Mangtch via `swift run`, `NSScreen.main` returned `nil` or the wrong screen, causing:
 - "No main screen found" errors
 - `safeAreaInsets.top = 0.0` instead of the expected `38.0` on Macs with a notch
 - App failing to position itself correctly
@@ -88,11 +88,11 @@ The app now successfully:
 swift build
 
 # Run and verify
-.build/arm64-apple-macosx/debug/NotchApp
+.build/arm64-apple-macosx/debug/Mangtch
 
 # Expected output:
-[NotchApp] applicationDidFinishLaunching started
-[NotchApp] NSApplication activated
+[Mangtch] applicationDidFinishLaunching started
+[Mangtch] NSApplication activated
 [NotchWindow] ✓ Built-in screen found (screens[0])
 [NotchWindow] ✓ Notch detected! notchHeight=38.0, hasNotch=true
 [NotchWindow] Panel frame set: (600.0, 851.0, 600.0, 318.0)

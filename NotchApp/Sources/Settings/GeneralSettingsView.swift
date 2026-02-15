@@ -3,6 +3,8 @@ import ServiceManagement
 
 struct GeneralSettingsView: View {
     @State private var settings = SettingsManager.shared
+    @State private var accessibilityGranted = AXIsProcessTrusted()
+    private let permissionTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Form {
@@ -59,6 +61,44 @@ struct GeneralSettingsView: View {
                 }
             }
 
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { settings.automaticallyCheckForUpdates },
+                    set: { settings.automaticallyCheckForUpdates = $0 }
+                ))
+
+                HStack {
+                    Text("Current version")
+                    Spacer()
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Check for Updates Now…") {
+                    UpdateManager.shared.checkForUpdates()
+                }
+            }
+
+            Section("Permissions") {
+                HStack {
+                    Image(systemName: accessibilityGranted ? "checkmark.circle.fill" : "xmark.circle")
+                        .foregroundStyle(accessibilityGranted ? .green : .red)
+                    Text("Accessibility")
+                    Spacer()
+                    if accessibilityGranted {
+                        Text("Granted")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button("Open System Settings") {
+                            openAccessibilitySettings()
+                        }
+                    }
+                }
+                Text("Required for replacing the system HUD with Mangtch's HUD.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Shortcuts") {
                 HStack {
                     Text("Toggle notch panel")
@@ -70,5 +110,14 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onReceive(permissionTimer) { _ in
+            accessibilityGranted = AXIsProcessTrusted()
+        }
+    }
+
+    private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

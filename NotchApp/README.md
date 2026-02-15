@@ -1,4 +1,4 @@
-# NotchApp - macOS 노치 영역 생산성 허브
+# Mangtch - macOS 노치 영역 생산성 허브
 
 macOS 노치 영역을 생산성 허브로 변환하는 네이티브 앱입니다. [boring.notch](https://boringnotch.com/)에서 영감을 받아 처음부터 새로 구현했습니다.
 
@@ -32,19 +32,19 @@ macOS 노치 영역을 생산성 허브로 변환하는 네이티브 앱입니�
 
 ```bash
 # 저장소 클론
-cd /Users/sarang/Projects/mangtch/NotchApp
+cd /Users/sarang/Projects/mangtch/Mangtch
 
 # SPM으로 빌드
 swift build
 
 # 직접 실행 (테스트용)
-.build/arm64-apple-macosx/debug/NotchApp
+.build/arm64-apple-macosx/debug/Mangtch
 
 # 또는 .app 번들 빌드
 ./build-app.sh
 
 # .app 번들 실행
-open .build/release/NotchApp.app
+open .build/release/Mangtch.app
 ```
 
 ### 설치
@@ -54,12 +54,12 @@ open .build/release/NotchApp.app
 ./build-app.sh
 
 # Applications 폴더에 복사
-cp -r .build/release/NotchApp.app /Applications/
+cp -r .build/release/Mangtch.app /Applications/
 
 # 실행
-/Applications/NotchApp.app/Contents/MacOS/NotchApp
+/Applications/Mangtch.app/Contents/MacOS/Mangtch
 
-# 또는 Spotlight에서 "NotchApp" 검색 후 실행
+# 또는 Spotlight에서 "Mangtch" 검색 후 실행
 ```
 
 ---
@@ -67,15 +67,15 @@ cp -r .build/release/NotchApp.app /Applications/
 ## 프로젝트 구조
 
 ```
-NotchApp/
+Mangtch/
 ├── Package.swift                              # Swift Package Manager manifest
 ├── Info.plist                                 # 번들 설정 (LSUIElement=true)
-├── NotchApp.entitlements                      # Sandbox 권한
+├── Mangtch.entitlements                      # Sandbox 권한
 ├── build-app.sh                               # .app 번들 빌드 스크립트
 │
 ├── Sources/
 │   ├── App/
-│   │   ├── NotchApp.swift                    # @main 엔트리 포인트
+│   │   ├── MangtchApp.swift                    # @main 엔트리 포인트
 │   │   ├── AppDelegate.swift                 # NSApplicationDelegate
 │   │   └── MenuBarManager.swift              # 메뉴바 아이콘 관리
 │   │
@@ -131,7 +131,7 @@ NotchApp/
 │       ├── WidgetSettingsView.swift          # 위젯 활성화/비활성화
 │       └── AppearanceSettingsView.swift      # 테마/외관 설정
 │
-├── Tests/NotchAppTests/
+├── Tests/MangtchTests/
 │   ├── EventBusTests.swift                   # EventBus 단위 테스트
 │   ├── NotchViewModelTests.swift             # 상태 머신 테스트
 │   └── SettingsManagerTests.swift            # 설정 저장/로드 테스트
@@ -322,14 +322,14 @@ SystemInfoBridge.shared.screenBrightness // 0.0~1.0
 
 ```bash
 # 앱 실행
-.build/arm64-apple-macosx/debug/NotchApp 2>&1 | grep "NotchApp\|NotchWindow\|MediaBridge"
+.build/arm64-apple-macosx/debug/Mangtch 2>&1 | grep "Mangtch\|NotchWindow\|MediaBridge"
 ```
 
 #### 예상되는 로그 시퀀스
 
 ```
-[NotchApp] applicationDidFinishLaunching started
-[NotchApp] NSApplication activated
+[Mangtch] applicationDidFinishLaunching started
+[Mangtch] NSApplication activated
 [NotchWindow] ✓ Built-in screen found (screens[0])
 [NotchWindow] ✓ Notch detected! notchHeight=38.0, hasNotch=true
 [NotchWindow] ✓ Window setup complete and visible
@@ -431,7 +431,7 @@ WidgetRegistry.shared.activateAll()
 
 ### 테스트 작성
 
-단위 테스트는 `Tests/NotchAppTests/` 디렉토리에 위치합니다:
+단위 테스트는 `Tests/MangtchTests/` 디렉토리에 위치합니다:
 
 ```bash
 # 테스트 실행
@@ -451,7 +451,7 @@ swift build -c release
 ./build-app.sh
 
 # 결과
-.build/release/NotchApp.app
+.build/release/Mangtch.app
 ```
 
 ---
@@ -593,13 +593,13 @@ MIT License - 자유롭게 사용, 수정, 배포 가능
 ### 앱 실행
 
 ```bash
-swift build && .build/arm64-apple-macosx/debug/NotchApp
+swift build && .build/arm64-apple-macosx/debug/Mangtch
 ```
 
 ### 앱 빌드 (.app 번들)
 
 ```bash
-./build-app.sh && open .build/release/NotchApp.app
+./build-app.sh && open .build/release/Mangtch.app
 ```
 
 ### 테스트 실행
@@ -611,7 +611,7 @@ swift test
 ### 로그 확인
 
 ```bash
-swift run NotchApp 2>&1 | grep "\[.*\]"
+swift run Mangtch 2>&1 | grep "\[.*\]"
 ```
 
 ### 노치 감지 테스트
@@ -623,13 +623,13 @@ swift test-notch.swift
 ### 설정 초기화
 
 ```bash
-defaults delete com.notchapp
+defaults delete com.mangtch
 ```
 
 ### 설정 로그인 항목에 추가
 
 ```bash
-open /Applications/NotchApp.app
+open /Applications/Mangtch.app
 # 그 후 System Settings → General → Login Items에 수동으로 추가
 ```
 

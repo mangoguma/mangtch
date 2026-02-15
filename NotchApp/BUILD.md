@@ -1,4 +1,4 @@
-# Building NotchApp
+# Building Mangtch
 
 ## Quick Start
 
@@ -9,13 +9,13 @@
 swift build
 
 # Run directly
-.build/arm64-apple-macosx/debug/NotchApp
+.build/arm64-apple-macosx/debug/Mangtch
 
 # Or build release .app bundle
 ./build-app.sh
 
 # Run the .app bundle
-open .build/release/NotchApp.app
+open .build/release/Mangtch.app
 ```
 
 ### Install
@@ -23,7 +23,7 @@ open .build/release/NotchApp.app
 ```bash
 # Build and install to Applications
 ./build-app.sh
-cp -r .build/release/NotchApp.app /Applications/
+cp -r .build/release/Mangtch.app /Applications/
 ```
 
 ## Important Notes
@@ -46,7 +46,7 @@ If you have multiple monitors, the app will always position itself on the built-
 
 ## Project Structure
 
-- **Sources/App/** - App lifecycle (AppDelegate, NotchApp.swift)
+- **Sources/App/** - App lifecycle (AppDelegate, MangtchApp.swift)
 - **Sources/Core/** - Core window management and state
 - **Sources/Widgets/** - Individual widgets (Music, HUD, FileShelf)
 - **Sources/SystemBridge/** - System info and media bridges

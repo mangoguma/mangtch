@@ -15,7 +15,7 @@ final class MenuBarManager {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "rectangle.topthird.inset.filled", accessibilityDescription: "NotchApp")
+            button.image = NSImage(systemSymbolName: "rectangle.topthird.inset.filled", accessibilityDescription: "Mangtch")
             button.image?.size = NSSize(width: 18, height: 18)
         }
 
@@ -33,9 +33,20 @@ final class MenuBarManager {
         let menu = NSMenu()
 
         // App name
-        let titleItem = NSMenuItem(title: "NotchApp", action: nil, keyEquivalent: "")
+        let titleItem = NSMenuItem(title: "Mangtch", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Check for Updates
+        let updateItem = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
+        updateItem.target = self
+        menu.addItem(updateItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -48,11 +59,20 @@ final class MenuBarManager {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        // Setup Permissions
+        let permissionsItem = NSMenuItem(
+            title: "Setup Permissions…",
+            action: #selector(showOnboarding),
+            keyEquivalent: ""
+        )
+        permissionsItem.target = self
+        menu.addItem(permissionsItem)
+
         menu.addItem(NSMenuItem.separator())
 
         // About
         let aboutItem = NSMenuItem(
-            title: "About NotchApp",
+            title: "About Mangtch",
             action: #selector(showAbout),
             keyEquivalent: ""
         )
@@ -63,7 +83,7 @@ final class MenuBarManager {
 
         // Quit
         let quitItem = NSMenuItem(
-            title: "Quit NotchApp",
+            title: "Quit Mangtch",
             action: #selector(quitApp),
             keyEquivalent: "q"
         )
@@ -71,6 +91,10 @@ final class MenuBarManager {
         menu.addItem(quitItem)
 
         statusItem?.menu = menu
+    }
+
+    @objc private func checkForUpdates() {
+        UpdateManager.shared.checkForUpdates()
     }
 
     @objc private func openSettings() {
@@ -82,6 +106,11 @@ final class MenuBarManager {
         } else {
             NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
         }
+    }
+
+    @objc private func showOnboarding() {
+        NSApp.activate()
+        OnboardingWindow.shared.show()
     }
 
     @objc private func showAbout() {

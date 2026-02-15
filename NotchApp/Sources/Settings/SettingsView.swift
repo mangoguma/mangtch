@@ -18,6 +18,6 @@ struct SettingsView: View {
                     Label("Appearance", systemImage: "paintbrush")
                 }
         }
-        .frame(width: 450, height: 350)
+        .frame(width: 450, height: 500)
     }
 }

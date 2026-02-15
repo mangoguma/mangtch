@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-/// Centralized theme management system for NotchApp
+/// Centralized theme management system for Mangtch
 @MainActor
 final class ThemeEngine: ObservableObject {
     // MARK: - Singleton

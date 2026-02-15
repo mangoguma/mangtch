@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Protocol defining the visual tokens for NotchApp themes
+/// Protocol defining the visual tokens for Mangtch themes
 protocol NotchTheme {
     // MARK: - Materials & Effects
 

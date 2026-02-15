@@ -1,6 +1,6 @@
 import XCTest
 import Combine
-@testable import NotchApp
+@testable import Mangtch
 
 @MainActor
 final class NotchViewModelTests: XCTestCase {

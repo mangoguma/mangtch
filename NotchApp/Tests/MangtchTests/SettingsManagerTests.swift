@@ -1,5 +1,5 @@
 import XCTest
-@testable import NotchApp
+@testable import Mangtch
 
 @MainActor
 final class SettingsManagerTests: XCTestCase {

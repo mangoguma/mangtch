@@ -3,13 +3,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "NotchApp",
+    name: "Mangtch",
     platforms: [
         .macOS(.v14)
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         .executableTarget(
-            name: "NotchApp",
+            name: "Mangtch",
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources",
             linkerSettings: [
                 .linkedFramework("AppKit"),
@@ -20,9 +26,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "NotchAppTests",
-            dependencies: ["NotchApp"],
-            path: "Tests/NotchAppTests"
+            name: "MangtchTests",
+            dependencies: ["Mangtch"],
+            path: "Tests/MangtchTests"
         )
     ]
 )
