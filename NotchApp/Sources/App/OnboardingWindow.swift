@@ -43,8 +43,8 @@ final class OnboardingWindow {
         window = nil
     }
 
-    /// Whether onboarding should be shown (first launch or missing permissions).
+    /// Whether onboarding should be shown (first launch only).
     var shouldShow: Bool {
-        !SettingsManager.shared.hasCompletedOnboarding || !AXIsProcessTrusted()
+        !SettingsManager.shared.hasCompletedOnboarding
     }
 }
