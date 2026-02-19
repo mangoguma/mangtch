@@ -18,38 +18,18 @@ struct NotchShape: Shape {
         let halfNotch = notchWidth / 2
 
         switch state {
-        case .idle:
-            // Just the notch area - minimal rectangle matching physical notch
-            path.addRoundedRect(
-                in: CGRect(
-                    x: midX - halfNotch,
-                    y: 0,
-                    width: notchWidth,
-                    height: notchHeight
-                ),
-                cornerSize: CGSize(width: cornerRadius, height: cornerRadius)
-            )
+        case .idle, .hovering:
+            // Wings extend from notch sides — top edges flush with screen top (y=0)
 
-        case .hovering:
-            // Wings extend from notch sides
-            let wingWidth: CGFloat = (rect.width - notchWidth) / 2
-
-            // Left wing
-            path.move(to: CGPoint(x: rect.minX + cornerRadius, y: 0))
+            // Left wing: starts at top-left, goes right to notch
+            path.move(to: CGPoint(x: rect.minX, y: 0))
             path.addLine(to: CGPoint(x: midX - halfNotch, y: 0))
 
             // Notch cutout (skip over physical notch)
             path.move(to: CGPoint(x: midX + halfNotch, y: 0))
 
-            // Right wing
-            path.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: 0))
-            path.addArc(
-                center: CGPoint(x: rect.maxX - cornerRadius, y: cornerRadius),
-                radius: cornerRadius,
-                startAngle: .degrees(-90),
-                endAngle: .degrees(0),
-                clockwise: false
-            )
+            // Right wing: goes right to edge, then down
+            path.addLine(to: CGPoint(x: rect.maxX, y: 0))
             path.addLine(to: CGPoint(x: rect.maxX, y: notchHeight - cornerRadius))
             path.addArc(
                 center: CGPoint(x: rect.maxX - cornerRadius, y: notchHeight - cornerRadius),
@@ -74,14 +54,7 @@ struct NotchShape: Shape {
                 endAngle: .degrees(180),
                 clockwise: false
             )
-            path.addLine(to: CGPoint(x: rect.minX, y: cornerRadius))
-            path.addArc(
-                center: CGPoint(x: rect.minX + cornerRadius, y: cornerRadius),
-                radius: cornerRadius,
-                startAngle: .degrees(180),
-                endAngle: .degrees(270),
-                clockwise: false
-            )
+            path.addLine(to: CGPoint(x: rect.minX, y: 0))
 
         case .expanded:
             // Full panel extending below notch

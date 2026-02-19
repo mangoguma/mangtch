@@ -119,17 +119,14 @@ final class NotchViewModel {
         let animation: Animation? = SettingsManager.shared.animationsEnabled ? animationForState(currentState) : nil
 
         withAnimation(animation) {
+            // Both wings always visible
+            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+
             switch currentState {
-            case .idle:
+            case .idle, .hovering:
                 expandedHeight = 0
-                // Left wing always visible, right wing hidden
-                panelWidth = notchGeometry.notchWidth + wingWidth
-            case .hovering:
-                expandedHeight = 0
-                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
             case .expanded:
                 expandedHeight = maxExpandedHeight
-                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
             }
         }
     }

@@ -70,7 +70,7 @@ final class NotchViewModelTests: XCTestCase {
         XCTAssertEqual(vm.currentState, .idle)
     }
 
-    func testPanelWidthChangesWithState() async {
+    func testPanelWidthSameInIdleAndHovering() async {
         let vm = NotchViewModel.shared
         vm.collapse()
 
@@ -79,7 +79,7 @@ final class NotchViewModelTests: XCTestCase {
         vm.hover()
         try? await Task.sleep(for: .milliseconds(100))
 
-        // Hovering should have wider panel
-        XCTAssertGreaterThan(vm.panelWidth, idleWidth)
+        // Both wings always visible — width should be the same
+        XCTAssertEqual(vm.panelWidth, idleWidth)
     }
 }

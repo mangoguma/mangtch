@@ -10,10 +10,6 @@ struct NotchContentView: View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
                 panelContent(in: geo)
-                    .background(themeEngine.currentTheme.panelMaterial)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: viewModel.panelCornerRadius)
-                    )
 
                 // HUD overlay (shows on top of everything)
                 hudOverlay
@@ -26,6 +22,7 @@ struct NotchContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .animation(animationForState, value: viewModel.currentState)
         }
+        .ignoresSafeArea()
     }
 
     // MARK: - Panel Content
@@ -33,14 +30,20 @@ struct NotchContentView: View {
     @ViewBuilder
     private func panelContent(in geo: GeometryProxy) -> some View {
         VStack(spacing: 0) {
-            // Top row: wings flanking the notch
+            // Top row: wings flanking the notch (each wing has its own background)
             wingsRow(in: geo)
 
-            // Expanded content (only when expanded)
-            if viewModel.currentState == .expanded {
-                expandedContent
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
+            // Expanded content — always rendered, height-animated + clipped
+            // As expandedHeight shrinks from maxExpandedHeight → 0,
+            // the content is clipped from the bottom (like a drawer closing).
+            expandedContent
+                .background(themeEngine.currentTheme.panelMaterial)
+                .clipShape(
+                    RoundedRectangle(cornerRadius: viewModel.panelCornerRadius)
+                )
+                .frame(height: viewModel.expandedHeight, alignment: .top)
+                .clipped()
+                .allowsHitTesting(viewModel.currentState == .expanded)
         }
         .frame(width: viewModel.panelWidth)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -55,18 +58,33 @@ struct NotchContentView: View {
             leftWing
                 .frame(width: viewModel.wingWidth)
                 .frame(height: viewModel.notchGeometry.notchHeight)
+                .background(themeEngine.currentTheme.panelMaterial)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: viewModel.panelCornerRadius,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: 0
+                    )
+                )
 
             // Spacer for the physical notch
             Spacer()
                 .frame(width: viewModel.notchGeometry.notchWidth)
 
-            // Right wing (only on hover/expanded)
-            if viewModel.currentState == .hovering || viewModel.currentState == .expanded {
-                rightWing
-                    .frame(width: viewModel.wingWidth)
-                    .frame(height: viewModel.notchGeometry.notchHeight)
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
-            }
+            // Right wing (always visible)
+            rightWing
+                .frame(width: viewModel.wingWidth)
+                .frame(height: viewModel.notchGeometry.notchHeight)
+                .background(themeEngine.currentTheme.panelMaterial)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: viewModel.panelCornerRadius,
+                        topTrailingRadius: 0
+                    )
+                )
         }
     }
 
@@ -74,13 +92,14 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var leftWing: some View {
-        let leftWidgets = widgetRegistry.widgets(for: .leftWing)
-        if let first = leftWidgets.first {
-            first.makeCompactView()
+        // Music player compact artwork (album art + playing indicator)
+        if let musicWidget = widgetRegistry.widget(for: "music-player"),
+           let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+           musicWidget.isEnabled {
+            actualWidget.makeCompactView()
                 .transition(.opacity)
         } else {
-            // Default: file shelf icon
-            Image(systemName: "tray")
+            Image(systemName: "music.note")
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
         }
@@ -88,12 +107,13 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        let rightWidgets = widgetRegistry.widgets(for: .rightWing)
-        if let first = rightWidgets.first {
-            first.makeCompactView()
+        // Music player compact info (track title/artist, hover → controls)
+        if let musicWidget = widgetRegistry.widget(for: "music-player"),
+           let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+           musicWidget.isEnabled {
+            actualWidget.makeCompactInfoView()
                 .transition(.opacity)
         } else {
-            // Default: music note
             Image(systemName: "music.note")
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
@@ -109,46 +129,20 @@ struct NotchContentView: View {
                 .padding(.horizontal, 20)
 
             // Main widget content
-            let centerWidgets = widgetRegistry.enabledWidgets
             if let musicWidget = widgetRegistry.widget(for: "music-player"), musicWidget.isEnabled {
                 musicWidget.makeExpandedView()
-            } else if let first = centerWidgets.first {
-                first.makeExpandedView()
             } else {
-                Text("No widgets enabled")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 100)
-            }
-
-            // Widget tabs at bottom
-            if centerWidgets.count > 1 {
-                widgetTabs
-            }
-        }
-    }
-
-    // MARK: - Widget Tabs
-
-    @ViewBuilder
-    private var widgetTabs: some View {
-        HStack(spacing: 16) {
-            ForEach(widgetRegistry.enabledWidgets) { widget in
-                Button(action: {
-                    // TODO: switch active widget
-                }) {
-                    VStack(spacing: 2) {
-                        Image(systemName: widget.icon)
-                            .font(.system(size: 14))
-                        Text(widget.displayName)
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.secondary)
+                let centerWidgets = widgetRegistry.enabledWidgets
+                if let first = centerWidgets.first {
+                    first.makeExpandedView()
+                } else {
+                    Text("No widgets enabled")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 100)
                 }
-                .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 8)
     }
 
     // MARK: - HUD Overlay

@@ -13,7 +13,15 @@ final class MusicPlayerWidget: NotchWidget {
     @MainActor
     func makeCompactView() -> AnyView {
         AnyView(
-            NowPlayingView(viewModel: viewModel)
+            CompactArtworkView(viewModel: viewModel)
+        )
+    }
+
+    /// Right wing compact view: track info with hover controls
+    @MainActor
+    func makeCompactInfoView() -> AnyView {
+        AnyView(
+            CompactInfoView(viewModel: viewModel)
         )
     }
 

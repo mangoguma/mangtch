@@ -9,8 +9,8 @@ enum AnimationTokens {
     /// Click: center panel drops down
     static let expandClick = Animation.spring(response: 0.35, dampingFraction: 0.8)
 
-    /// Collapse: panel retracts
-    static let collapse = Animation.spring(response: 0.25, dampingFraction: 0.9)
+    /// Collapse: panel retracts smoothly
+    static let collapse = Animation.smooth(duration: 0.65)
 
     // MARK: - Content Transitions
 

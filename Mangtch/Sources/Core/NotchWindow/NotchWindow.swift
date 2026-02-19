@@ -11,6 +11,7 @@ final class NotchWindow: NSPanel {
     private var hudVisibilityObservation: Any?
     private var fullscreenObservation: Any?
     private let fullscreenObserver = FullscreenObserver()
+    private var hostingController: NSHostingController<NotchContentView>?
     private var allowKeyWindow = false
 
     private init() {
@@ -75,9 +76,13 @@ final class NotchWindow: NSPanel {
 
         NSLog("[NotchWindow] Panel frame set")
 
-        // Host SwiftUI content
+        // Host SwiftUI content — use NSHostingController with safeAreaRegions = []
+        // to prevent macOS from applying notch safe area insets
         let swiftUIContent = NotchContentView()
-        let hostingView = NSHostingView(rootView: swiftUIContent)
+        let controller = NSHostingController(rootView: swiftUIContent)
+        controller.safeAreaRegions = []
+        self.hostingController = controller
+        let hostingView = controller.view
         hostingView.frame = self.contentView?.bounds ?? .zero
         hostingView.autoresizingMask = [.width, .height]
         self.contentView = hostingView
@@ -116,16 +121,8 @@ final class NotchWindow: NSPanel {
             targetWidth = viewModel.panelWidth + 40
         }
 
-        // In idle state (asymmetric — only left wing visible),
-        // shift panel left so left wing extends from notch's left edge
-        let panelX: CGFloat
-        if viewModel.currentState == .idle {
-            // Center of notch, then offset left by half of notch+leftWing
-            let notchCenterX = screen.frame.midX
-            panelX = notchCenterX - (geo.notchWidth / 2) - viewModel.wingWidth - 20
-        } else {
-            panelX = screen.frame.midX - targetWidth / 2
-        }
+        // Always center since both wings are always visible
+        let panelX = screen.frame.midX - targetWidth / 2
 
         let panelY: CGFloat
         if geo.isFloatingMode {
@@ -150,6 +147,8 @@ final class NotchWindow: NSPanel {
     }
 
     private func handleStateChange(_ state: NotchState) {
+        let previousState = NotchViewModel.shared.previousState
+
         switch state {
         case .idle:
             self.ignoresMouseEvents = false
@@ -164,9 +163,53 @@ final class NotchWindow: NSPanel {
             self.ignoresMouseEvents = false
             allowKeyWindow = true
         }
-        // Resize window to match new content height
-        Task { @MainActor in
-            self.updateWindowFrame()
+
+        // Resize window to match new content height.
+        // When collapsing from expanded, animate the window frame shrink
+        // in sync with the SwiftUI collapse spring (instead of a hardcoded delay).
+        let isCollapsing = previousState == .expanded && (state == .idle || state == .hovering)
+
+        if isCollapsing {
+            animateWindowFrame(duration: 0.65)
+        } else {
+            updateWindowFrame()
+        }
+    }
+
+    /// Smoothly animate the NSPanel frame to the target size.
+    /// Duration should match the collapse spring's response time.
+    @MainActor
+    private func animateWindowFrame(duration: TimeInterval) {
+        guard let screen = NSScreen.screens.first else { return }
+        let geo = NotchViewModel.shared.notchGeometry
+        let viewModel = NotchViewModel.shared
+
+        let contentHeight: CGFloat = geo.notchHeight + viewModel.expandedHeight
+        let hudExtra: CGFloat = viewModel.isHUDVisible ? 50 : 0
+        let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
+        let panelHeight: CGFloat = contentHeight + hudExtra + margin
+
+        let targetWidth: CGFloat
+        if viewModel.isHUDVisible {
+            targetWidth = max(viewModel.panelWidth + 40, 320)
+        } else {
+            targetWidth = viewModel.panelWidth + 40
+        }
+
+        let panelX = screen.frame.midX - targetWidth / 2
+        let panelY: CGFloat
+        if geo.isFloatingMode {
+            panelY = screen.frame.maxY - panelHeight - 25
+        } else {
+            panelY = screen.frame.maxY - panelHeight
+        }
+
+        let targetFrame = NSRect(x: panelX, y: panelY, width: targetWidth, height: panelHeight)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            self.animator().setFrame(targetFrame, display: true)
         }
     }
 
@@ -241,6 +284,12 @@ final class NotchWindow: NSPanel {
 
     override var canBecomeKey: Bool { allowKeyWindow }
     override var canBecomeMain: Bool { false }
+
+    // Prevent macOS from clamping the window to the visible frame.
+    // Without this, the system moves the window below the notch/menu bar area.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        return frameRect
+    }
 
     override func resignKey() {
         super.resignKey()

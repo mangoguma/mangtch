@@ -6,21 +6,21 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
-      <title>Version 0.1.0</title>
+      <title>Version 0.2.0</title>
       <description><![CDATA[
-        <h2>Mangtch 0.1.0</h2>
+        <h2>Mangtch 0.2.0</h2>
         <ul>
-          <li>Sparkle auto-update integration</li>
-          <li>First-launch onboarding with permission guidance</li>
-          <li>Accessibility permission status in Settings</li>
+          <li>Wing UI redesign with always-visible compact music player</li>
+          <li>Smooth collapse animation with spring timing</li>
+          <li>Window positioning fix for notch area</li>
         </ul>
       ]]></description>
-      <pubDate>Wed, 19 Feb 2026 00:08:00 +0900</pubDate>
-      <sparkle:version>1</sparkle:version>
-      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
-      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.1.0/Mangtch-0.1.0.zip"
-                 length="2666437"
-                 sparkle:edSignature="saOctp7+uw4YO2C/KWpaoca2Yux1t2+L9qtuovMEwxDZ/wqIC9hF7gqvEzZvaxE20j3TnD6kP26GKjHJDIjqCg=="
+      <pubDate>Wed, 19 Feb 2026 15:00:00 +0900</pubDate>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.2.0/Mangtch-0.2.0.zip"
+                 length="2699255"
+                 sparkle:edSignature="8J5H4u5gIW4c7oDu6u1CAzjqqZjwLWiF4SeQwg837jsJGgnhd6ox47a0/dgaK6MjhkM2ZYtfti7a3g4scDhFBQ=="
                  type="application/octet-stream"/>
     </item>
   </channel>
