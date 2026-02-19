@@ -15,7 +15,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>0.1.0-beta.1</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
@@ -33,6 +33,8 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Mangtch needs permission to control music playback in Spotify and Apple Music.</string>
 	<key>SUFeedURL</key>
-	<string>https://example.com/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/mangoguma/mangtch/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Fmj4dhenRCT8HbIYtVYUcYYGWS3RnkpNjhIxfG5CUwI=</string>
 </dict>
 </plist>

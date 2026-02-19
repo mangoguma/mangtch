@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Mangtch Updates</title>
+    <link>https://raw.githubusercontent.com/mangoguma/mangtch/main/appcast.xml</link>
+    <description>Mangtch app updates</description>
+    <language>en</language>
+    <item>
+      <title>Version 0.1.0-beta.1</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.1.0 Beta 1</h2>
+        <ul>
+          <li>Sparkle auto-update integration</li>
+          <li>First-launch onboarding with permission guidance</li>
+          <li>Accessibility permission status in Settings</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 19 Feb 2026 00:08:00 +0900</pubDate>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-beta.1</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.1.0-beta.1/Mangtch-0.1.0-beta.1.zip"
+                 length="2666437"
+                 sparkle:edSignature="saOctp7+uw4YO2C/KWpaoca2Yux1t2+L9qtuovMEwxDZ/wqIC9hF7gqvEzZvaxE20j3TnD6kP26GKjHJDIjqCg=="
+                 type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
