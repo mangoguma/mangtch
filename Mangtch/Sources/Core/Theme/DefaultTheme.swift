@@ -56,17 +56,14 @@ struct DefaultTheme: NotchTheme {
     // MARK: - HUD-specific
 
     var hudSliderTrackColor: Color {
-        // From HUDSliderView.swift line 21
         Color(.quaternaryLabelColor)
     }
 
     var hudSliderFillColor: Color {
-        // From HUDSliderView.swift line 26
         .white
     }
 
     var hudIconColor: Color {
-        // From HUDSliderView.swift line 13
         .secondary
     }
 }

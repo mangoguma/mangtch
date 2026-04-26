@@ -8,7 +8,6 @@ final class NotchWindow: NSPanel {
     private var cancellables = Set<AnyCancellable>()
     private var panelWidthObservation: Any?
     private var expandedHeightObservation: Any?
-    private var hudVisibilityObservation: Any?
     private var fullscreenObservation: Any?
     private let fullscreenObserver = FullscreenObserver()
     private var hostingController: NSHostingController<NotchContentView>?
@@ -94,7 +93,6 @@ final class NotchWindow: NSPanel {
         setupStateObserver()
         setupPanelWidthObserver()
         setupExpandedHeightObserver()
-        setupHUDVisibilityObserver()
         setupFullscreenObserver()
     }
 
@@ -108,18 +106,12 @@ final class NotchWindow: NSPanel {
         let geo = NotchViewModel.shared.notchGeometry
         let viewModel = NotchViewModel.shared
 
-        // Window dimensions = only what's visible + small margin for shadow/HUD
+        // Window dimensions = only what's visible + small margin for shadow
         let contentHeight: CGFloat = geo.notchHeight + viewModel.expandedHeight
-        let hudExtra: CGFloat = viewModel.isHUDVisible ? 50 : 0
         let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
-        let panelHeight: CGFloat = contentHeight + hudExtra + margin
+        let panelHeight: CGFloat = contentHeight + margin
 
-        let targetWidth: CGFloat
-        if viewModel.isHUDVisible {
-            targetWidth = max(viewModel.panelWidth + 40, 320)
-        } else {
-            targetWidth = viewModel.panelWidth + 40
-        }
+        let targetWidth: CGFloat = viewModel.panelWidth + 40
 
         // Always center since both wings are always visible
         let panelX = screen.frame.midX - targetWidth / 2
@@ -185,16 +177,10 @@ final class NotchWindow: NSPanel {
         let viewModel = NotchViewModel.shared
 
         let contentHeight: CGFloat = geo.notchHeight + viewModel.expandedHeight
-        let hudExtra: CGFloat = viewModel.isHUDVisible ? 50 : 0
         let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
-        let panelHeight: CGFloat = contentHeight + hudExtra + margin
+        let panelHeight: CGFloat = contentHeight + margin
 
-        let targetWidth: CGFloat
-        if viewModel.isHUDVisible {
-            targetWidth = max(viewModel.panelWidth + 40, 320)
-        } else {
-            targetWidth = viewModel.panelWidth + 40
-        }
+        let targetWidth: CGFloat = viewModel.panelWidth + 40
 
         let panelX = screen.frame.midX - targetWidth / 2
         let panelY: CGFloat
@@ -235,19 +221,6 @@ final class NotchWindow: NSPanel {
             Task { @MainActor in
                 self?.updateWindowFrame()
                 self?.setupExpandedHeightObserver()
-            }
-        }
-    }
-
-    // MARK: - HUD Visibility Observer
-
-    private func setupHUDVisibilityObserver() {
-        hudVisibilityObservation = withObservationTracking {
-            _ = NotchViewModel.shared.isHUDVisible
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.updateWindowFrame()
-                self?.setupHUDVisibilityObserver()
             }
         }
     }

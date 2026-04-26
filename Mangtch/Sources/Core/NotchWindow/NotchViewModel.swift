@@ -19,9 +19,6 @@ final class NotchViewModel {
     /// Current panel width (animated)
     var panelWidth: CGFloat = 0
 
-    /// Whether the HUD overlay is currently visible (affects window sizing)
-    var isHUDVisible: Bool = false
-
     // MARK: - Configuration
 
     let maxExpandedHeight: CGFloat = 180
@@ -41,7 +38,6 @@ final class NotchViewModel {
     private init() {
         notchGeometry = NotchGeometry.detect()
         setupScreenChangeObserver()
-        setupHUDObserver()
         updatePanelDimensions()
     }
 
@@ -137,23 +133,6 @@ final class NotchViewModel {
         case .hovering: return AnimationTokens.expandHover
         case .expanded: return AnimationTokens.expandClick
         }
-    }
-
-    // MARK: - HUD Visibility Observer
-
-    private func setupHUDObserver() {
-        EventBus.shared.hudTriggers
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.isHUDVisible = true
-            }
-            .store(in: &cancellables)
-    }
-
-    /// Called when HUD is dismissed
-    func setHUDHidden() {
-        isHUDVisible = false
     }
 
     // MARK: - Screen Change Observer

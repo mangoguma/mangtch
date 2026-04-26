@@ -22,7 +22,6 @@ final class WidgetRegistry {
 
     func registerDefaults() {
         register(MusicPlayerWidget())
-        register(HUDWidget())
         register(FileShelfWidget())
         register(TimerWidget())
         register(DownloadWidget())

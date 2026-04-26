@@ -15,14 +15,11 @@ final class SettingsManager {
         static let animationsEnabled = "animationsEnabled"
         static let enableMusicPlayer = "enableMusicPlayer"
         static let enableFileShelf = "enableFileShelf"
-        static let enableHUD = "enableHUD"
         static let fileShelfMaxItems = "fileShelfMaxItems"
         static let fileShelfExpirationHours = "fileShelfExpirationHours"
-        static let hudAutoHideDelay = "hudAutoHideDelay"
         static let hoverSensitivity = "hoverSensitivity"
         static let panelWidthMultiplier = "panelWidthMultiplier"
         static let showInMenuBar = "showInMenuBar"
-        static let suppressSystemHUD = "suppressSystemHUD"
         static let automaticallyCheckForUpdates = "automaticallyCheckForUpdates"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hideInFullscreen = "hideInFullscreen"
@@ -55,11 +52,6 @@ final class SettingsManager {
         set { defaults.set(newValue, forKey: Keys.enableFileShelf) }
     }
 
-    var enableHUD: Bool {
-        get { defaults.bool(forKey: Keys.enableHUD) }
-        set { defaults.set(newValue, forKey: Keys.enableHUD) }
-    }
-
     var fileShelfMaxItems: Int {
         get { defaults.integer(forKey: Keys.fileShelfMaxItems) }
         set { defaults.set(newValue, forKey: Keys.fileShelfMaxItems) }
@@ -68,11 +60,6 @@ final class SettingsManager {
     var fileShelfExpirationHours: Int {
         get { defaults.integer(forKey: Keys.fileShelfExpirationHours) }
         set { defaults.set(newValue, forKey: Keys.fileShelfExpirationHours) }
-    }
-
-    var hudAutoHideDelay: Double {
-        get { defaults.double(forKey: Keys.hudAutoHideDelay) }
-        set { defaults.set(newValue, forKey: Keys.hudAutoHideDelay) }
     }
 
     var hoverSensitivity: Double {
@@ -88,11 +75,6 @@ final class SettingsManager {
     var showInMenuBar: Bool {
         get { defaults.bool(forKey: Keys.showInMenuBar) }
         set { defaults.set(newValue, forKey: Keys.showInMenuBar) }
-    }
-
-    var suppressSystemHUD: Bool {
-        get { defaults.bool(forKey: Keys.suppressSystemHUD) }
-        set { defaults.set(newValue, forKey: Keys.suppressSystemHUD) }
     }
 
     var automaticallyCheckForUpdates: Bool {
@@ -125,14 +107,11 @@ final class SettingsManager {
             Keys.animationsEnabled: true,
             Keys.enableMusicPlayer: true,
             Keys.enableFileShelf: true,
-            Keys.enableHUD: true,
             Keys.fileShelfMaxItems: 3,
             Keys.fileShelfExpirationHours: 24,
-            Keys.hudAutoHideDelay: 2.0,
             Keys.hoverSensitivity: 0.5,
             Keys.panelWidthMultiplier: 1.0,
             Keys.showInMenuBar: true,
-            Keys.suppressSystemHUD: false,
             Keys.automaticallyCheckForUpdates: true,
             Keys.hasCompletedOnboarding: false,
             Keys.hideInFullscreen: true,

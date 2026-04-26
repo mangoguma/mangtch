@@ -4,12 +4,6 @@ import AppKit
 
 // MARK: - Event Types
 
-enum HUDType: Equatable {
-    case volume
-    case brightness
-    case keyboardBacklight
-}
-
 enum PlaybackState: Equatable {
     case playing
     case paused
@@ -44,9 +38,6 @@ enum NotchEvent {
     // Media
     case mediaChanged(MediaInfo)
     case playbackStateChanged(PlaybackState)
-
-    // HUD
-    case hudTriggered(HUDType, Float)
 
     // File shelf
     case fileDropped(URL)
@@ -94,14 +85,6 @@ final class EventBus: @unchecked Sendable {
     var mediaChanges: AnyPublisher<MediaInfo, Never> {
         on { event in
             if case .mediaChanged(let info) = event { return info }
-            return nil
-        }
-    }
-
-    /// Subscribe to HUD triggers only
-    var hudTriggers: AnyPublisher<(HUDType, Float), Never> {
-        on { event in
-            if case .hudTriggered(let type, let value) = event { return (type, value) }
             return nil
         }
     }

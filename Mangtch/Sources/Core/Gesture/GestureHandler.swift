@@ -1,6 +1,5 @@
 import AppKit
 import Combine
-import CoreAudio
 
 @MainActor
 final class GestureHandler {
@@ -8,30 +7,14 @@ final class GestureHandler {
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
-    private var cancellables = Set<AnyCancellable>()
-    private var systemHUDSuppressor: SystemHUDSuppressor?
 
-    private init() {
-        setupSettingsObserver()
-    }
-
-    private func setupSettingsObserver() {
-        // Observe changes to suppressSystemHUD setting
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    self?.setupSystemHUDSuppression()
-                }
-            }
-            .store(in: &cancellables)
-    }
+    private init() {}
 
     // MARK: - Setup
 
     func setup() {
         setupGlobalMonitor()
         setupLocalMonitor()
-        setupSystemHUDSuppression()
     }
 
     func teardown() {
@@ -42,29 +25,6 @@ final class GestureHandler {
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
-        }
-        systemHUDSuppressor?.stop()
-        systemHUDSuppressor = nil
-    }
-
-    // MARK: - System HUD Suppression (OSD hiding only)
-
-    private func setupSystemHUDSuppression() {
-        // SystemHUDSuppressor is only used for hiding the native macOS OSD.
-        // Volume/brightness change detection is handled by SystemInfoBridge
-        // via CoreAudio property listeners (no accessibility permissions needed).
-        guard SettingsManager.shared.suppressSystemHUD else {
-            systemHUDSuppressor?.stop()
-            systemHUDSuppressor = nil
-            return
-        }
-
-        let suppressor = SystemHUDSuppressor()
-        if suppressor.start(hideOSD: true) {
-            systemHUDSuppressor = suppressor
-            print("[GestureHandler] SystemHUDSuppressor started (OSD hidden)")
-        } else {
-            print("[GestureHandler] SystemHUDSuppressor failed to start")
         }
     }
 
