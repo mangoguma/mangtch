@@ -25,10 +25,10 @@ final class FullscreenObserver {
     // MARK: - Init
 
     init() {
-        // Check and prompt for Accessibility permission (required for AXFullScreen)
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
-        let trusted = AXIsProcessTrustedWithOptions(options)
-        NSLog("[FullscreenObserver] AXIsProcessTrusted: \(trusted)")
+        // Silent check — never trigger the system prompt on launch.
+        // Permission is requested explicitly from the onboarding flow.
+        let trusted = AXIsProcessTrusted()
+        NSLog("[FullscreenObserver] AXIsProcessTrusted: \(trusted)\(trusted ? "" : " — fullscreen detection falls back to CGWindowList")")
 
         setupObservers()
         startPolling()

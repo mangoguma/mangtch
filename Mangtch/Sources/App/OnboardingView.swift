@@ -106,7 +106,7 @@ struct OnboardingView: View {
                 .font(.title)
                 .fontWeight(.semibold)
 
-            Text("Mangtch needs Accessibility permission to replace\nthe system volume & brightness HUD with its own.")
+            Text("Mangtch needs Accessibility permission to detect\nfullscreen apps and hide the notch overlay correctly.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -166,7 +166,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 featureRow(icon: "music.note", title: "Music Control", description: "Control Spotify & Apple Music")
                 featureRow(icon: "doc.on.doc", title: "File Shelf", description: "Quick access to recent files")
-                featureRow(icon: "speaker.wave.2", title: "System HUD", description: "Beautiful volume & brightness overlay")
+                featureRow(icon: "timer", title: "Timer & Stopwatch", description: "Quick countdown right from the notch")
             }
             .padding()
             .background(
