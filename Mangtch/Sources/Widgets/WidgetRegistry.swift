@@ -24,7 +24,6 @@ final class WidgetRegistry {
         register(MusicPlayerWidget())
         register(FileShelfWidget())
         register(TimerWidget())
-        register(DownloadWidget())
     }
 
     func register(_ widget: some NotchWidget) {
