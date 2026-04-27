@@ -116,12 +116,14 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // The right wing mirrors whichever widget the user last selected in
-        // the switcher, in every state. Music keeps the dedicated info view
-        // (track + hover-controls); other widgets reuse their compact view.
+        // Mirror whichever widget the user last selected in the switcher —
+        // unless that widget has nothing useful to show (empty File Shelf,
+        // 00:00 Timer). In that case fall back to music so the wing never
+        // becomes a dead empty corner.
         if viewModel.currentExpandedWidgetID != "music-player",
            let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
-           active.isEnabled {
+           active.isEnabled,
+           hasContentToShow(active) {
             active.makeCompactView()
                 .transition(.opacity)
         } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
@@ -134,6 +136,18 @@ struct NotchContentView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// True when the widget has live state worth surfacing in the wing.
+    /// Returning false here causes the wing to fall back to music.
+    private func hasContentToShow(_ widget: AnyNotchWidget) -> Bool {
+        if let fs = widget.wrapped as? FileShelfWidget {
+            return !fs.viewModel.items.isEmpty
+        }
+        if let timer = widget.wrapped as? TimerWidget {
+            return timer.viewModel.displayTime > 0 || timer.viewModel.isActive
+        }
+        return true
     }
 
     // MARK: - Expanded Content

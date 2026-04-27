@@ -213,7 +213,7 @@ final class NotchWindow: NSPanel {
         let isCollapsing = previousState == .expanded && (state == .idle || state == .hovering)
 
         if isCollapsing {
-            animateWindowFrame(duration: 0.65)
+            animateWindowFrame(duration: 0.4)
         } else {
             updateWindowFrame()
         }
@@ -270,7 +270,16 @@ final class NotchWindow: NSPanel {
             _ = NotchViewModel.shared.expandedHeight
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.updateWindowFrame()
+                // State transitions (idle ↔ hovering ↔ expanded) drive the
+                // frame update through handleStateChange, which animates with
+                // the matching spring. If we ALSO snap the frame here, the
+                // window collapses instantly while SwiftUI is still animating
+                // the content down — the panel briefly clips visible content.
+                // Only react to expandedHeight changes that aren't part of a
+                // state transition (e.g. screen-geometry shifts).
+                if NotchViewModel.shared.currentState == .expanded {
+                    self?.updateWindowFrame()
+                }
                 self?.setupExpandedHeightObserver()
             }
         }
