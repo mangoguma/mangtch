@@ -86,6 +86,11 @@ final class NotchWindow: NSPanel {
         hostingView.autoresizingMask = [.width, .height]
         self.contentView = hostingView
 
+        // Forward registration to the freshly installed contentView so SwiftUI
+        // .onDrop modifiers in the hosted view actually receive drag-from-
+        // Finder events. nonactivating panels otherwise silently drop them.
+        self.registerForDraggedTypes([.fileURL])
+
         self.orderFrontRegardless()
 
         NSLog("[NotchWindow] ✓ Window setup complete and visible")
@@ -94,6 +99,52 @@ final class NotchWindow: NSPanel {
         setupPanelWidthObserver()
         setupExpandedHeightObserver()
         setupFullscreenObserver()
+        setupExternalFileDragMonitor()
+    }
+
+    private var fileDragMonitor: Any?
+
+    /// macOS .nonactivatingPanel windows don't receive drag-from-Finder
+    /// events reliably, so SwiftUI .onDrop modifiers inside our hosting
+    /// view never fire. Watch leftMouseDragged events from other processes
+    /// and, when the cursor crosses the notch with a file-bearing drag
+    /// pasteboard, force-expand the panel onto the FileShelf widget so
+    /// the user can drop there.
+    private func setupExternalFileDragMonitor() {
+        if fileDragMonitor != nil { return }
+        fileDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] _ in
+            guard let self else { return }
+            let dragPasteboard = NSPasteboard(name: .drag)
+            guard dragPasteboard.availableType(from: [.fileURL]) != nil else { return }
+            let mouse = NSEvent.mouseLocation
+            Task { @MainActor in
+                guard self.isMouseOverPanel(mouse) else { return }
+                if NotchViewModel.shared.currentState != .expanded {
+                    NotchViewModel.shared.currentExpandedWidgetID = "file-shelf"
+                    NotchViewModel.shared.forceExpand()
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func isMouseOverPanel(_ point: NSPoint) -> Bool {
+        // The trigger zone is wider than the actual panel — users dragging
+        // up from a Finder window need a forgiving target near the top of
+        // the screen, not just the literal wing rectangle. Define a band
+        // centered on the notch, panel-width wide, extending ~120pt down
+        // from the top of the primary screen.
+        guard let screen = NSScreen.screens.first else { return false }
+        let viewModel = NotchViewModel.shared
+        let zoneWidth = viewModel.panelWidth + 80
+        let zoneHeight: CGFloat = 120
+        let zone = NSRect(
+            x: screen.frame.midX - zoneWidth / 2,
+            y: screen.frame.maxY - zoneHeight,
+            width: zoneWidth,
+            height: zoneHeight
+        )
+        return zone.contains(point)
     }
 
     // MARK: - Dynamic Window Sizing

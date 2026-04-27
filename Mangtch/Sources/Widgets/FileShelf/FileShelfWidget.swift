@@ -8,7 +8,7 @@ final class FileShelfWidget: NotchWidget {
     let preferredPosition: WidgetPosition = .rightWing
     var isEnabled: Bool = true
 
-    private let viewModel = FileShelfViewModel()
+    let viewModel = FileShelfViewModel()
 
     @MainActor
     func makeCompactView() -> AnyView {

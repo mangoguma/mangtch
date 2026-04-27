@@ -19,9 +19,19 @@ final class NotchViewModel {
     /// Current panel width (animated)
     var panelWidth: CGFloat = 0
 
+    /// ID of the widget currently shown in the expanded panel. Persists
+    /// across sessions via SettingsManager.lastExpandedWidgetID. Defaults
+    /// to "music-player" on first run.
+    var currentExpandedWidgetID: String {
+        didSet {
+            guard oldValue != currentExpandedWidgetID else { return }
+            SettingsManager.shared.lastExpandedWidgetID = currentExpandedWidgetID
+        }
+    }
+
     // MARK: - Configuration
 
-    let maxExpandedHeight: CGFloat = 180
+    let maxExpandedHeight: CGFloat = 260
     let wingWidth: CGFloat = 120
     var panelCornerRadius: CGFloat {
         ThemeEngine.shared.currentTheme.panelCornerRadius
@@ -37,8 +47,19 @@ final class NotchViewModel {
 
     private init() {
         notchGeometry = NotchGeometry.detect()
+        currentExpandedWidgetID = SettingsManager.shared.lastExpandedWidgetID ?? "music-player"
         setupScreenChangeObserver()
         updatePanelDimensions()
+    }
+
+    /// Move to the next/previous enabled widget. Wraps around at the ends.
+    /// Called by the switcher bar and (eventually) keyboard arrow keys.
+    func cycleWidget(direction: Int) {
+        let enabled = WidgetRegistry.shared.enabledWidgets
+        guard !enabled.isEmpty else { return }
+        let idx = enabled.firstIndex(where: { $0.id == currentExpandedWidgetID }) ?? 0
+        let next = (idx + direction + enabled.count) % enabled.count
+        currentExpandedWidgetID = enabled[next].id
     }
 
     // MARK: - State Transitions
@@ -67,6 +88,18 @@ final class NotchViewModel {
         hoverDebounceTask?.cancel()
         collapseDelayTask?.cancel()
         performTransition(to: .idle)
+    }
+
+    /// Expand directly from any current state. Used by drag-and-drop into
+    /// the notch — the user is dragging a file from cold and we want the
+    /// drop zone visible without requiring a prior hover.
+    func forceExpand() {
+        hoverDebounceTask?.cancel()
+        collapseDelayTask?.cancel()
+        if currentState == .idle {
+            performTransition(to: .hovering)
+        }
+        performTransition(to: .expanded)
     }
 
     /// Toggle between states

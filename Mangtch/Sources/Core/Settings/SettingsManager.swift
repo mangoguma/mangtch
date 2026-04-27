@@ -24,6 +24,7 @@ final class SettingsManager {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hideInFullscreen = "hideInFullscreen"
         static let spotifyClientID = "spotifyClientID"
+        static let lastExpandedWidgetID = "lastExpandedWidgetID"
     }
 
     // MARK: - Properties
@@ -101,6 +102,13 @@ final class SettingsManager {
     var spotifyClientID: String {
         get { defaults.string(forKey: Keys.spotifyClientID) ?? "" }
         set { defaults.set(newValue, forKey: Keys.spotifyClientID) }
+    }
+
+    /// ID of the widget shown in the expanded panel; persisted across sessions.
+    /// nil on first run — the switcher falls back to the music player.
+    var lastExpandedWidgetID: String? {
+        get { defaults.string(forKey: Keys.lastExpandedWidgetID) }
+        set { defaults.set(newValue, forKey: Keys.lastExpandedWidgetID) }
     }
 
     // MARK: - Initialization

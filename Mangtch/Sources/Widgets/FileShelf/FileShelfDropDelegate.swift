@@ -12,9 +12,13 @@ struct FileShelfDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         viewModel.isDragTargetActive = true
 
-        // Expand panel to show file shelf
+        // Surface the file shelf regardless of where the drop target sits
+        // (wing icon, wings row, or already inside the panel) and regardless
+        // of the panel's current state — the user is mid-drag and shouldn't
+        // need to hover-then-drop in two motions.
         Task { @MainActor in
-            NotchViewModel.shared.expand()
+            NotchViewModel.shared.currentExpandedWidgetID = "file-shelf"
+            NotchViewModel.shared.forceExpand()
         }
     }
 

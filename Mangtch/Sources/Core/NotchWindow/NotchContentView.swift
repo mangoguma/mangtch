@@ -53,6 +53,8 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private func wingsRow(in geo: GeometryProxy) -> some View {
+        let fileShelf = (widgetRegistry.widget(for: "file-shelf")?.wrapped as? FileShelfWidget)
+
         HStack(spacing: 0) {
             // Left wing (always visible)
             leftWing
@@ -86,6 +88,13 @@ struct NotchContentView: View {
                     )
                 )
         }
+        // Treat the whole wings row as a drop target. Without this, the user
+        // has to hover the file-shelf compact icon precisely while dragging,
+        // which is awkward on a 14pt target. The contentShape ensures the
+        // notch gap (a SwiftUI Spacer) is hit-tested too — without it, drags
+        // over the empty middle don't register.
+        .contentShape(Rectangle())
+        .modifier(FileShelfDropOnWings(fileShelf: fileShelf))
     }
 
     // MARK: - Wing Contents
@@ -107,10 +116,17 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // Music player compact info (track title/artist, hover → controls)
-        if let musicWidget = widgetRegistry.widget(for: "music-player"),
-           let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-           musicWidget.isEnabled {
+        // The right wing mirrors whichever widget the user last selected in
+        // the switcher, in every state. Music keeps the dedicated info view
+        // (track + hover-controls); other widgets reuse their compact view.
+        if viewModel.currentExpandedWidgetID != "music-player",
+           let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
+           active.isEnabled {
+            active.makeCompactView()
+                .transition(.opacity)
+        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
+                  let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+                  musicWidget.isEnabled {
             actualWidget.makeCompactInfoView()
                 .transition(.opacity)
         } else {
@@ -128,13 +144,28 @@ struct NotchContentView: View {
             Divider()
                 .padding(.horizontal, 20)
 
-            // Main widget content
-            if let musicWidget = widgetRegistry.widget(for: "music-player"), musicWidget.isEnabled {
-                musicWidget.makeExpandedView()
-            } else {
-                let centerWidgets = widgetRegistry.enabledWidgets
-                if let first = centerWidgets.first {
+            WidgetSwitcherBar(
+                widgets: widgetRegistry.enabledWidgets,
+                currentID: Binding(
+                    get: { viewModel.currentExpandedWidgetID },
+                    set: { viewModel.currentExpandedWidgetID = $0 }
+                )
+            )
+
+            // Body of the currently selected widget. If the selected widget
+            // gets disabled while we're showing it, fall back to the first
+            // enabled one (and update the persisted selection).
+            Group {
+                if let widget = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
+                   widget.isEnabled {
+                    widget.makeExpandedView()
+                        .id(widget.id)
+                        .transition(.opacity)
+                } else if let first = widgetRegistry.enabledWidgets.first {
                     first.makeExpandedView()
+                        .id(first.id)
+                        .transition(.opacity)
+                        .onAppear { viewModel.currentExpandedWidgetID = first.id }
                 } else {
                     Text("No widgets enabled")
                         .font(.subheadline)
@@ -142,6 +173,7 @@ struct NotchContentView: View {
                         .frame(maxWidth: .infinity, minHeight: 100)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .top)
         }
     }
 
@@ -231,6 +263,24 @@ struct NotchContentView: View {
         case .idle: return AnimationTokens.collapse
         case .hovering: return AnimationTokens.expandHover
         case .expanded: return AnimationTokens.expandClick
+        }
+    }
+}
+
+/// Attach FileShelfDropDelegate to a view only when the FileShelf widget is
+/// available (registered + enabled). When it's not, the modifier is a no-op
+/// so we don't claim drag events the user is sending elsewhere.
+private struct FileShelfDropOnWings: ViewModifier {
+    let fileShelf: FileShelfWidget?
+
+    func body(content: Content) -> some View {
+        if let fileShelf, fileShelf.isEnabled {
+            content.onDrop(
+                of: [.fileURL],
+                delegate: FileShelfDropDelegate(viewModel: fileShelf.viewModel)
+            )
+        } else {
+            content
         }
     }
 }
