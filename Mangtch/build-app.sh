@@ -61,8 +61,33 @@ echo "✓ rpath set for Frameworks"
 # Make executable
 chmod +x "$MACOS_DIR/Mangtch"
 
-# Code sign (ad-hoc for local builds)
-codesign --force --deep --sign - "$APP_DIR" 2>/dev/null && echo "✓ Code signed (ad-hoc)" || echo "⚠ Code signing failed"
+# Code signing identity selection.
+# Preference order:
+#   1) MANGTCH_SIGN_IDENTITY env var (CI / explicit override)
+#   2) "Apple Development: …" cert from Xcode (free Apple ID; passes TCC trust)
+#   3) Self-signed "Mangtch Code Signing" (codesign-valid but TCC silently denies)
+#   4) Ad-hoc "-" (cdhash changes every build, TCC permissions reset)
+# Apple Development is the sweet spot: stable cdhash + macOS-trusted chain so
+# TCC dialogs actually appear and permissions persist across rebuilds.
+SIGN_IDENTITY="${MANGTCH_SIGN_IDENTITY:-}"
+if [ -z "$SIGN_IDENTITY" ]; then
+    SIGN_IDENTITY=$(security find-identity -p codesigning -v 2>/dev/null \
+        | awk -F'"' '/Apple Development:/ {print $2; exit}')
+fi
+if [ -z "$SIGN_IDENTITY" ]; then
+    SIGN_IDENTITY=$(security find-identity -p codesigning -v 2>/dev/null \
+        | awk -F'"' '/Mangtch Code Signing/ {print $2; exit}')
+fi
+
+if [ -n "$SIGN_IDENTITY" ]; then
+    codesign --force --deep --sign "$SIGN_IDENTITY" "$APP_DIR" \
+        && echo "✓ Code signed with '$SIGN_IDENTITY'" \
+        || echo "⚠ Code signing with '$SIGN_IDENTITY' failed"
+else
+    codesign --force --deep --sign - "$APP_DIR" 2>/dev/null \
+        && echo "✓ Code signed (ad-hoc; TCC permissions reset on each rebuild)" \
+        || echo "⚠ Code signing failed"
+fi
 
 echo "✓ App bundle created at $APP_DIR"
 echo ""
