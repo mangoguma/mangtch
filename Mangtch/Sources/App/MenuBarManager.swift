@@ -6,6 +6,7 @@ final class MenuBarManager {
     static let shared = MenuBarManager()
 
     private var statusItem: NSStatusItem?
+    private var settingsWindow: NSWindow?
 
     private init() {}
 
@@ -98,14 +99,28 @@ final class MenuBarManager {
     }
 
     @objc private func openSettings() {
-        // Open the Settings window via SwiftUI Settings scene
-        if #available(macOS 14.0, *) {
-            NSApp.activate()
-            // Use the environment to open settings
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        // macOS 14 deprecated `NSApp.sendAction(#selector(showSettingsWindow:))`
+        // for SwiftUI's `Settings` scene — the runtime now logs
+        //   "Please use SettingsLink for opening the Settings scene."
+        // and silently no-ops, never creating the window. SettingsLink only
+        // works inside a SwiftUI view tree, which an NSMenuItem isn't.
+        // So we host the SwiftUI SettingsView in a plain NSWindow and manage
+        // its lifecycle ourselves. This sidesteps the regression entirely.
+        NSApp.activate(ignoringOtherApps: true)
+
+        if settingsWindow == nil {
+            let hosting = NSHostingController(rootView: SettingsView())
+            let window = NSWindow(contentViewController: hosting)
+            window.title = "Mangtch Settings"
+            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.setContentSize(NSSize(width: 580, height: 400))
+            window.center()
+            window.isReleasedWhenClosed = false  // reuse instance on subsequent opens
+            settingsWindow = window
         }
+
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        settingsWindow?.orderFrontRegardless()
     }
 
     @objc private func showOnboarding() {
