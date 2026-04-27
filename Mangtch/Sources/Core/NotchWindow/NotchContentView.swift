@@ -101,10 +101,19 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var leftWing: some View {
-        // Music player compact artwork (album art + playing indicator)
-        if let musicWidget = widgetRegistry.widget(for: "music-player"),
-           let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-           musicWidget.isEnabled {
+        // Other widgets take over the left wing (the album-art slot) when
+        // they have live state to show. The right wing stays anchored to
+        // the music info because "what's playing" is the highest-signal
+        // thing on the notch — losing it for a Timer/FileShelf isn't worth it.
+        if viewModel.currentExpandedWidgetID != "music-player",
+           let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
+           active.isEnabled,
+           hasContentToShow(active) {
+            active.makeCompactView()
+                .transition(.opacity)
+        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
+                  let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+                  musicWidget.isEnabled {
             actualWidget.makeCompactView()
                 .transition(.opacity)
         } else {
@@ -116,19 +125,11 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // Mirror whichever widget the user last selected in the switcher —
-        // unless that widget has nothing useful to show (empty File Shelf,
-        // 00:00 Timer). In that case fall back to music so the wing never
-        // becomes a dead empty corner.
-        if viewModel.currentExpandedWidgetID != "music-player",
-           let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
-           active.isEnabled,
-           hasContentToShow(active) {
-            active.makeCompactView()
-                .transition(.opacity)
-        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
-                  let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-                  musicWidget.isEnabled {
+        // Music info (track + hover-controls) is always here. It only ever
+        // disappears if the music widget itself is disabled.
+        if let musicWidget = widgetRegistry.widget(for: "music-player"),
+           let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+           musicWidget.isEnabled {
             actualWidget.makeCompactInfoView()
                 .transition(.opacity)
         } else {
