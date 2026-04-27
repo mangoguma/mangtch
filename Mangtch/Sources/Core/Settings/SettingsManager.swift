@@ -23,6 +23,7 @@ final class SettingsManager {
         static let automaticallyCheckForUpdates = "automaticallyCheckForUpdates"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let hideInFullscreen = "hideInFullscreen"
+        static let spotifyClientID = "spotifyClientID"
     }
 
     // MARK: - Properties
@@ -93,6 +94,13 @@ final class SettingsManager {
     var hideInFullscreen: Bool {
         get { defaults.bool(forKey: Keys.hideInFullscreen) }
         set { defaults.set(newValue, forKey: Keys.hideInFullscreen) }
+    }
+
+    /// Spotify Web API Client ID (PKCE flow — no secret).
+    /// User pastes this from https://developer.spotify.com/dashboard.
+    var spotifyClientID: String {
+        get { defaults.string(forKey: Keys.spotifyClientID) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.spotifyClientID) }
     }
 
     // MARK: - Initialization

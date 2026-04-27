@@ -4,6 +4,21 @@ struct ExpandedPlayerView: View {
     let viewModel: MusicPlayerViewModel
     @ObservedObject private var themeEngine = ThemeEngine.shared
     @ObservedObject private var mediaBridge = MediaBridge.shared
+    @ObservedObject private var spotifyAuth = SpotifyAuth.shared
+
+    /// Heart only makes sense when we can actually toggle the source's
+    /// "liked" state. For Spotify that means signed-in (Web API); Apple
+    /// Music still works through AppleScript without auth.
+    private var canShowLikeButton: Bool {
+        switch mediaBridge.activePlayer {
+        case .spotify:
+            return spotifyAuth.isAuthorized && mediaBridge.nowPlaying?.trackID != nil
+        case .appleMusic:
+            return true
+        case .none:
+            return false
+        }
+    }
 
     var body: some View {
         let artwork = mediaBridge.currentArtwork
@@ -50,15 +65,18 @@ struct ExpandedPlayerView: View {
 
                         Spacer()
 
-                        // Like button
-                        Button(action: { mediaBridge.toggleLike() }) {
-                            Image(systemName: mediaBridge.isLiked ? "heart.fill" : "heart")
-                                .font(.system(size: 13))
-                                .foregroundStyle(mediaBridge.isLiked
-                                    ? Color.red
-                                    : themeEngine.currentTheme.textSecondary.opacity(0.6))
+                        // Like button — hidden when there's no working backend
+                        // (e.g. Spotify without Web API sign-in)
+                        if canShowLikeButton {
+                            Button(action: { mediaBridge.toggleLike() }) {
+                                Image(systemName: mediaBridge.isLiked ? "heart.fill" : "heart")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(mediaBridge.isLiked
+                                        ? Color.red
+                                        : themeEngine.currentTheme.textSecondary.opacity(0.6))
+                            }
+                            .buttonStyle(PlayerButtonStyle())
                         }
-                        .buttonStyle(PlayerButtonStyle())
                     }
                 }
             }

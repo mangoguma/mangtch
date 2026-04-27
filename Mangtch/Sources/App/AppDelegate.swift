@@ -47,6 +47,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ShortcutManager.shared.setup()
         }
 
+        // Register the mangtch:// URL handler so Spotify OAuth callbacks
+        // route to SpotifyAuth (LSUIElement apps don't get
+        // application(_:open:) for free).
+        Task { @MainActor in
+            SpotifyURLHandler.shared.register()
+        }
+
         // Start Sparkle auto-updater
         UpdateManager.shared.start()
 

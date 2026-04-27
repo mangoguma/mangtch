@@ -19,6 +19,31 @@ struct MediaInfo: Equatable {
     let duration: TimeInterval
     let elapsedTime: TimeInterval
     let appBundleIdentifier: String?
+    /// Spotify track ID (e.g. "3n3Ppam7vgaVa1iaRUc9Lp"), nil for Apple Music.
+    /// Used by SpotifyAPI for liked-status checks.
+    let trackID: String?
+
+    init(
+        title: String,
+        artist: String,
+        album: String,
+        artwork: NSImage?,
+        artworkURL: URL?,
+        duration: TimeInterval,
+        elapsedTime: TimeInterval,
+        appBundleIdentifier: String?,
+        trackID: String? = nil
+    ) {
+        self.title = title
+        self.artist = artist
+        self.album = album
+        self.artwork = artwork
+        self.artworkURL = artworkURL
+        self.duration = duration
+        self.elapsedTime = elapsedTime
+        self.appBundleIdentifier = appBundleIdentifier
+        self.trackID = trackID
+    }
 
     static func == (lhs: MediaInfo, rhs: MediaInfo) -> Bool {
         lhs.title == rhs.title && lhs.artist == rhs.artist && lhs.album == rhs.album && lhs.duration == rhs.duration

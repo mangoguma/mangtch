@@ -205,21 +205,29 @@ final class MediaBridge: ObservableObject {
 
     func toggleLike() {
         guard let player = activePlayer else { return }
-        let newLiked = !isLiked
 
         switch player {
         case .spotify:
-            // Spotify: use starred property
-            let starredValue = newLiked ? "true" : "false"
-            runAppleScript("tell application \"Spotify\" to set starred of current track to \(starredValue)")
+            // Spotify's AppleScript `starred` property is read-only / no-op
+            // since the Liked Songs library replaced the old Star feature.
+            // Route through the Web API instead.
+            guard SpotifyAuth.shared.isAuthorized,
+                  let trackID = nowPlaying?.trackID else { return }
+            let oldValue = isLiked
+            isLiked = !oldValue   // optimistic
+            Task { @MainActor in
+                let success = await SpotifyAPI.shared.setLiked(trackID: trackID, liked: !oldValue)
+                if !success {
+                    self.isLiked = oldValue   // rollback on failure
+                }
+            }
         case .appleMusic:
-            // Apple Music: use favorited property
+            // Apple Music: AppleScript `favorited` still works.
+            let newLiked = !isLiked
             let favValue = newLiked ? "true" : "false"
             runAppleScript("tell application \"Music\" to set favorited of current track to \(favValue)")
+            isLiked = newLiked
         }
-
-        // Optimistic update
-        isLiked = newLiked
     }
 
     private func checkLikeStatus() {
@@ -227,8 +235,14 @@ final class MediaBridge: ObservableObject {
 
         switch player {
         case .spotify:
-            if let result = runAppleScript("tell application \"Spotify\" to return starred of current track") {
-                isLiked = result.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
+            // Web API path — only meaningful when the user has signed in.
+            guard SpotifyAuth.shared.isAuthorized,
+                  let trackID = nowPlaying?.trackID else {
+                isLiked = false
+                return
+            }
+            Task { @MainActor in
+                self.isLiked = await SpotifyAPI.shared.isLiked(trackID: trackID)
             }
         case .appleMusic:
             if let result = runAppleScript("tell application \"Music\" to return favorited of current track") {
@@ -289,7 +303,8 @@ final class MediaBridge: ObservableObject {
                     set durationMs to duration of current track
                     set currentSec to player position
                     set isPlayingState to (player state is playing)
-                    return trackName & "|||" & artistName & "|||" & albumName & "|||" & artworkUrl & "|||" & durationMs & "|||" & currentSec & "|||" & isPlayingState
+                    set trackUri to id of current track
+                    return trackName & "|||" & artistName & "|||" & albumName & "|||" & artworkUrl & "|||" & durationMs & "|||" & currentSec & "|||" & isPlayingState & "|||" & trackUri
                 else
                     return "NOT_RUNNING"
                 end if
@@ -306,7 +321,7 @@ final class MediaBridge: ObservableObject {
         }
 
         let parts = output.components(separatedBy: "|||")
-        guard parts.count == 7 else {
+        guard parts.count == 8 else {
             NSLog("[MediaBridge] Spotify: unexpected parts count: \(parts.count)")
             return
         }
@@ -318,6 +333,7 @@ final class MediaBridge: ObservableObject {
         let durationMs = Double(parts[4].trimmingCharacters(in: .whitespacesAndNewlines)) ?? 1000
         let currentSec = Double(parts[5].trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")) ?? 0
         let isPlaying = parts[6].trimmingCharacters(in: .whitespacesAndNewlines) == "true"
+        let trackID = SpotifyTrackID.extract(from: parts[7])
 
         let duration = durationMs / 1000.0
         let elapsed = min(currentSec, duration)
@@ -341,7 +357,8 @@ final class MediaBridge: ObservableObject {
             artworkURL: artworkURL,
             duration: duration,
             elapsedTime: elapsed,
-            appBundleIdentifier: ActivePlayer.spotify.rawValue
+            appBundleIdentifier: ActivePlayer.spotify.rawValue,
+            trackID: trackID
         )
 
         updateState(mediaInfo: mediaInfo, isPlaying: isPlaying)
