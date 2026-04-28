@@ -9,13 +9,27 @@ struct KBOGame: Decodable, Identifiable, Equatable, Hashable {
     let homeTeamCode: String          // "HH"
     let homeTeamName: String          // "한화"
     let homeTeamScore: Int
+    let homeTeamEmblemUrl: String?    // optional — Naver sometimes omits
     let awayTeamCode: String
     let awayTeamName: String
     let awayTeamScore: Int
+    let awayTeamEmblemUrl: String?
     let statusCode: String            // "BEFORE" / "STARTED" / "RESULT"
     let statusInfo: String            // "경기취소" / "8회초" / etc.
     let cancel: Bool
     let suspended: Bool
+
+    var homeEmblemURL: URL? { homeTeamEmblemUrl.flatMap(URL.init(string:)) }
+    var awayEmblemURL: URL? { awayTeamEmblemUrl.flatMap(URL.init(string:)) }
+
+    /// True only when the game has a clear winner. We use this to dim the
+    /// loser's score in the row layout.
+    var winnerSide: Side? {
+        guard isFinished, homeTeamScore != awayTeamScore else { return nil }
+        return homeTeamScore > awayTeamScore ? .home : .away
+    }
+
+    enum Side { case home, away }
 
     var id: String { gameId }
 

@@ -118,82 +118,153 @@ struct KBOExpandedView: View {
         let isSelected = viewModel.selectedGameID == game.gameId
 
         Button(action: { viewModel.select(game) }) {
-            HStack(spacing: 8) {
-                statusBadge(game)
+            HStack(spacing: 10) {
+                // Away side
+                teamSide(name: game.awayTeamName,
+                         code: game.awayTeamCode,
+                         logoURL: game.awayEmblemURL,
+                         alignment: .trailing,
+                         isLoser: game.winnerSide == .home)
 
-                // Teams + score block, aligned around the score
-                HStack(spacing: 6) {
-                    Text(game.awayTeamName)
-                        .font(.system(size: 11, weight: .medium))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    Text(scoreText(game))
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(scoreColor(game))
-                        .frame(width: 44)
-                    Text(game.homeTeamName)
-                        .font(.system(size: 11, weight: .medium))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                // Score column — fixed width so all rows align vertically
+                scoreColumn(game)
+                    .frame(width: 64)
 
-                statusText(game)
-                    .frame(width: 70, alignment: .trailing)
+                // Home side
+                teamSide(name: game.homeTeamName,
+                         code: game.homeTeamCode,
+                         logoURL: game.homeEmblemURL,
+                         alignment: .leading,
+                         isLoser: game.winnerSide == .away)
+
+                // Status: LIVE / 종료 / 18:30 / 취소
+                statusChip(game)
+                    .frame(width: 64, alignment: .trailing)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
-            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(rowFill(isSelected: isSelected, isLive: game.isLive))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(rowStroke(isSelected: isSelected, isLive: game.isLive),
+                                  lineWidth: isSelected ? 1.2 : 0.5)
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .opacity(game.cancel ? 0.55 : 1)
     }
 
-    private func statusBadge(_ game: KBOGame) -> some View {
-        Group {
-            if game.isLive {
-                Circle().fill(.red).frame(width: 7, height: 7)
-            } else if game.isFinished {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 7, height: 7)
-            } else {
-                Circle().fill(.secondary.opacity(0.4)).frame(width: 7, height: 7)
+    // MARK: - Row Sub-views
+
+    @ViewBuilder
+    private func teamSide(name: String,
+                          code: String,
+                          logoURL: URL?,
+                          alignment: HorizontalAlignment,
+                          isLoser: Bool) -> some View {
+        let isLeading = alignment == .leading
+        HStack(spacing: 6) {
+            if isLeading {
+                KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
+            }
+            Text(name)
+                .font(.system(size: 11.5, weight: .semibold))
+                .lineLimit(1)
+                .foregroundStyle(isLoser ? .secondary : .primary)
+            if !isLeading {
+                KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
             }
         }
-    }
-
-    private func scoreText(_ game: KBOGame) -> String {
-        if game.cancel { return "취소" }
-        if game.isScheduled { return "vs" }
-        return "\(game.awayTeamScore)-\(game.homeTeamScore)"
-    }
-
-    private func scoreColor(_ game: KBOGame) -> Color {
-        if game.isLive { return .primary }
-        if game.isScheduled { return .secondary }
-        return .primary
+        .frame(maxWidth: .infinity, alignment: isLeading ? .leading : .trailing)
     }
 
     @ViewBuilder
-    private func statusText(_ game: KBOGame) -> some View {
+    private func scoreColumn(_ game: KBOGame) -> some View {
         if game.cancel {
-            Text("취소").font(.system(size: 10)).foregroundStyle(.secondary)
+            Text("취소")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+        } else if game.isScheduled {
+            Text("vs")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 6) {
+                scoreNumber(game.awayTeamScore,
+                            isLoser: game.winnerSide == .home)
+                Text("·")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                scoreNumber(game.homeTeamScore,
+                            isLoser: game.winnerSide == .away)
+            }
+        }
+    }
+
+    private func scoreNumber(_ value: Int, isLoser: Bool) -> some View {
+        Text("\(value)")
+            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(isLoser ? .secondary : .primary)
+    }
+
+    @ViewBuilder
+    private func statusChip(_ game: KBOGame) -> some View {
+        if game.cancel {
+            chipText("취소", color: .secondary)
         } else if game.isLive {
             HStack(spacing: 4) {
-                Text(game.statusInfo).font(.system(size: 10, weight: .medium))
-                Text("LIVE")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Color.red, in: Capsule())
+                LivePulseDot()
+                Text(game.statusInfo.isEmpty ? "LIVE" : game.statusInfo)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .lineLimit(1)
             }
         } else if game.isFinished {
-            Text("종료").font(.system(size: 10)).foregroundStyle(.secondary)
+            chipText("종료", color: .secondary)
         } else {
-            Text(game.startTimeText).font(.system(size: 10)).foregroundStyle(.secondary)
+            chipText(game.startTimeText, color: .secondary)
         }
+    }
+
+    private func chipText(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(color)
+            .lineLimit(1)
+    }
+
+    // MARK: - Row Background
+
+    private func rowFill(isSelected: Bool, isLive: Bool) -> Color {
+        if isSelected { return Color.accentColor.opacity(0.18) }
+        if isLive { return Color.red.opacity(0.06) }
+        return Color.primary.opacity(0.04)
+    }
+
+    private func rowStroke(isSelected: Bool, isLive: Bool) -> Color {
+        if isSelected { return Color.accentColor.opacity(0.55) }
+        if isLive { return Color.red.opacity(0.25) }
+        return Color.primary.opacity(0.06)
+    }
+}
+
+/// 1-1.4× scaling pulse for the LIVE indicator. Subtle — not distracting,
+/// but enough to draw the eye to in-progress games among finished/scheduled.
+private struct LivePulseDot: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.red)
+            .frame(width: 6, height: 6)
+            .scaleEffect(pulse ? 1.35 : 1.0)
+            .opacity(pulse ? 0.55 : 1.0)
+            .onAppear { pulse = true }
+            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: pulse)
     }
 }
