@@ -148,6 +148,13 @@ struct NotchContentView: View {
         if let timer = widget.wrapped as? TimerWidget {
             return timer.viewModel.displayTime > 0 || timer.viewModel.isActive
         }
+        if let kbo = widget.wrapped as? KBOWidget {
+            // Only claim the wing while the pinned game is actually being
+            // played. Scheduled / finished / unpinned all fall back to
+            // music, since a static "vs" or final score isn't useful at
+            // wing-glance scale.
+            return kbo.viewModel.selectedGame?.isLive == true
+        }
         return true
     }
 

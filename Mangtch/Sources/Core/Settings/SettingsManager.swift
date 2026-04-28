@@ -25,6 +25,7 @@ final class SettingsManager {
         static let hideInFullscreen = "hideInFullscreen"
         static let spotifyClientID = "spotifyClientID"
         static let lastExpandedWidgetID = "lastExpandedWidgetID"
+        static let kboSelectedGameID = "kboSelectedGameID"
     }
 
     // MARK: - Properties
@@ -109,6 +110,14 @@ final class SettingsManager {
     var lastExpandedWidgetID: String? {
         get { defaults.string(forKey: Keys.lastExpandedWidgetID) }
         set { defaults.set(newValue, forKey: Keys.lastExpandedWidgetID) }
+    }
+
+    /// Game ID the user pinned to the KBO widget's left-wing compact view.
+    /// nil = no pin → wing falls back to music. Stored as the Naver-format
+    /// gameId (e.g. "20250501LGHH02025"); validity is the widget's concern.
+    var kboSelectedGameID: String? {
+        get { defaults.string(forKey: Keys.kboSelectedGameID) }
+        set { defaults.set(newValue, forKey: Keys.kboSelectedGameID) }
     }
 
     // MARK: - Initialization
