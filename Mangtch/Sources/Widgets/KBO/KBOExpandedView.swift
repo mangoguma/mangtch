@@ -24,17 +24,22 @@ struct KBOExpandedView: View {
             if viewModel.games.isEmpty {
                 emptyState
             } else {
-                ScrollView {
-                    VStack(spacing: 4) {
-                        ForEach(viewModel.games) { game in
-                            gameRow(game)
-                        }
+                // Bare VStack — no ScrollView wrapper. Five games + one
+                // expanded row fit naturally inside the panel, and a
+                // ScrollView would defeat the dynamic-height measurement
+                // below (it reports the available space, not content size).
+                VStack(spacing: 4) {
+                    ForEach(viewModel.games) { game in
+                        gameRow(game)
                     }
                 }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+        .onAppear { viewModel.recomputePanelHeight() }
+        .onChange(of: viewModel.games.count) { _, _ in viewModel.recomputePanelHeight() }
+        .onChange(of: viewModel.viewingGameID) { _, _ in viewModel.recomputePanelHeight() }
     }
 
     // MARK: - Header
@@ -115,46 +120,64 @@ struct KBOExpandedView: View {
 
     @ViewBuilder
     private func gameRow(_ game: KBOGame) -> some View {
-        let isSelected = viewModel.selectedGameID == game.gameId
+        // "isPinned" = the game is currently fixed to the left wing.
+        // "isExpanded" = the row is opened to show the inline box score.
+        // The two are independent: tapping the row toggles expansion,
+        // tapping the pin icon toggles the wing pin.
+        let isPinned = viewModel.selectedGameID == game.gameId
+        let isExpanded = viewModel.viewingGameID == game.gameId
 
-        Button(action: { viewModel.select(game) }) {
-            HStack(spacing: 10) {
-                // Away side
-                teamSide(name: game.awayTeamName,
-                         code: game.awayTeamCode,
-                         logoURL: game.awayEmblemURL,
-                         alignment: .trailing,
-                         isLoser: game.winnerSide == .home)
+        VStack(spacing: 0) {
+            // Header strip — clickable area that toggles expansion.
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    viewModel.toggleExpand(game)
+                }
+            }) {
+                HStack(spacing: 10) {
+                    teamSide(name: game.awayTeamName,
+                             code: game.awayTeamCode,
+                             logoURL: game.awayEmblemURL,
+                             alignment: .trailing,
+                             isLoser: game.winnerSide == .home)
 
-                // Score column — fixed width so all rows align vertically
-                scoreColumn(game)
-                    .frame(width: 64)
+                    scoreColumn(game)
+                        .frame(width: 64)
 
-                // Home side
-                teamSide(name: game.homeTeamName,
-                         code: game.homeTeamCode,
-                         logoURL: game.homeEmblemURL,
-                         alignment: .leading,
-                         isLoser: game.winnerSide == .away)
+                    teamSide(name: game.homeTeamName,
+                             code: game.homeTeamCode,
+                             logoURL: game.homeEmblemURL,
+                             alignment: .leading,
+                             isLoser: game.winnerSide == .away)
 
-                // Status: LIVE / 종료 / 18:30 / 취소
-                statusChip(game)
-                    .frame(width: 64, alignment: .trailing)
+                    statusChip(game)
+                        .frame(width: 64, alignment: .trailing)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(rowFill(isSelected: isSelected, isLive: game.isLive))
+            .buttonStyle(.plain)
+
+            // Inline box score / placeholder, visible only when expanded.
+            if isExpanded {
+                Divider()
+                    .padding(.horizontal, 10)
+                inlineDetail(game)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .strokeBorder(rowStroke(isSelected: isSelected, isLive: game.isLive),
-                                  lineWidth: isSelected ? 1.2 : 0.5)
-            }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .background {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(rowFill(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(rowStroke(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive),
+                              lineWidth: (isPinned || isExpanded) ? 1.2 : 0.5)
+        }
         .opacity(game.cancel ? 0.55 : 1)
     }
 
@@ -240,16 +263,136 @@ struct KBOExpandedView: View {
 
     // MARK: - Row Background
 
-    private func rowFill(isSelected: Bool, isLive: Bool) -> Color {
-        if isSelected { return Color.accentColor.opacity(0.18) }
+    private func rowFill(isPinned: Bool, isExpanded: Bool, isLive: Bool) -> Color {
+        if isPinned { return Color.accentColor.opacity(0.16) }
+        if isExpanded { return Color.primary.opacity(0.07) }
         if isLive { return Color.red.opacity(0.06) }
         return Color.primary.opacity(0.04)
     }
 
-    private func rowStroke(isSelected: Bool, isLive: Bool) -> Color {
-        if isSelected { return Color.accentColor.opacity(0.55) }
+    private func rowStroke(isPinned: Bool, isExpanded: Bool, isLive: Bool) -> Color {
+        if isPinned { return Color.accentColor.opacity(0.55) }
+        if isExpanded { return Color.primary.opacity(0.25) }
         if isLive { return Color.red.opacity(0.25) }
         return Color.primary.opacity(0.06)
+    }
+
+    // MARK: - Inline Detail
+
+    @ViewBuilder
+    private func inlineDetail(_ game: KBOGame) -> some View {
+        if let line = viewModel.viewingLinescore {
+            if line.hasInningData {
+                linescoreGrid(game: game, line: line)
+            } else {
+                liveSummaryFallback(game: game)
+            }
+        } else if viewModel.isLoadingLinescore {
+            HStack {
+                Spacer()
+                ProgressView().controlSize(.small)
+                Spacer()
+            }
+            .frame(minHeight: 50)
+        } else {
+            Text("기록을 가져오지 못했어요")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 50)
+        }
+    }
+
+    private func liveSummaryFallback(game: KBOGame) -> some View {
+        VStack(spacing: 4) {
+            Text(game.isLive
+                 ? "이닝 기록 준비 중 — 잠시 후 자동으로 표시돼요"
+                 : "이닝 기록이 아직 등록되지 않았어요")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 30)
+    }
+
+    private func linescoreGrid(game: KBOGame, line: KBOLinescore) -> some View {
+        let cols = line.innings
+        return VStack(spacing: 0) {
+            scoreRow(team: "팀명",
+                     innings: (1...cols).map { String($0) },
+                     totals: ["R", "H", "E", "B"],
+                     isHeader: true)
+                .background(Color.secondary.opacity(0.08))
+
+            scoreRow(team: game.awayTeamName,
+                     innings: line.awayInningScores,
+                     totals: totalsCells(line.awayTotals),
+                     isHeader: false)
+            scoreRow(team: game.homeTeamName,
+                     innings: line.homeInningScores,
+                     totals: totalsCells(line.homeTotals),
+                     isHeader: false)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(.secondary.opacity(0.15), lineWidth: 0.5)
+        }
+    }
+
+    private func totalsCells(_ t: KBOLinescore.Totals?) -> [String] {
+        guard let t else { return ["-", "-", "-", "-"] }
+        return [String(t.runs), String(t.hits), String(t.errors), String(t.walks)]
+    }
+
+    private func scoreRow(team: String,
+                          innings: [String],
+                          totals: [String],
+                          isHeader: Bool) -> some View {
+        HStack(spacing: 0) {
+            Text(team)
+                .font(.system(size: isHeader ? 9 : 10,
+                              weight: isHeader ? .semibold : .medium))
+                .foregroundStyle(isHeader ? .secondary : .primary)
+                .lineLimit(1)
+                .frame(width: 44, alignment: .leading)
+
+            // Static row — innings always fit horizontally in the panel
+            // (worst case 12 innings × 20pt = 240pt; usable width is ~430pt).
+            // No inner scroll so users see the whole frame at once.
+            HStack(spacing: 0) {
+                ForEach(innings.indices, id: \.self) { i in
+                    Text(innings[i])
+                        .font(.system(size: isHeader ? 9 : 11,
+                                      weight: .semibold,
+                                      design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isHeader ? .secondary : .primary)
+                        .frame(width: 20, height: 20)
+                }
+            }
+
+            HStack(spacing: 0) {
+                ForEach(totals.indices, id: \.self) { i in
+                    Text(totals[i])
+                        .font(.system(size: isHeader ? 9 : 11,
+                                      weight: .bold,
+                                      design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isHeader
+                                         ? Color.accentColor
+                                         : (i == 0 ? .primary : .secondary))
+                        .frame(width: 22, height: 20)
+                }
+            }
+            .padding(.leading, 4)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(.secondary.opacity(0.15))
+                    .frame(width: 0.5)
+                    .padding(.vertical, 3)
+            }
+        }
+        .padding(.horizontal, 6)
     }
 }
 

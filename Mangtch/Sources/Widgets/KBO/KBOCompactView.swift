@@ -33,9 +33,13 @@ struct KBOCompactView: View {
                 // Score block, monospaced so digit changes don't jitter
                 // the layout when scores increment.
                 HStack(spacing: 3) {
-                    Text(game.awayTeamCode)
-                        .font(.system(size: 9, weight: .medium))
+                    // Korean full team names — Naver's "code" field carries
+                    // legacy franchise codes (OB for 두산, HT for KIA, etc.)
+                    // that aren't recognizable to most users. Names always are.
+                    Text(game.awayTeamName)
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     Text("\(game.awayTeamScore)")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .monospacedDigit()
@@ -45,9 +49,10 @@ struct KBOCompactView: View {
                     Text("\(game.homeTeamScore)")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .monospacedDigit()
-                    Text(game.homeTeamCode)
-                        .font(.system(size: 9, weight: .medium))
+                    Text(game.homeTeamName)
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
             .padding(.horizontal, 6)

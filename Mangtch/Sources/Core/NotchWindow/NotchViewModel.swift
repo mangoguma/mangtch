@@ -26,12 +26,36 @@ final class NotchViewModel {
         didSet {
             guard oldValue != currentExpandedWidgetID else { return }
             SettingsManager.shared.lastExpandedWidgetID = currentExpandedWidgetID
+            // The previous widget may have grown the panel for its own
+            // content (KBO does this); reset so the new widget isn't
+            // greeted with a giant blank panel. Whichever widget renders
+            // next will redrive this if it cares.
+            additionalExpandedHeight = 0
+        }
+    }
+
+    /// Extra height a widget can request when its content needs more room
+    /// than the default expanded layout. KBO uses this when a game row
+    /// opens its inline box score so the panel grows instead of forcing
+    /// the user to scroll the game list.
+    var additionalExpandedHeight: CGFloat = 0 {
+        didSet {
+            guard oldValue != additionalExpandedHeight else { return }
+            updatePanelDimensions()
         }
     }
 
     // MARK: - Configuration
 
     let maxExpandedHeight: CGFloat = 260
+
+    /// Current target height for the expanded panel — base height plus
+    /// whatever extra room the active widget asked for. Used by gesture
+    /// hit-testing so clicks on the dynamically-grown lower part of the
+    /// panel don't read as "outside the panel" and collapse it.
+    var effectiveExpandedHeight: CGFloat {
+        maxExpandedHeight + additionalExpandedHeight
+    }
     let wingWidth: CGFloat = 120
     var panelCornerRadius: CGFloat {
         ThemeEngine.shared.currentTheme.panelCornerRadius
@@ -155,7 +179,7 @@ final class NotchViewModel {
             case .idle, .hovering:
                 expandedHeight = 0
             case .expanded:
-                expandedHeight = maxExpandedHeight
+                expandedHeight = maxExpandedHeight + additionalExpandedHeight
             }
         }
     }

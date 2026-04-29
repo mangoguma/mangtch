@@ -138,9 +138,9 @@ final class GestureHandler {
             let panelWidth = viewModel.panelWidth + 40
             let expandedZone = NSRect(
                 x: screen.frame.midX - panelWidth / 2,
-                y: screen.frame.maxY - geo.notchHeight - viewModel.maxExpandedHeight,
+                y: screen.frame.maxY - geo.notchHeight - viewModel.effectiveExpandedHeight,
                 width: panelWidth,
-                height: viewModel.maxExpandedHeight + geo.notchHeight + 10
+                height: viewModel.effectiveExpandedHeight + geo.notchHeight + 10
             )
 
             if !expandedZone.contains(point) {
@@ -159,9 +159,9 @@ final class GestureHandler {
         // Check if click is outside the expanded panel
         let panelRect = NSRect(
             x: screen.frame.midX - viewModel.panelWidth / 2,
-            y: screen.frame.maxY - geo.notchHeight - viewModel.maxExpandedHeight,
+            y: screen.frame.maxY - geo.notchHeight - viewModel.effectiveExpandedHeight,
             width: viewModel.panelWidth,
-            height: viewModel.maxExpandedHeight + geo.notchHeight
+            height: viewModel.effectiveExpandedHeight + geo.notchHeight
         )
 
         if !panelRect.contains(point) {

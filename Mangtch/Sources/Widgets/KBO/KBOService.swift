@@ -38,6 +38,29 @@ enum KBOService {
         }
     }
 
+    /// Fetch inning-by-inning + R/H/E/B for a game. We call Naver's relay
+    /// endpoint (the same one m.sports.naver.com's SPA uses). Naver's
+    /// scorekeeping pipeline updates within seconds of each play, while
+    /// KBO's own boxscore lags by 1–2 innings during live games — using
+    /// Naver gives us a usable detail view in real time.
+    /// Returns nil on any error.
+    static func fetchLinescore(gameId: String, season: Int) async -> KBOLinescore? {
+        let url = URL(string: "https://api-gw.sports.naver.com/schedule/games/\(gameId)/relay")!
+        var request = URLRequest(url: url)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 8
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return nil
+            }
+            return KBOLinescore(naverRelay: data)
+        } catch {
+            return nil
+        }
+    }
+
     /// "Today" in the KBO timezone (Asia/Seoul). Using the user's local
     /// date here would be wrong for users west of Korea — they'd see
     /// yesterday's games during the morning.

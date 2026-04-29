@@ -37,10 +37,22 @@ final class KBOViewModel {
         return games.first(where: { $0.gameId == id })
     }
 
+    /// When set, the expanded panel switches from the day list to the
+    /// inning-by-inning detail of this game. nil = list view.
+    private(set) var viewingGameID: String?
+    private(set) var viewingLinescore: KBOLinescore?
+    private(set) var isLoadingLinescore: Bool = false
+
+    var viewingGame: KBOGame? {
+        guard let id = viewingGameID else { return nil }
+        return games.first(where: { $0.gameId == id })
+    }
+
     // MARK: - Private
 
     private var pollTimer: Timer?
     private var fetchTask: Task<Void, Never>?
+    private var linescoreTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -62,6 +74,12 @@ final class KBOViewModel {
         pollTimer = nil
         fetchTask?.cancel()
         fetchTask = nil
+        linescoreTask?.cancel()
+        linescoreTask = nil
+        // If the widget was holding the panel open, hand the height back.
+        if viewingGameID != nil {
+            collapse()
+        }
     }
 
     // MARK: - Fetch
@@ -80,6 +98,22 @@ final class KBOViewModel {
             self.games = fresh
             self.lastError = nil
             self.isLoading = false
+            // Auto-unpin a game once it transitions to finished or
+            // cancelled. The wing already falls back to music via
+            // hasContentToShow when isLive is false, but clearing the
+            // pin too removes the accent fill on the row and matches
+            // the user's mental model of "stop watching this game".
+            if let pinnedID = self.selectedGameID,
+               let pinned = fresh.first(where: { $0.gameId == pinnedID }),
+               !pinned.isLive {
+                self.selectedGameID = nil
+            }
+            // If the user is viewing a live game's detail, refresh the
+            // linescore in lockstep with the schedule poll so the inning
+            // data tracks the score the user just saw update in the row.
+            if let viewing = self.viewingGame, viewing.isLive {
+                self.fetchLinescoreNow(for: viewing)
+            }
             // Re-arm the timer with whatever cadence now matches reality
             // (live game polling is faster than scheduled-only polling).
             self.scheduleNextPoll()
@@ -115,10 +149,100 @@ final class KBOViewModel {
         }
     }
 
-    // MARK: - Selection
+    // MARK: - Inline expansion
 
-    func select(_ game: KBOGame) {
+    /// Tap a row → reveal that game's box score inline beneath it. Tapping
+    /// the same row again, or another row, collapses the previous one.
+    /// Triggers a one-shot linescore fetch; live games will refresh again
+    /// on the next poll.
+    func toggleExpand(_ game: KBOGame) {
+        if viewingGameID == game.gameId {
+            collapse()
+        } else {
+            viewingGameID = game.gameId
+            viewingLinescore = nil
+            // Expanding a row also pins it to the wing — one tap covers
+            // both "see the inning grid" and "watch this game from the
+            // notch". hasContentToShow takes care of falling back to
+            // music when the pinned game isn't live.
+            selectedGameID = game.gameId
+            fetchLinescoreNow(for: game)
+            // Panel size syncs to actual rendered content via
+            // contentHeightChanged(to:) — no static buffer needed here.
+        }
+    }
+
+    func collapse() {
+        viewingGameID = nil
+        viewingLinescore = nil
+        linescoreTask?.cancel()
+        linescoreTask = nil
+        selectedGameID = nil
+        // KBOExpandedView's preference change will redrive the height
+        // to match the now-shorter content; we don't reset eagerly here
+        // to avoid a one-frame snap-then-grow during the collapse animation.
+    }
+
+    /// Compute the panel height KBO needs based on the number of games
+    /// and whether one of them is expanded inline, then ask NotchViewModel
+    /// to grow (or shrink) to match. Driven from .onAppear / .onChange
+    /// in KBOExpandedView, since SwiftUI's GeometryReader inside a
+    /// .frame-constrained ancestor reports the constrained size, not the
+    /// natural one — making intrinsic measurement unworkable here.
+    func recomputePanelHeight() {
+        // Empirical row metrics. Compact row = 22pt logo + 14pt padding.
+        // Expanded extra = 3 grid rows (20pt) + divider + 14pt padding.
+        let perRow: CGFloat = 36
+        let rowSpacing: CGFloat = 4
+        let headerSection: CGFloat = 36   // KBO label row (30) + spacing below (6)
+        let outerPadding: CGFloat = 16    // top + bottom of root VStack
+        let expandedExtra: CGFloat = 80   // inline grid + divider + padding
+        let safetyBuffer: CGFloat = 12    // SwiftUI font rendering / spacing slack
+
+        let count = max(games.count, 1)
+        let rowsTotal = CGFloat(count) * perRow + CGFloat(count - 1) * rowSpacing
+        let extra = (viewingGameID != nil) ? expandedExtra : 0
+
+        let needed = headerSection + rowsTotal + extra + outerPadding + safetyBuffer
+        let additional = needed - NotchViewModel.shared.maxExpandedHeight
+        // Only ever grow the panel — keep maxExpandedHeight as the floor
+        // so other widgets aren't squeezed if KBO would otherwise shrink it.
+        NotchViewModel.shared.additionalExpandedHeight = max(0, additional)
+    }
+
+    // MARK: - Wing pin
+
+    /// Toggle whether the currently-viewed (or passed) game is pinned to
+    /// the left wing. Pin only sticks if the game is live; pinning a
+    /// non-live game is allowed but the wing falls back to music via
+    /// hasContentToShow until the game starts.
+    func togglePin(for game: KBOGame) {
         selectedGameID = (selectedGameID == game.gameId) ? nil : game.gameId
+    }
+
+    // MARK: - Linescore
+
+    private func fetchLinescoreNow(for game: KBOGame) {
+        linescoreTask?.cancel()
+        let gameId = game.gameId
+        let season = Self.season(from: game)
+        linescoreTask = Task { @MainActor in
+            self.isLoadingLinescore = true
+            let result = await KBOService.fetchLinescore(gameId: gameId, season: season)
+            // Don't overwrite if the user navigated away mid-fetch.
+            guard !Task.isCancelled, self.viewingGameID == gameId else { return }
+            self.viewingLinescore = result
+            self.isLoadingLinescore = false
+        }
+    }
+
+    /// Pull the season year out of the game's date — KBO's endpoint needs
+    /// it as a separate parameter.
+    private static func season(from game: KBOGame) -> Int {
+        let calendar = Calendar.korea
+        let parts = game.gameDateTime.split(separator: "-")
+        if let first = parts.first, let year = Int(first) { return year }
+        return calendar.component(.year, from: Date())
     }
 }
 
