@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @Observable
 @MainActor
@@ -53,11 +54,25 @@ final class KBOViewModel {
     private var pollTimer: Timer?
     private var fetchTask: Task<Void, Never>?
     private var linescoreTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
 
     init() {
         selectedGameID = SettingsManager.shared.kboSelectedGameID
+
+        // Snap back to today every time the panel is reopened. Without
+        // this, a user who browsed back to yesterday and closed the
+        // panel would still see yesterday next time. SwiftUI's .onAppear
+        // doesn't help here because the expanded view stays in the
+        // hierarchy at height=0 and never re-appears.
+        EventBus.shared.stateChanges
+            .filter { $0 == .expanded }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.resetToToday()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Lifecycle

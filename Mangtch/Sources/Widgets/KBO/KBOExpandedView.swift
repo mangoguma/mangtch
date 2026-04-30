@@ -37,7 +37,13 @@ struct KBOExpandedView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .onAppear { viewModel.recomputePanelHeight() }
+        .onAppear {
+            // Always re-anchor to today when the widget reopens, so a
+            // user who browsed back through the days isn't stuck on an
+            // old date the next time they expand the panel.
+            viewModel.resetToToday()
+            viewModel.recomputePanelHeight()
+        }
         .onChange(of: viewModel.games.count) { _, _ in viewModel.recomputePanelHeight() }
         .onChange(of: viewModel.viewingGameID) { _, _ in viewModel.recomputePanelHeight() }
     }
@@ -61,7 +67,9 @@ struct KBOExpandedView: View {
                 }
                 .buttonStyle(.plain)
 
-                Text(Self.dateFormatter.string(from: viewModel.displayedDate))
+                Text(viewModel.isShowingToday
+                     ? "오늘"
+                     : Self.dateFormatter.string(from: viewModel.displayedDate))
                     .font(.system(size: 11, weight: .medium))
                     .frame(minWidth: 80)
 
