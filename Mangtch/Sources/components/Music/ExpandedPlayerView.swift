@@ -6,10 +6,17 @@ struct ExpandedPlayerView: View {
     @ObservedObject private var musicManager = MusicManager.shared
     @ObservedObject private var spotifyAuth = SpotifyAuth.shared
 
-    /// Heart only makes sense when we can actually toggle the source's
-    /// "liked" state. For Spotify that means signed-in (Web API); Apple
-    /// Music still works through AppleScript without auth.
+    /// Show the heart any time there's a track. Hiding it when Spotify
+    /// wasn't authorized made people think the feature was broken — now
+    /// the click instead opens Settings so they can finish auth.
     private var canShowLikeButton: Bool {
+        musicManager.nowPlaying != nil
+    }
+
+    /// True when toggling actually does something. Spotify needs Web API
+    /// auth (its AppleScript `starred` is read-only since Liked Songs
+    /// replaced Star); Apple Music works through AppleScript without auth.
+    private var canToggleLike: Bool {
         switch musicManager.activePlayer {
         case .spotify:
             return spotifyAuth.isAuthorized && musicManager.nowPlaying?.trackID != nil
@@ -17,6 +24,16 @@ struct ExpandedPlayerView: View {
             return true
         case .none:
             return false
+        }
+    }
+
+    private func handleLikeTap() {
+        if canToggleLike {
+            musicManager.toggleLike()
+        } else {
+            // Unauthorized Spotify (or no detected player): send the user
+            // to Settings to finish auth instead of silently no-op'ing.
+            MenuBarManager.shared.openSettings()
         }
     }
 
@@ -65,17 +82,23 @@ struct ExpandedPlayerView: View {
 
                         Spacer()
 
-                        // Like button — hidden when there's no working backend
-                        // (e.g. Spotify without Web API sign-in)
+                        // Like button — always visible when there's a track.
+                        // When the active backend can't actually toggle
+                        // (Spotify without Web API auth), the click opens
+                        // Settings instead of silently doing nothing.
                         if canShowLikeButton {
-                            Button(action: { musicManager.toggleLike() }) {
+                            Button(action: handleLikeTap) {
                                 Image(systemName: musicManager.isLiked ? "heart.fill" : "heart")
                                     .font(.system(size: 13))
                                     .foregroundStyle(musicManager.isLiked
                                         ? Color.red
                                         : themeManager.currentTheme.textSecondary.opacity(0.6))
+                                    .opacity(canToggleLike ? 1 : 0.5)
                             }
                             .buttonStyle(PlayerButtonStyle())
+                            .help(canToggleLike
+                                  ? (musicManager.isLiked ? "Unlike" : "Like")
+                                  : "Connect Spotify in Settings to enable Likes")
                         }
                     }
                 }

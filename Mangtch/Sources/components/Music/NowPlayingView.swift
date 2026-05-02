@@ -48,19 +48,19 @@ struct CompactArtworkView: View {
                 .font(.system(size: 9))
                 .frame(width: 22, height: 22)
                 .contentShape(Rectangle())
-                .onTapGesture { viewModel.previousTrack() }
+                .wingHitZone(.musicPrev)
 
             Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                 .font(.system(size: 11))
                 .frame(width: 26, height: 22)
                 .contentShape(Rectangle())
-                .onTapGesture { viewModel.togglePlayPause() }
+                .wingHitZone(.musicPlayPause)
 
             Image(systemName: "forward.fill")
                 .font(.system(size: 9))
                 .frame(width: 22, height: 22)
                 .contentShape(Rectangle())
-                .onTapGesture { viewModel.nextTrack() }
+                .wingHitZone(.musicNext)
         }
         .foregroundStyle(.primary)
     }
@@ -100,15 +100,42 @@ struct CompactArtworkView: View {
 struct CompactInfoView: View {
     let viewModel: MusicPlayerViewModel
 
+    /// Cap on the natural width the wing will grow to before MarqueeText
+    /// has to scroll. Long titles past this scroll within a fixed pane
+    /// instead of pushing the chrome arbitrarily wide.
+    private static let maxNaturalWidth: CGFloat = 200
+
     var body: some View {
         HStack(spacing: 6) {
             if let info = viewModel.nowPlaying, !info.title.isEmpty {
-                VStack(alignment: .leading, spacing: 1) {
-                    MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
-                    MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
-                        .foregroundStyle(.secondary)
+                // ZStack pairs a hidden, fixed-size Text with the visible
+                // MarqueeText. MarqueeText is GeometryReader-based and
+                // reports ~0 intrinsic width, so the right wing's
+                // `.fixedSize` measurement collapsed the wing on first
+                // layout (one clipped character) and snapped open when
+                // switching back from KBO. The hidden Text gives the
+                // wing a real natural width on the first pass, capped so
+                // long titles scroll instead of stretching the chrome.
+                ZStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(info.title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .lineLimit(1)
+                        Text(info.artist)
+                            .font(.system(size: 10))
+                            .lineLimit(1)
+                    }
+                    .fixedSize()
+                    .opacity(0)
+                    .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
+                        MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: Self.maxNaturalWidth, alignment: .leading)
             } else {
                 Text("No music")
                     .font(.system(size: 11))

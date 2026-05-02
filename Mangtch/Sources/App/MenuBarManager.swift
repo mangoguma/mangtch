@@ -98,7 +98,7 @@ final class MenuBarManager {
         UpdateManager.shared.checkForUpdates()
     }
 
-    @objc private func openSettings() {
+    @objc func openSettings() {
         // macOS 14 deprecated `NSApp.sendAction(#selector(showSettingsWindow:))`
         // for SwiftUI's `Settings` scene — the runtime now logs
         //   "Please use SettingsLink for opening the Settings scene."
