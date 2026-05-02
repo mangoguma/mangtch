@@ -55,19 +55,29 @@ final class KBOViewModel {
     /// Auto-clears 5 s after being set so the right-wing ticker fades
     /// itself out instead of standing forever after one new play.
     private(set) var latestPlayText: String?
+    /// Whichever side is currently at-bat for the tracked game. Persists
+    /// (unlike latestPlayText) so the score row can highlight the
+    /// attacking team continuously, not just for 5 s after a play.
+    private(set) var currentAttackingSide: KBOLinescore.Play.AttackingSide?
     private var lastSeenSeqno: Int = 0
     private var tickerClearTask: Task<Void, Never>?
 
-    /// Mirror SettingsManager.kboTickerEnabled / kboTextToSpeechEnabled
-    /// here so SwiftUI views observing this @Observable can react instantly
-    /// to toggle-button taps from the wing without going through defaults.
-    var tickerEnabled: Bool {
-        get { SettingsManager.shared.kboTickerEnabled }
-        set { SettingsManager.shared.kboTickerEnabled = newValue }
+    /// Stored on KBOViewModel so the @Observable macro can fire change
+    /// notifications on toggle. Synced back to SettingsManager via didSet
+    /// for persistence. A computed property fronting SettingsManager
+    /// directly didn't trigger SwiftUI re-renders because @Observable's
+    /// tracking only sees changes on this object's own storage.
+    var tickerEnabled: Bool = SettingsManager.shared.kboTickerEnabled {
+        didSet {
+            guard oldValue != tickerEnabled else { return }
+            SettingsManager.shared.kboTickerEnabled = tickerEnabled
+        }
     }
-    var ttsEnabled: Bool {
-        get { SettingsManager.shared.kboTextToSpeechEnabled }
-        set { SettingsManager.shared.kboTextToSpeechEnabled = newValue }
+    var ttsEnabled: Bool = SettingsManager.shared.kboTextToSpeechEnabled {
+        didSet {
+            guard oldValue != ttsEnabled else { return }
+            SettingsManager.shared.kboTextToSpeechEnabled = ttsEnabled
+        }
     }
 
     /// Game whose plays should be tickered/spoken. Priority: viewed >
@@ -149,6 +159,7 @@ final class KBOViewModel {
                let pinned = fresh.first(where: { $0.gameId == pinnedID }),
                !pinned.isLive {
                 self.selectedGameID = nil
+                self.currentAttackingSide = nil
             }
             // Refresh the relay (linescore + textRelays) for whichever
             // game we're tracking — the one being viewed in detail, or
@@ -302,6 +313,11 @@ final class KBOViewModel {
             lastSeenGameID = gameID
             lastSeenSeqno = 0
         }
+
+        // Always update the attacking side, even when seqno hasn't moved —
+        // a pause between plays shouldn't blank the indicator.
+        currentAttackingSide = play.attackingSide
+
         guard play.seqno > lastSeenSeqno else { return }
         lastSeenSeqno = play.seqno
 

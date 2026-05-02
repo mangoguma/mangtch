@@ -210,7 +210,8 @@ final class GestureHandler {
 
     /// Map a click in the .hovering state to the underlying wing-button
     /// action. Geometry below mirrors the SwiftUI layout in
-    /// CompactArtworkView (left wing) and KBORightWingView (right wing).
+    /// CompactArtworkView (music) and KBOCompactView (KBO toggles), both
+    /// of which live on the left wing.
     private func handleWingClick(at point: NSPoint) {
         guard let screen = NSScreen.screens.first else { return }
         let viewModel = NotchViewModel.shared
@@ -231,36 +232,42 @@ final class GestureHandler {
         }
     }
 
-    /// Music transport: 3 icons (back 22, play 26, forward 22) with 2pt
-    /// spacing, total 74pt, centered in the 120pt wing — starts at x=23.
+    /// Left wing clicks. The wing's contents depend on the active widget:
+    ///   - KBO active + a live pinned game → score with hover-toggle bar
+    ///     (ticker + TTS, 2 icons × 28pt with 6pt spacing, centered).
+    ///   - Otherwise → music compact with hover transport (3 icons:
+    ///     back 22, play 26, forward 22, 2pt spacing, centered).
     private func dispatchLeftWingClick(relativeX: CGFloat) {
+        let notch = NotchViewModel.shared
+
+        if notch.currentExpandedWidgetID == "kbo",
+           let kbo = (WidgetRegistry.shared.widget(for: "kbo")?.wrapped as? KBOWidget)?.viewModel,
+           kbo.selectedGame?.isLive == true {
+            // KBO toggle bar — 62pt centered in 120pt wing → starts at 29.
+            guard relativeX >= 29, relativeX <= 91 else { return }
+            if relativeX < 63 {
+                kbo.tickerEnabled.toggle()
+            } else {
+                kbo.ttsEnabled.toggle()
+            }
+            return
+        }
+
+        // Music transport — 74pt centered → starts at 23.
         guard relativeX >= 23, relativeX <= 97 else { return }
-        guard let widget = WidgetRegistry.shared.widget(for: "music-player")?.wrapped as? MusicPlayerWidget else { return }
-        let vm = widget.viewModel
+        guard let music = (WidgetRegistry.shared.widget(for: "music-player")?.wrapped as? MusicPlayerWidget)?.viewModel else { return }
         if relativeX < 47 {
-            vm.previousTrack()
+            music.previousTrack()
         } else if relativeX < 75 {
-            vm.togglePlayPause()
+            music.togglePlayPause()
         } else {
-            vm.nextTrack()
+            music.nextTrack()
         }
     }
 
-    /// KBO toggle bar: 2 icons (28pt each) with 6pt spacing, total 62pt,
-    /// centered in 120pt wing — starts at x=29. Only relevant when KBO
-    /// is the active widget.
-    private func dispatchRightWingClick(relativeX: CGFloat) {
-        guard relativeX >= 29, relativeX <= 91 else { return }
-        let viewModel = NotchViewModel.shared
-        guard viewModel.currentExpandedWidgetID == "kbo",
-              let kbo = (WidgetRegistry.shared.widget(for: "kbo")?.wrapped as? KBOWidget)?.viewModel
-        else { return }
-        if relativeX < 63 {
-            kbo.tickerEnabled.toggle()
-        } else {
-            kbo.ttsEnabled.toggle()
-        }
-    }
+    /// Right wing has no clickable controls (just music info / transient
+    /// KBO ticker overlay), so we don't dispatch anything for it.
+    private func dispatchRightWingClick(relativeX: CGFloat) {}
 
     private func handleLocalClick() {
         // Click handling reserved for future use (e.g. playback controls)

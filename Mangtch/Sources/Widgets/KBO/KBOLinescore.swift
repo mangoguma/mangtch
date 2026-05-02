@@ -52,6 +52,12 @@ struct KBOLinescore: Equatable {
         let seqno: Int
         let inning: Int
         let text: String
+        let attackingSide: AttackingSide?
+
+        enum AttackingSide: Equatable {
+            case home
+            case away
+        }
     }
 }
 
@@ -157,6 +163,8 @@ extension KBOLinescore {
         struct Inner: Decodable { let textRelays: [Relay]? }
         struct Relay: Decodable {
             let inn: Int?
+            // "1" = bottom of inning (home batting), "0" = top (away batting).
+            let homeOrAway: String?
             let textOptions: [Option]?
         }
         struct Option: Decodable {
@@ -172,6 +180,12 @@ extension KBOLinescore {
         var best: Play?
         for relay in relays {
             guard let inning = relay.inn, let options = relay.textOptions else { continue }
+            let side: Play.AttackingSide?
+            switch relay.homeOrAway {
+            case "1": side = .home
+            case "0": side = .away
+            default: side = nil
+            }
             for opt in options {
                 guard let seqno = opt.seqno,
                       let text = opt.text?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -180,7 +194,7 @@ extension KBOLinescore {
                       opt.type != 99
                 else { continue }
                 if best == nil || seqno > best!.seqno {
-                    best = Play(seqno: seqno, inning: inning, text: text)
+                    best = Play(seqno: seqno, inning: inning, text: text, attackingSide: side)
                 }
             }
         }

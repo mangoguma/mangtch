@@ -116,24 +116,39 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // When KBO is the active widget the right wing belongs to its
-        // play ticker — base layer is the latest play (or "중계 대기 중"
-        // idle), hover swaps to the ticker / TTS toggle buttons.
-        // Otherwise the music track info sits here as before.
-        if viewModel.currentExpandedWidgetID == "kbo",
-           let kbo = (widgetRegistry.widget(for: "kbo")?.wrapped as? KBOWidget)?.viewModel {
-            KBORightWingView(viewModel: kbo)
-                .transition(.opacity)
-        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
-                  let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-                  musicWidget.isEnabled {
-            actualWidget.makeCompactInfoView()
-                .transition(.opacity)
-        } else {
-            Image(systemName: "music.note")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+        // Right wing is always the music info — track / artist marquee.
+        // When KBO has a fresh play (regardless of whether KBO is the
+        // selected widget), the play text briefly overlays the music
+        // info as a TV-news-style ticker before fading back. KBO toggle
+        // controls live on the left wing instead.
+        let kbo = (widgetRegistry.widget(for: "kbo")?.wrapped as? KBOWidget)?.viewModel
+        let play = kbo?.latestPlayText
+
+        ZStack {
+            if let musicWidget = widgetRegistry.widget(for: "music-player"),
+               let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+               musicWidget.isEnabled {
+                actualWidget.makeCompactInfoView()
+                    .opacity(play == nil ? 1 : 0)
+            } else {
+                Image(systemName: "music.note")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .opacity(play == nil ? 1 : 0)
+            }
+
+            if let play {
+                Text(play)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .padding(.horizontal, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: play)
     }
 
     /// True when the widget has live state worth surfacing in the wing.
