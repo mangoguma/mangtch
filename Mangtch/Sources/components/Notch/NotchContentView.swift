@@ -21,6 +21,14 @@ struct NotchContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .animation(animationForState, value: viewModel.currentState)
+            .panGesture(axis: .down) { _, phase in
+                guard phase == .began, viewModel.currentState != .expanded else { return }
+                viewModel.forceExpand()
+            }
+            .panGesture(axis: .up) { _, phase in
+                guard phase == .began, viewModel.currentState == .expanded else { return }
+                viewModel.collapse()
+            }
         }
         .ignoresSafeArea()
     }
