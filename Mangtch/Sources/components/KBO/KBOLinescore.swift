@@ -41,6 +41,16 @@ struct KBOLinescore: Equatable {
     /// (pre-game / cancelled). Used to drive a ticker on the right wing.
     let latestPlay: Play?
 
+    /// Every play in the text-relay feed, sorted by seqno ascending.
+    /// The ViewModel diffs this against its last-seen seqno to enqueue
+    /// only the genuinely new plays and ticker them one at a time, instead
+    /// of skipping straight to the most recent line.
+    let allPlays: [Play]
+
+    /// At-bat snapshot: count, outs, runners on base. nil for non-live or
+    /// pre-game states where currentGameState is empty.
+    let liveState: LiveState?
+
     struct Totals: Equatable {
         let runs: Int
         let hits: Int
@@ -53,11 +63,73 @@ struct KBOLinescore: Equatable {
         let inning: Int
         let text: String
         let attackingSide: AttackingSide?
+        /// Editorial weight for this play, derived from Naver's `type`
+        /// integer. Lets the ticker drop pitch-by-pitch noise from the
+        /// queue while still surfacing scoring/at-bat outcomes, and lets
+        /// TTS speak only the genuinely worth-narrating events.
+        let importance: Importance
 
         enum AttackingSide: Equatable {
             case home
             case away
         }
+
+        /// Naver `textOption.type` taxonomy observed live:
+        ///   0  이닝 시작 헤더 ("7회초 KT 공격")
+        ///   1  매 투구 ("1구 스트라이크")                  → low
+        ///   2  교체 / 수비위치 변경                          → medium
+        ///   7  투수 동작 (예: "투수 투수판 이탈")             → medium
+        ///   8  타자 등장 ("5번타자 김민석")                   → medium
+        ///   13 타석 결과 ("…삼진 아웃" / "…1루타" / "볼넷")    → high
+        ///   14 주루 (도루/진루/포스아웃)                      → high
+        ///   23 안타 (드물게, 13과 별도 라인)                  → high
+        ///   24 홈인 (득점)                                    → critical
+        ///   99 구분선/엔딩 ("=====", "승리투수: …")           → 필터
+        enum Importance: Int, Comparable, Equatable {
+            case low = 0      // per-pitch chatter
+            case medium = 1   // metadata: inning, batter intro, sub
+            case high = 2     // at-bat outcome / baserunning
+            case critical = 3 // run scored
+
+            static func < (lhs: Importance, rhs: Importance) -> Bool {
+                lhs.rawValue < rhs.rawValue
+            }
+
+            static func from(naverType: Int?) -> Importance {
+                switch naverType {
+                case 24: return .critical
+                case 13, 14, 23: return .high
+                case 0, 2, 7, 8: return .medium
+                case 1: return .low
+                // Unknown types default to medium so we still surface them
+                // rather than silently dropping plays Naver added later.
+                default: return .medium
+                }
+            }
+        }
+    }
+
+    /// Live at-bat detail. Naver's currentGameState updates within a second
+    /// or two of every pitch. All counts are 0-based (max 3 balls, 2 strikes,
+    /// 2 outs in a normal flow; we allow one beyond just in case Naver
+    /// briefly reports the transition state).
+    struct LiveState: Equatable {
+        let balls: Int
+        let strikes: Int
+        let outs: Int
+        let onFirst: Bool
+        let onSecond: Bool
+        let onThird: Bool
+        /// Resolved by pcode lookup against homeLineup/awayLineup.
+        /// nil when the lineup roster wasn't included in the response (rare).
+        let batterName: String?
+        let batOrder: Int?
+        let pitcherName: String?
+        /// Which side is currently at bat. Derived from the most recent
+        /// textRelay entry's homeOrAway flag (bottom of the inning = home
+        /// batting). Lets the panel mark the batting team without a
+        /// separate per-game attackingSide map.
+        let attackingSide: Play.AttackingSide?
     }
 }
 
@@ -84,6 +156,9 @@ extension KBOLinescore {
             let homeHit, awayHit: String?
             let homeError, awayError: String?
             let homeBallFour, awayBallFour: String?
+            let ball, strike, out: String?
+            let base1, base2, base3: String?
+            let pitcher, batter: String?
         }
 
         guard let outer = try? JSONDecoder().decode(Outer.self, from: raw),
@@ -101,10 +176,40 @@ extension KBOLinescore {
         self.awayTeamName = ""
         self.homeTeamName = ""
 
-        // Latest play — scan textRelays for the textOption with the
-        // highest seqno that has non-empty text. That's the most recent
-        // commentary line we can surface in the right-wing ticker.
-        self.latestPlay = Self.findLatestPlay(in: raw)
+        // All plays sorted by seqno ascending. The ViewModel paces them
+        // out one-by-one via its queue runner; we keep `latestPlay` as a
+        // convenience alias to the tail so the existing baseline-on-first-
+        // observation logic still has something to show immediately.
+        let plays = Self.collectPlays(in: raw)
+        self.allPlays = plays
+        self.latestPlay = plays.last
+
+        // At-bat state — count + bases. Treat empty/missing fields as no
+        // live state at all so pre-game / cancelled fetches don't render
+        // a phantom "0-0, 0 out, bases empty" snapshot.
+        if let cgs = trd.currentGameState,
+           let ball = cgs.ball, let strike = cgs.strike, let out = cgs.out,
+           !ball.isEmpty || !strike.isEmpty || !out.isEmpty {
+            // Resolve pitcher/batter pcodes against both lineups. The pcode
+            // is unique per player so scanning both rosters is safe and
+            // avoids needing to know which side is currently fielding.
+            let (batterName, batOrder) = Self.findBatter(rawData: raw, pcode: cgs.batter)
+            let pitcherName = Self.findPitcher(rawData: raw, pcode: cgs.pitcher)
+            self.liveState = LiveState(
+                balls: Int(ball) ?? 0,
+                strikes: Int(strike) ?? 0,
+                outs: Int(out) ?? 0,
+                onFirst: (cgs.base1 ?? "0") != "0",
+                onSecond: (cgs.base2 ?? "0") != "0",
+                onThird: (cgs.base3 ?? "0") != "0",
+                batterName: batterName,
+                batOrder: batOrder,
+                pitcherName: pitcherName,
+                attackingSide: plays.last?.attackingSide
+            )
+        } else {
+            self.liveState = nil
+        }
 
         if let score = trd.inningScore,
            let homeMap = score.home, let awayMap = score.away,
@@ -150,12 +255,63 @@ extension KBOLinescore {
         dict.keys.compactMap(Int.init).max() ?? 0
     }
 
-    /// Scan textRelays for the textOption with the highest seqno and
-    /// non-empty text. Naver puts every play (pitches, hits, subs,
-    /// inning summary lines) into textRelays[].textOptions[]; the seqno
-    /// is monotonically increasing, so the max-seqno line is the most
-    /// recent thing the broadcast called.
-    private static func findLatestPlay(in raw: Data) -> Play? {
+    /// Re-decode just enough of the relay payload to scan both lineups
+    /// for matching pcodes. Done as a second pass so we don't have to
+    /// thread lineup arrays through the main `init` shape.
+    private struct LineupOuter: Decodable {
+        struct Result: Decodable { let textRelayData: TextRelay? }
+        struct TextRelay: Decodable {
+            let homeLineup: Lineup?
+            let awayLineup: Lineup?
+        }
+        struct Lineup: Decodable {
+            let batter: [Player]?
+            let pitcher: [Player]?
+        }
+        struct Player: Decodable {
+            let pcode: String?
+            let name: String?
+            let batOrder: Int?
+        }
+        let result: Result?
+    }
+
+    private static func findBatter(rawData: Data, pcode: String?) -> (String?, Int?) {
+        guard let pcode, !pcode.isEmpty,
+              let outer = try? JSONDecoder().decode(LineupOuter.self, from: rawData),
+              let trd = outer.result?.textRelayData
+        else { return (nil, nil) }
+        let pools = [trd.homeLineup?.batter, trd.awayLineup?.batter].compactMap { $0 }
+        for pool in pools {
+            if let p = pool.first(where: { $0.pcode == pcode }) {
+                return (p.name, p.batOrder)
+            }
+        }
+        return (nil, nil)
+    }
+
+    private static func findPitcher(rawData: Data, pcode: String?) -> String? {
+        guard let pcode, !pcode.isEmpty,
+              let outer = try? JSONDecoder().decode(LineupOuter.self, from: rawData),
+              let trd = outer.result?.textRelayData
+        else { return nil }
+        let pools = [trd.homeLineup?.pitcher, trd.awayLineup?.pitcher].compactMap { $0 }
+        for pool in pools {
+            if let p = pool.first(where: { $0.pcode == pcode }) {
+                return p.name
+            }
+        }
+        return nil
+    }
+
+    /// Scan textRelays for every commentary line, sorted by seqno
+    /// ascending. Naver puts every play (pitches, hits, subs, inning
+    /// summary lines) into textRelays[].textOptions[]; the seqno is
+    /// monotonically increasing across the whole game, so the caller can
+    /// diff against a stored last-seen seqno to discover only the new
+    /// plays since the previous poll. type 99 ("=====" inning dividers)
+    /// is filtered out — it's display noise, not a play.
+    private static func collectPlays(in raw: Data) -> [Play] {
         struct Outer: Decodable {
             struct Result: Decodable { let textRelayData: Inner? }
             let result: Result?
@@ -175,9 +331,9 @@ extension KBOLinescore {
 
         guard let outer = try? JSONDecoder().decode(Outer.self, from: raw),
               let relays = outer.result?.textRelayData?.textRelays
-        else { return nil }
+        else { return [] }
 
-        var best: Play?
+        var collected: [Play] = []
         for relay in relays {
             guard let inning = relay.inn, let options = relay.textOptions else { continue }
             let side: Play.AttackingSide?
@@ -190,15 +346,19 @@ extension KBOLinescore {
                 guard let seqno = opt.seqno,
                       let text = opt.text?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !text.isEmpty,
-                      // type 99 is the "=====" inning-divider noise
                       opt.type != 99
                 else { continue }
-                if best == nil || seqno > best!.seqno {
-                    best = Play(seqno: seqno, inning: inning, text: text, attackingSide: side)
-                }
+                collected.append(Play(
+                    seqno: seqno,
+                    inning: inning,
+                    text: text,
+                    attackingSide: side,
+                    importance: Play.Importance.from(naverType: opt.type)
+                ))
             }
         }
-        return best
+        collected.sort { $0.seqno < $1.seqno }
+        return collected
     }
 }
 

@@ -8,6 +8,11 @@ final class MusicPlayerWidget: NotchWidget {
     let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
 
+    /// Album art + scrolling track info + transport — fits comfortably
+    /// in 480pt; goes wider just makes the marquee scroll less and
+    /// leaves dead space.
+    var preferredPanelWidth: CGFloat? { 480 }
+
     let viewModel = MusicPlayerViewModel()
 
     @MainActor

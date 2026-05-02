@@ -5,7 +5,15 @@ struct DarkTheme: NotchTheme {
     // MARK: - Materials & Effects
 
     var panelMaterial: Material {
-        .ultraThinMaterial
+        .thickMaterial
+    }
+
+    var panelTint: Color {
+        // Near-opaque black so the panel always reads as black, regardless
+        // of wallpaper or what's behind the menu bar. Translucent values
+        // (≤0.6) bleed too much desktop colour through and make small
+        // indicators (rings, thin strokes) hard to see.
+        Color.black.opacity(0.92)
     }
 
     var shadowColor: Color {

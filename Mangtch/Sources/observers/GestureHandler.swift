@@ -208,66 +208,37 @@ final class GestureHandler {
         }
     }
 
-    /// Map a click in the .hovering state to the underlying wing-button
-    /// action. Geometry below mirrors the SwiftUI layout in
-    /// CompactArtworkView (music) and KBOCompactView (KBO toggles), both
-    /// of which live on the left wing.
+    /// Hit-test the click against the wing buttons' actual SwiftUI
+    /// frames, reported via PreferenceKey. No more hand-rolled geometry —
+    /// when wing widths or button layouts change, the rects update
+    /// automatically and clicks stay aligned with what the user sees.
     private func handleWingClick(at point: NSPoint) {
-        guard let screen = NSScreen.screens.first else { return }
         let viewModel = NotchViewModel.shared
-        let geo = viewModel.notchGeometry
-        let halfNotch = geo.notchWidth / 2
-        let wingHeight = geo.notchHeight + 5
-        let wingTopY = screen.frame.maxY
-        let wingBottomY = wingTopY - wingHeight
-        guard point.y >= wingBottomY, point.y <= wingTopY else { return }
-
-        let leftWingMinX = screen.frame.midX - halfNotch - viewModel.wingWidth
-        let rightWingMinX = screen.frame.midX + halfNotch
-
-        if point.x >= leftWingMinX, point.x < leftWingMinX + viewModel.wingWidth {
-            dispatchLeftWingClick(relativeX: point.x - leftWingMinX)
-        } else if point.x >= rightWingMinX, point.x < rightWingMinX + viewModel.wingWidth {
-            dispatchRightWingClick(relativeX: point.x - rightWingMinX)
-        }
+        guard let zone = viewModel.wingHitZones.first(where: { $0.rect.contains(point) })
+        else { return }
+        dispatch(zone.button)
     }
 
-    /// Left wing clicks. The wing's contents depend on the active widget:
-    ///   - KBO active + a live pinned game → score with hover-toggle bar
-    ///     (ticker + TTS, 2 icons × 28pt with 6pt spacing, centered).
-    ///   - Otherwise → music compact with hover transport (3 icons:
-    ///     back 22, play 26, forward 22, 2pt spacing, centered).
-    private func dispatchLeftWingClick(relativeX: CGFloat) {
-        let notch = NotchViewModel.shared
-
-        if notch.currentExpandedWidgetID == "kbo",
-           let kbo = (WidgetRegistry.shared.widget(for: "kbo")?.wrapped as? KBOWidget)?.viewModel,
-           kbo.selectedGame?.isLive == true {
-            // KBO toggle bar — 62pt centered in 120pt wing → starts at 29.
-            guard relativeX >= 29, relativeX <= 91 else { return }
-            if relativeX < 63 {
-                kbo.tickerEnabled.toggle()
-            } else {
-                kbo.ttsEnabled.toggle()
-            }
-            return
-        }
-
-        // Music transport — 74pt centered → starts at 23.
-        guard relativeX >= 23, relativeX <= 97 else { return }
-        guard let music = (WidgetRegistry.shared.widget(for: "music-player")?.wrapped as? MusicPlayerWidget)?.viewModel else { return }
-        if relativeX < 47 {
-            music.previousTrack()
-        } else if relativeX < 75 {
-            music.togglePlayPause()
-        } else {
-            music.nextTrack()
+    private func dispatch(_ button: WingButton) {
+        let registry = WidgetRegistry.shared
+        switch button {
+        case .musicPrev:
+            (registry.widget(for: "music-player")?.wrapped as? MusicPlayerWidget)?
+                .viewModel.previousTrack()
+        case .musicPlayPause:
+            (registry.widget(for: "music-player")?.wrapped as? MusicPlayerWidget)?
+                .viewModel.togglePlayPause()
+        case .musicNext:
+            (registry.widget(for: "music-player")?.wrapped as? MusicPlayerWidget)?
+                .viewModel.nextTrack()
+        case .kboTickerToggle:
+            (registry.widget(for: "kbo")?.wrapped as? KBOWidget)?
+                .viewModel.tickerEnabled.toggle()
+        case .kboTTSToggle:
+            (registry.widget(for: "kbo")?.wrapped as? KBOWidget)?
+                .viewModel.ttsEnabled.toggle()
         }
     }
-
-    /// Right wing has no clickable controls (just music info / transient
-    /// KBO ticker overlay), so we don't dispatch anything for it.
-    private func dispatchRightWingClick(relativeX: CGFloat) {}
 
     private func handleLocalClick() {
         // Click handling reserved for future use (e.g. playback controls)

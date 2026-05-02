@@ -92,15 +92,15 @@ struct NotchContentView: View {
         // pushes the max of (left, right) back to NotchViewModel so panel
         // and gesture math stay in sync.
         //
-        // Wing-bottom rounding fades to 0 as the panel opens so the wings
-        // and panel below merge into one continuous block — boring.notch
-        // style. Tying the radius to `expandedHeight` (rather than just
-        // `currentState`) lets it interpolate smoothly along with the
-        // height animation instead of snapping at the state boundary.
-        let openProgress = viewModel.maxExpandedHeight > 0
-            ? min(viewModel.expandedHeight / viewModel.maxExpandedHeight, 1)
-            : 0
-        let wingBottomRadius = viewModel.panelCornerRadius * (1 - openProgress)
+        // Wing-bottom rounding is driven by `wingsFlat`, *not* by the
+        // panel's animating height — because the corner snap needs to
+        // *lead* on expand (corners flatten before the panel grows) and
+        // *lag* on collapse (panel shrinks fully before corners round
+        // back). NotchViewModel sequences `wingsFlat` separately from
+        // `expandedHeight` to make that happen. Each transition uses its
+        // own `withAnimation`, so SwiftUI smoothly interpolates the
+        // radius in step with that snap rather than the panel's spring.
+        let wingBottomRadius: CGFloat = viewModel.wingsFlat ? 0 : viewModel.panelCornerRadius
 
         HStack(spacing: 0) {
             leftWing
@@ -159,8 +159,8 @@ struct NotchContentView: View {
             let proposed = max(measured.left, measured.right) + 16
             let clamped = min(max(proposed, NotchViewModel.minWingWidth),
                               NotchViewModel.maxWingWidth)
-            if abs(viewModel.wingWidth - clamped) > 0.5 {
-                viewModel.wingWidth = clamped
+            if abs(viewModel.compactWingWidth - clamped) > 0.5 {
+                viewModel.compactWingWidth = clamped
             }
         }
     }

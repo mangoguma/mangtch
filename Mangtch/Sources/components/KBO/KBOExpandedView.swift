@@ -134,6 +134,10 @@ struct KBOExpandedView: View {
         // tapping the pin icon toggles the wing pin.
         let isPinned = viewModel.selectedGameID == game.gameId
         let isExpanded = viewModel.viewingGameID == game.gameId
+        // Per-row batting indicator. Only resolves when we have a live
+        // state for this game; finished/scheduled rows leave both sides
+        // false so the colour falls through to the loser/primary path.
+        let attacking = game.isLive ? viewModel.liveStates[game.gameId]?.attackingSide : nil
 
         VStack(spacing: 0) {
             // Header strip — clickable area that toggles expansion.
@@ -147,7 +151,8 @@ struct KBOExpandedView: View {
                              code: game.awayTeamCode,
                              logoURL: game.awayEmblemURL,
                              alignment: .trailing,
-                             isLoser: game.winnerSide == .home)
+                             isLoser: game.winnerSide == .home,
+                             isBatting: attacking == .away)
 
                     scoreColumn(game)
                         .frame(width: 64)
@@ -156,7 +161,11 @@ struct KBOExpandedView: View {
                              code: game.homeTeamCode,
                              logoURL: game.homeEmblemURL,
                              alignment: .leading,
-                             isLoser: game.winnerSide == .away)
+                             isLoser: game.winnerSide == .away,
+                             isBatting: attacking == .home)
+
+                    liveStateCell(for: game)
+                        .frame(width: 80)
 
                     statusChip(game)
                         .frame(width: 64, alignment: .trailing)
@@ -196,16 +205,22 @@ struct KBOExpandedView: View {
                           code: String,
                           logoURL: URL?,
                           alignment: HorizontalAlignment,
-                          isLoser: Bool) -> some View {
+                          isLoser: Bool,
+                          isBatting: Bool) -> some View {
         let isLeading = alignment == .leading
         HStack(spacing: 6) {
             if isLeading {
                 KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
             }
             Text(name)
-                .font(.system(size: 11.5, weight: .semibold))
+                // Bat side gets an underline rather than a colour shift —
+                // the row already mixes accent (pinned), red (LIVE chip),
+                // and primary text, so adding another red would muddy
+                // the hierarchy. Loser dimming still applies independently.
+                .font(.system(size: 11.5, weight: isBatting ? .bold : .semibold))
                 .lineLimit(1)
-                .foregroundStyle(isLoser ? .secondary : .primary)
+                .foregroundStyle(isLoser ? Color.secondary : Color.primary)
+                .underline(isBatting, color: isLoser ? .secondary : .primary)
             if !isLeading {
                 KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
             }
@@ -259,6 +274,20 @@ struct KBOExpandedView: View {
             chipText("종료", color: .secondary)
         } else {
             chipText(game.startTimeText, color: .secondary)
+        }
+    }
+
+    /// Inline at-bat readout (diamond + count + outs). Shown for every
+    /// live game we have a `liveStates` entry for — not just the tracked
+    /// one — so users can read all in-flight games' bases/count at a
+    /// glance. The 80pt slot stays reserved on every row so the columns
+    /// don't reflow when state appears or clears mid-row.
+    @ViewBuilder
+    private func liveStateCell(for game: KBOGame) -> some View {
+        if game.isLive, let state = viewModel.liveStates[game.gameId] {
+            KBOLiveStateView(state: state, compact: true)
+        } else {
+            Color.clear
         }
     }
 

@@ -7,6 +7,12 @@ protocol NotchTheme {
     /// Material used for panel backgrounds
     var panelMaterial: Material { get }
 
+    /// Solid tint laid on top of `panelMaterial` to push the panel toward
+    /// a specific colour family. Use Color.clear when the underlying
+    /// material should show through unchanged. Themes that want a fully
+    /// dark/light look set this to a high-opacity colour.
+    var panelTint: Color { get }
+
     /// Shadow color for panel and HUD elements
     var shadowColor: Color { get }
 
@@ -56,4 +62,5 @@ protocol NotchTheme {
 // Default implementation
 extension NotchTheme {
     var isDynamic: Bool { false }
+    var panelTint: Color { .clear }
 }

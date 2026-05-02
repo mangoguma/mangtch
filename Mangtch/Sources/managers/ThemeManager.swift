@@ -25,8 +25,11 @@ final class ThemeManager: ObservableObject {
     // MARK: - Init
 
     private init() {
-        // Load saved theme from UserDefaults or use default
-        let savedThemeName = UserDefaults.standard.string(forKey: Self.userDefaultsKey) ?? "default"
+        // Load saved theme from UserDefaults or fall back to dark.
+        // Dark gives a unified black-tinted notch regardless of wallpaper,
+        // which is what the indicators (live state pill, ticker text, etc.)
+        // are tuned to read against.
+        let savedThemeName = UserDefaults.standard.string(forKey: Self.userDefaultsKey) ?? "dark"
         currentTheme = Self.themeForName(savedThemeName)
 
         // If album art theme, start observing artwork

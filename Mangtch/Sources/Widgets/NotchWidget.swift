@@ -26,6 +26,14 @@ protocol NotchWidget: AnyObject, Identifiable where ID == String {
     /// Preferred position in the notch layout
     var preferredPosition: WidgetPosition { get }
 
+    /// Preferred panel width when this widget owns the expanded panel.
+    /// Wings widen to fill `(panelWidth - notchWidth) / 2` so the panel
+    /// chrome doesn't disagree with the expanded content beneath it. Nil
+    /// uses the system default — fine for widgets whose expanded views
+    /// don't have a strong intrinsic width.
+    @MainActor
+    var preferredPanelWidth: CGFloat? { get }
+
     /// Compact view shown during hover state (wings)
     /// Should be <= 120pt wide
     @MainActor
@@ -61,6 +69,7 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     private let _makeExpandedView: @MainActor () -> AnyView
     private let _activate: () -> Void
     private let _deactivate: () -> Void
+    private let _preferredPanelWidth: @MainActor () -> CGFloat?
 
     init(_ widget: some NotchWidget) {
         self.wrapped = widget
@@ -73,6 +82,11 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
         self._makeExpandedView = { widget.makeExpandedView() }
         self._activate = { widget.activate() }
         self._deactivate = { widget.deactivate() }
+        self._preferredPanelWidth = { widget.preferredPanelWidth }
+    }
+
+    var preferredPanelWidth: CGFloat? {
+        _preferredPanelWidth()
     }
 
     func makeCompactView() -> AnyView {
@@ -90,4 +104,9 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     func deactivate() {
         _deactivate()
     }
+}
+
+extension NotchWidget {
+    @MainActor
+    var preferredPanelWidth: CGFloat? { nil }
 }

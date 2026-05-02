@@ -30,6 +30,14 @@ final class KBOViewModel {
         didSet {
             guard oldValue != selectedGameID else { return }
             SettingsManager.shared.kboSelectedGameID = selectedGameID
+            // Tracked-game changed: drop any queued plays from the
+            // previous game so the runner doesn't keep tickering them
+            // after the user has moved on. The next poll for the new
+            // game will re-baseline via lastSeenGameID.
+            resetPlayQueue()
+            // Re-target the 10s relay timer at the new tracked game
+            // (or disarm if there is none).
+            armTrackedPoll()
         }
     }
 
@@ -59,8 +67,34 @@ final class KBOViewModel {
     /// (unlike latestPlayText) so the score row can highlight the
     /// attacking team continuously, not just for 5 s after a play.
     private(set) var currentAttackingSide: KBOLinescore.Play.AttackingSide?
+    /// Latest at-bat state (count + bases) for **every** live game we've
+    /// polled, keyed by gameId. The expanded panel reads this directly so
+    /// each row's diamond/count cell stays populated, not just the
+    /// pinned/viewed one. Tracked game refreshes at 10s; the rest at the
+    /// schedule cadence (60s).
+    private(set) var liveStates: [String: KBOLinescore.LiveState] = [:]
+
+    /// Convenience accessor for the right-wing view, which only cares
+    /// about the tracked game. Computed off `liveStates` so callers stay
+    /// in sync automatically.
+    var currentLiveState: KBOLinescore.LiveState? {
+        guard let id = trackedGame?.gameId else { return nil }
+        return liveStates[id]
+    }
+    /// Highest play seqno we've already enqueued for display. Anything
+    /// with a higher seqno on the next poll is "new" and gets appended to
+    /// `playQueue`. Reset to 0 whenever the tracked game changes so the
+    /// next observation re-baselines.
     private var lastSeenSeqno: Int = 0
-    private var tickerClearTask: Task<Void, Never>?
+    /// FIFO of plays waiting to be tickered out, oldest first. The queue
+    /// runner pops one every `playDisplayInterval` seconds so the user
+    /// sees each commentary line in order instead of jumping straight to
+    /// the most recent one.
+    private var playQueue: [KBOLinescore.Play] = []
+    private var queueRunnerTask: Task<Void, Never>?
+    /// How long each play stays on the ticker before the runner advances.
+    /// Tuned to match the previous single-line clear delay.
+    private static let playDisplayInterval: Duration = .seconds(5)
 
     /// Stored on KBOViewModel so the @Observable macro can fire change
     /// notifications on toggle. Synced back to SettingsManager via didSet
@@ -88,10 +122,25 @@ final class KBOViewModel {
 
     // MARK: - Private
 
+    /// Drives the all-games schedule fetch (60s while any game is live,
+    /// 5min otherwise). Slow on purpose — schedule rows barely change
+    /// outside of score updates, which the per-game relay covers faster.
     private var pollTimer: Timer?
+    /// Fast cadence (10s) for the tracked game's relay. Armed only while
+    /// `trackedGame` exists and is live; cleared the moment it ends or
+    /// the user unpins, to avoid hammering Naver for a finished game.
+    private var trackedTimer: Timer?
+    /// gameId currently driving `trackedTimer`. Lets `armTrackedPoll` be
+    /// idempotent across schedule polls — re-arming for the same game is
+    /// a no-op so we don't reset the 10s window every 60s.
+    private var trackedTimerGameId: String?
     private var fetchTask: Task<Void, Never>?
     private var linescoreTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+
+    private static let trackedPollSeconds: TimeInterval = 10
+    private static let schedulePollLive: TimeInterval = 60
+    private static let schedulePollIdle: TimeInterval = 300
 
     // MARK: - Init
 
@@ -124,10 +173,14 @@ final class KBOViewModel {
     func stopMonitoring() {
         pollTimer?.invalidate()
         pollTimer = nil
+        trackedTimer?.invalidate()
+        trackedTimer = nil
+        trackedTimerGameId = nil
         fetchTask?.cancel()
         fetchTask = nil
         linescoreTask?.cancel()
         linescoreTask = nil
+        resetPlayQueue()
         // If the widget was holding the panel open, hand the height back.
         if viewingGameID != nil {
             collapse()
@@ -161,16 +214,26 @@ final class KBOViewModel {
                 self.selectedGameID = nil
                 self.currentAttackingSide = nil
             }
-            // Refresh the relay (linescore + textRelays) for whichever
-            // game we're tracking — the one being viewed in detail, or
-            // failing that, the pinned wing game. This is what feeds new
-            // plays into the right-wing ticker and TTS even when the
-            // panel isn't expanded.
-            if let tracked = self.trackedGame, tracked.isLive {
-                self.fetchLinescoreNow(for: tracked)
+            // Drop liveStates entries for games no longer present or
+            // no longer live — leaving stale diamonds visible on a row
+            // that's transitioned to "종료" would be misleading.
+            let liveIds = Set(fresh.filter { $0.isLive }.map(\.gameId))
+            self.liveStates = self.liveStates.filter { liveIds.contains($0.key) }
+            // Kick a lightweight relay refresh for every live game *except*
+            // the tracked one. The tracked game has its own 10s timer that
+            // also drives play-queue/TTS; non-tracked games only need the
+            // bases/count snapshot so the panel's per-row cells render.
+            let trackedId = self.trackedGame?.gameId
+            for game in fresh where game.isLive && game.gameId != trackedId {
+                self.fetchLiveStateNow(for: game)
             }
-            // Re-arm the timer with whatever cadence now matches reality
-            // (live game polling is faster than scheduled-only polling).
+            // Tracked game's relay runs on its own 10s timer — just
+            // ensure it's armed (or disarmed if the game just ended).
+            // armTrackedPoll fires an immediate fetch when first arming,
+            // so newly-live tracked games still refresh promptly.
+            self.armTrackedPoll()
+            // Re-arm the schedule timer with whatever cadence now matches
+            // reality (60s during live windows, 5min otherwise).
             self.scheduleNextPoll()
         }
     }
@@ -187,12 +250,14 @@ final class KBOViewModel {
         displayedDate = KBOService.currentKBODate()
     }
 
-    /// 30s while any game is live, 5min otherwise. Matches what most
-    /// scoreboard apps do — live games change scores fast, scheduled and
-    /// final games barely change at all.
+    /// Schedule (all-games) cadence: 60s during live windows so the row
+    /// list reflects score changes; 5min otherwise. The tracked game's
+    /// own relay polls separately at `trackedPollSeconds`, so dropping
+    /// the schedule cadence to 60s doesn't slow down the score on the
+    /// game the user is actually watching.
     private var pollInterval: TimeInterval {
         let anyLive = games.contains(where: { $0.isLive })
-        return anyLive ? 30 : 300
+        return anyLive ? Self.schedulePollLive : Self.schedulePollIdle
     }
 
     private func scheduleNextPoll() {
@@ -200,6 +265,47 @@ final class KBOViewModel {
         pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.fetchNow()
+            }
+        }
+    }
+
+    /// Arm (or disarm) the fast 10s relay timer for the tracked game.
+    /// Idempotent — call freely from anywhere tracked-game state may
+    /// have changed (pin/unpin, expand/collapse, schedule fetch).
+    /// Fires an immediate relay so the user doesn't wait up to 10s for
+    /// the first refresh after switching games.
+    private func armTrackedPoll() {
+        guard let tracked = trackedGame, tracked.isLive else {
+            trackedTimer?.invalidate()
+            trackedTimer = nil
+            trackedTimerGameId = nil
+            return
+        }
+        // Already armed for this exact game — leave the running 10s
+        // timer alone so periodic schedule fetches don't reset it.
+        if trackedTimerGameId == tracked.gameId, trackedTimer != nil {
+            return
+        }
+        trackedTimer?.invalidate()
+        trackedTimer = nil
+        trackedTimerGameId = tracked.gameId
+        // Immediate kick so a freshly-pinned live game shows live state
+        // / plays without a 10s gap.
+        fetchLinescoreNow(for: tracked)
+        trackedTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.trackedPollSeconds,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                // Re-check liveness on every tick — game can end mid-session.
+                guard let tracked = self.trackedGame, tracked.isLive else {
+                    self.trackedTimer?.invalidate()
+                    self.trackedTimer = nil
+                    self.trackedTimerGameId = nil
+                    return
+                }
+                self.fetchLinescoreNow(for: tracked)
             }
         }
     }
@@ -292,9 +398,37 @@ final class KBOViewModel {
                 self.viewingLinescore = result
             }
             self.isLoadingLinescore = false
-            if let play = result?.latestPlay {
-                self.handleNewPlay(play, gameID: gameId)
+            // Always update the per-game live state map. Even non-tracked
+            // games funnel into here when their fast timer fires, so each
+            // row in the panel can render its own diamond/count.
+            // Subscript-with-nil removes the key, which is what we want
+            // when Naver clears the at-bat between innings.
+            self.liveStates[gameId] = result?.liveState
+            if let plays = result?.allPlays, !plays.isEmpty {
+                self.handleNewPlays(plays, gameID: gameId)
             }
+        }
+    }
+
+    /// Slim relay fetch for a non-tracked live game — only updates
+    /// `liveStates[gameId]`, never touches viewingLinescore or the play
+    /// queue. Routing non-tracked games through `fetchLinescoreNow` would
+    /// corrupt `lastSeenGameID` (it'd flip to whatever game finished
+    /// fetching most recently) and leak phantom plays into the tracked
+    /// game's ticker.
+    private func fetchLiveStateNow(for game: KBOGame) {
+        let gameId = game.gameId
+        let season = Self.season(from: game)
+        Task { @MainActor in
+            let result = await KBOService.fetchLinescore(gameId: gameId, season: season)
+            // Game may have ended or fallen off the slate between the
+            // fetch firing and resolving — drop in that case rather than
+            // leaving a stale diamond.
+            guard self.games.contains(where: { $0.gameId == gameId && $0.isLive }) else {
+                self.liveStates.removeValue(forKey: gameId)
+                return
+            }
+            self.liveStates[gameId] = result?.liveState
         }
     }
 
@@ -302,51 +436,99 @@ final class KBOViewModel {
 
     private var lastSeenGameID: String?
 
-    /// Decide whether the latest play seen in this fetch is genuinely new
-    /// for the tracked game, and surface it to the ticker / TTS pipeline.
-    /// First observation per game is treated as baseline so we don't blast
-    /// every play in the recent history at once when the user pins or
-    /// switches games mid-broadcast.
-    private func handleNewPlay(_ play: KBOLinescore.Play, gameID: String) {
+    /// Diff the play stream from this fetch against `lastSeenSeqno` and
+    /// enqueue only the genuinely new plays for the ticker / TTS pipeline.
+    /// First observation per game shows just the most recent line as a
+    /// baseline (we don't want to ticker through hours of past plays when
+    /// the user pins or switches games mid-broadcast); subsequent polls
+    /// append every play that's appeared since the last poll, so the user
+    /// sees them in order even if multiple landed between polls.
+    private func handleNewPlays(_ plays: [KBOLinescore.Play], gameID: String) {
         let isFirstObservation = (lastSeenGameID != gameID)
         if isFirstObservation {
             lastSeenGameID = gameID
             lastSeenSeqno = 0
+            playQueue.removeAll()
         }
 
-        // Always update the attacking side, even when seqno hasn't moved —
-        // a pause between plays shouldn't blank the indicator.
-        currentAttackingSide = play.attackingSide
-
-        guard play.seqno > lastSeenSeqno else { return }
-        lastSeenSeqno = play.seqno
-
-        // Show the latest play immediately, even on the first poll for a
-        // newly-pinned game — otherwise the wing sits at "중계 대기 중"
-        // until the next pitch, which feels broken.
-        if tickerEnabled {
-            latestPlayText = play.text
-            scheduleTickerClear()
+        // Mirror the most recent play's attacking side immediately so the
+        // score row's accent doesn't lag behind the queue.
+        if let last = plays.last {
+            currentAttackingSide = last.attackingSide
         }
-        // Skip TTS on the first observation so we don't speak a stale
-        // play from before the user pinned the game.
-        if ttsEnabled && !isFirstObservation {
-            Self.speak(play.text)
+
+        if isFirstObservation {
+            // Baseline: jump to the most recent play so the wing isn't
+            // blank on pin, but mark every prior seqno as already-seen.
+            // No TTS — speaking a stale play that happened before the
+            // user pinned would be jarring.
+            if let last = plays.last {
+                lastSeenSeqno = last.seqno
+                if tickerEnabled {
+                    latestPlayText = last.text
+                    startQueueRunnerIfNeeded()  // schedules the eventual clear
+                }
+            }
+            return
+        }
+
+        let fresh = plays.filter { $0.seqno > lastSeenSeqno }
+        guard !fresh.isEmpty else { return }
+        // Advance the seen-marker even for plays we drop below — otherwise
+        // a flurry of low-importance pitches would re-evaluate every poll.
+        lastSeenSeqno = fresh.last!.seqno
+        // Per-pitch chatter (type 1) drowns out the actually-interesting
+        // outcomes if it all hits the queue at 5s pacing. Filter to medium+
+        // for the ticker so users see at-bat results, baserunning, and
+        // scoring without 6-pitch counts in between.
+        let displayable = fresh.filter { $0.importance >= .medium }
+        guard !displayable.isEmpty else { return }
+        playQueue.append(contentsOf: displayable)
+        startQueueRunnerIfNeeded()
+    }
+
+    /// Run a single advance loop that pops one play every
+    /// `playDisplayInterval` seconds. Idempotent — calling it while the
+    /// loop is already running is a no-op, so each new poll can just
+    /// append to `playQueue` and re-arm without worrying about overlap.
+    private func startQueueRunnerIfNeeded() {
+        guard queueRunnerTask == nil else { return }
+        queueRunnerTask = Task { @MainActor in
+            // Hold whatever's currently on the ticker for one interval
+            // (the baseline-display case sets latestPlayText before
+            // arming the runner with an empty queue) so the user has
+            // time to read it before we either advance or clear.
+            try? await Task.sleep(for: Self.playDisplayInterval)
+            while !playQueue.isEmpty {
+                if Task.isCancelled { break }
+                let play = playQueue.removeFirst()
+                if tickerEnabled {
+                    latestPlayText = play.text
+                }
+                // TTS only narrates the events worth interrupting for —
+                // at-bat outcomes, baserunning, scoring. Inning-start
+                // headers and batter intros are useful in the ticker but
+                // would feel chatty if read aloud every minute.
+                if ttsEnabled && play.importance >= .high {
+                    Self.speak(play.text)
+                }
+                try? await Task.sleep(for: Self.playDisplayInterval)
+            }
+            if !Task.isCancelled {
+                latestPlayText = nil
+            }
+            queueRunnerTask = nil
         }
     }
 
-    private func scheduleTickerClear() {
-        tickerClearTask?.cancel()
-        let snapshot = latestPlayText
-        tickerClearTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled else { return }
-            // Only clear if it's still the same play — a new one would
-            // have already replaced and rescheduled.
-            if latestPlayText == snapshot {
-                latestPlayText = nil
-            }
-        }
+    /// Drop any queued plays and stop the runner. Used when the tracked
+    /// game changes (pin/unpin, collapse) so we don't keep tickering
+    /// stale plays from a game the user is no longer watching.
+    private func resetPlayQueue() {
+        queueRunnerTask?.cancel()
+        queueRunnerTask = nil
+        playQueue.removeAll()
+        latestPlayText = nil
     }
 
     /// Read the play aloud via macOS `say`. Detached so URLSession poll

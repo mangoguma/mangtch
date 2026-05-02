@@ -31,6 +31,11 @@ final class NotchViewModel {
             // greeted with a giant blank panel. Whichever widget renders
             // next will redrive this if it cares.
             additionalExpandedHeight = 0
+            // Wing/panel widths depend on the active widget's preferred
+            // panel width — re-snap them now that the active widget has
+            // changed. (didSet on additionalExpandedHeight only updates
+            // when the value itself changes, which it might not have.)
+            updatePanelDimensions()
         }
     }
 
@@ -63,7 +68,75 @@ final class NotchViewModel {
     var effectiveExpandedHeight: CGFloat {
         maxExpandedHeight + additionalExpandedHeight
     }
-    let wingWidth: CGFloat = 120
+    /// Floor width — the wings need enough chrome on either side of the
+    /// hardware notch to read as a connected panel rather than two
+    /// disconnected pills with an awkward gap of bare desktop showing
+    /// through where the notch sits. 130pt was tuned visually.
+    static let minWingWidth: CGFloat = 130
+    /// Ceiling width — keeps a runaway long string (long songs, long
+    /// player names) from pushing the panel off the side of the screen.
+    static let maxWingWidth: CGFloat = 260
+
+    /// Compact wing width — content-sized, used while the panel is
+    /// idle/hovering. Set by NotchContentView via PreferenceKey
+    /// (max of left/right measured widths + margin, clamped). Updates
+    /// to `wingWidth`/`panelWidth` flow through whenever this changes
+    /// while wings are in their compact (rounded) state.
+    var compactWingWidth: CGFloat = 120 {
+        didSet {
+            guard !wingsFlat, oldValue != compactWingWidth else { return }
+            wingWidth = compactWingWidth
+            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+        }
+    }
+
+    /// Default panel width when no widget declares one (or none is
+    /// active yet). Wide enough for music + most secondary widgets;
+    /// widgets with content-heavier expanded views can override via
+    /// `NotchWidget.preferredPanelWidth`.
+    static let defaultPanelWidth: CGFloat = 480
+
+    /// Wing width to actually render with. Stored (not computed) so that
+    /// `withAnimation` blocks in transition methods can interpolate it
+    /// smoothly. Recomputed via `targetWingWidth()` whenever inputs
+    /// change (state, active widget, compact measurement).
+    var wingWidth: CGFloat = 120
+
+    /// What `wingWidth` should be right now given the current `wingsFlat`
+    /// flag and active widget. Callers wrap their assignment in
+    /// `withAnimation` to interpolate the change.
+    private func targetWingWidth() -> CGFloat {
+        wingsFlat ? panelModeWingWidth : compactWingWidth
+    }
+
+    /// True when wings should render in their flat, panel-continuous
+    /// form (square corners, panel-mode width). Sequenced separately
+    /// from `expandedHeight` so the corner/width snap leads on expand
+    /// and lags on collapse, instead of interpolating in lockstep with
+    /// the panel growing/shrinking. Driven by `performTransition`.
+    var wingsFlat: Bool = false
+
+    /// Convenience alias — kept for any callers that read it. The wing
+    /// width selector now follows `wingsFlat` directly so the corner
+    /// snap and the width snap share one source of truth.
+    var isPanelMode: Bool { wingsFlat }
+
+    /// Half of the active widget's preferred panel width minus the
+    /// hardware notch. Falls back to a sensible default when no widget
+    /// is registered or the active one doesn't declare a width.
+    private var panelModeWingWidth: CGFloat {
+        let preferred = WidgetRegistry.shared
+            .widget(for: currentExpandedWidgetID)?
+            .preferredPanelWidth ?? Self.defaultPanelWidth
+        let half = (preferred - notchGeometry.notchWidth) / 2
+        return min(max(half, Self.minWingWidth), Self.maxWingWidth)
+    }
+
+    /// Hit zones for clickable wing buttons, in screen coordinates.
+    /// Updated by NotchContentView's PreferenceKey aggregation; consumed
+    /// by GestureHandler's manual click dispatch (the panel is
+    /// `.nonactivatingPanel`, so SwiftUI's own gestures don't fire here).
+    var wingHitZones: [WingHitZone] = []
     var panelCornerRadius: CGFloat {
         ThemeManager.shared.currentTheme.panelCornerRadius
     }
@@ -72,7 +145,19 @@ final class NotchViewModel {
 
     private var hoverDebounceTask: Task<Void, Never>?
     private var collapseDelayTask: Task<Void, Never>?
+    private var phaseTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+
+    /// One unified tempo for every notch animation. Wing snap, panel
+    /// height, wait between phases, and widget-swap width-changes all
+    /// derive from this so the user perceives a single cadence rather
+    /// than four animations running at four different speeds.
+    private static let baseAnimationDuration: Double = 0.22
+    /// Wing flat/round snap matches the base tempo.
+    private static let wingSnapDuration: Double = baseAnimationDuration
+    /// Panel grow/shrink matches the base tempo (and is the wait time
+    /// before the trailing wing snap fires on collapse).
+    private static let panelTransitionDuration: Double = baseAnimationDuration
 
     // MARK: - Init
 
@@ -165,29 +250,92 @@ final class NotchViewModel {
 
         guard isValid else { return }
 
+        let wasExpanded = currentState == .expanded
+        let willBeExpanded = newState == .expanded
+
         previousState = currentState
         currentState = newState
 
-        // Animate panel dimensions
-        updatePanelDimensions()
+        // Cancel any in-flight phase sequencing — re-driving the
+        // transition from a fresh state below.
+        phaseTask?.cancel()
 
-        // Notify EventBus
+        if !wasExpanded && willBeExpanded {
+            // EXPAND: wings flatten/widen first, then panel grows.
+            phaseTask = Task { @MainActor in
+                snapWingsFlat(true)
+                try? await Task.sleep(for: .milliseconds(Int(Self.wingSnapDuration * 1000)))
+                guard !Task.isCancelled, currentState == .expanded else { return }
+                animatePanelHeight()
+            }
+        } else if wasExpanded && !willBeExpanded {
+            // COLLAPSE: panel shrinks first, then wings round/narrow back.
+            animatePanelHeight()
+            phaseTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
+                guard !Task.isCancelled, currentState != .expanded else { return }
+                snapWingsFlat(false)
+            }
+        } else {
+            // Idle ↔ hovering — no panel involvement, just keep wings
+            // round and let any height that's somehow still up settle.
+            animatePanelHeight()
+            snapWingsFlat(false)
+        }
+
         EventBus.shared.send(.stateChanged(newState))
     }
 
-    private func updatePanelDimensions() {
-        let animation: Animation? = SettingsManager.shared.animationsEnabled ? animationForState(currentState) : nil
-
+    /// Toggle the wing flat-vs-rounded look + width with a fast snap.
+    /// Width updates inside the same animation so corner radius and
+    /// chrome width stay in lockstep.
+    private func snapWingsFlat(_ flat: Bool) {
+        let animation: Animation? = SettingsManager.shared.animationsEnabled
+            ? .easeInOut(duration: Self.wingSnapDuration)
+            : nil
         withAnimation(animation) {
-            // Both wings always visible
+            wingsFlat = flat
+            wingWidth = targetWingWidth()
             panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+        }
+    }
 
+    /// Animate `expandedHeight` to whatever the current state demands.
+    /// Uses the same easeInOut tempo as every other notch animation so
+    /// wing snap, panel height, and widget-swap width all share one
+    /// rhythm. (The springy `panelSpring` token stayed inconsistent with
+    /// the eased wing snap and made the sequence feel unsynced.)
+    private func animatePanelHeight() {
+        let animation: Animation? = SettingsManager.shared.animationsEnabled
+            ? .easeInOut(duration: Self.panelTransitionDuration)
+            : nil
+        withAnimation(animation) {
             switch currentState {
             case .idle, .hovering:
                 expandedHeight = 0
             case .expanded:
                 expandedHeight = maxExpandedHeight + additionalExpandedHeight
             }
+        }
+    }
+
+    /// External callers (additionalExpandedHeight didSet, widget swap,
+    /// screen change) that need to re-run the layout pipeline without
+    /// going through a full state transition. Snaps both height and
+    /// width together — phasing only matters around state edges.
+    private func updatePanelDimensions() {
+        let animation: Animation? = SettingsManager.shared.animationsEnabled
+            ? .easeInOut(duration: 0.22)
+            : nil
+        withAnimation(animation) {
+            switch currentState {
+            case .idle, .hovering:
+                expandedHeight = 0
+            case .expanded:
+                expandedHeight = maxExpandedHeight + additionalExpandedHeight
+            }
+            wingWidth = targetWingWidth()
+            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
         }
     }
 

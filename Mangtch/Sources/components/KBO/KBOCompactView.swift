@@ -79,22 +79,16 @@ struct KBOCompactView: View {
         }
     }
 
-    /// Team-name label with a small bat marker when that side is at bat.
-    /// The marker (and the bolder weight) is the only signal of who's
-    /// batting at compact-wing scale, where there's no room for a full
-    /// inning-half indicator.
+    /// The batting side is signalled by underlining the team name. A
+    /// colour change competed with the LIVE accent and the score numerals
+    /// — the underline keeps the typographic palette quiet while still
+    /// reading as a strong glance signal in the narrow wing.
     private func teamName(_ name: String, isBatting: Bool) -> some View {
-        HStack(spacing: 2) {
-            if isBatting {
-                Image(systemName: "figure.baseball")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.red)
-            }
-            Text(name)
-                .font(.system(size: 10, weight: isBatting ? .bold : .medium))
-                .foregroundStyle(isBatting ? .primary : .secondary)
-                .lineLimit(1)
-        }
+        Text(name)
+            .font(.system(size: 10, weight: isBatting ? .bold : .medium))
+            .foregroundStyle(.secondary)
+            .underline(isBatting, color: .secondary)
+            .lineLimit(1)
     }
 
     // MARK: - Hover toggles
@@ -105,10 +99,12 @@ struct KBOCompactView: View {
                 isOn: viewModel.tickerEnabled,
                 icon: "captions.bubble.fill"
             )
+            .wingHitZone(.kboTickerToggle)
             toggleIcon(
                 isOn: viewModel.ttsEnabled,
                 icon: "speaker.wave.2.fill"
             )
+            .wingHitZone(.kboTTSToggle)
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }

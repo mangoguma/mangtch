@@ -6,6 +6,26 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.3.0</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.3.0</h2>
+        <ul>
+          <li>KBO 위젯 추가 — 라이브 점수, 이닝 그리드, 베이스/카운트, 투수·타자, 텍스트 중계 + TTS</li>
+          <li>다이내믹 wing 너비 — 컴팩트 모드는 콘텐츠 크기, 펼침 모드는 위젯이 선언한 패널 너비에 자동 정렬</li>
+          <li>좌·우 wing 라우팅을 패널 선택 위젯에 연동 (KBO 선택 시 점수+라이브 상태, 음악 선택 시 앨범+플레이어)</li>
+          <li>Wing 클릭 디스패치를 PreferenceKey 기반 hit-zone으로 리팩터 — 레이아웃 변경에도 클릭 정확도 유지</li>
+          <li>다크 패널 테마 기본화 + 통일된 애니메이션 템포 (펼침/닫힘 시 코너 라운드 페이즈 분리)</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 02 May 2026 21:20:00 +0900</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.3.0/Mangtch-0.3.0.zip"
+                 length="3098044"
+                 sparkle:edSignature="JcUWXJUszInip3I2p1D/uwFnL4stbKKDJYJpmje+EbDeUdY/1Cd0NdL+WyKvaN0k/4NMSOhZlI5ukPU5ywU5Ag=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.2.0</title>
       <description><![CDATA[
         <h2>Mangtch 0.2.0</h2>
