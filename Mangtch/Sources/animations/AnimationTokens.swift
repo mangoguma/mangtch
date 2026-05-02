@@ -3,14 +3,19 @@ import SwiftUI
 enum AnimationTokens {
     // MARK: - Panel Transitions (PRD Section 4.4)
 
+    // Panel transitions share one spring so hover, expand, and collapse
+    // all feel like the same element settling. Tuned to boring.notch's
+    // baseline (response 0.42, damping 0.8) — snappy with a hint of bounce.
+    private static let panelSpring = Animation.spring(response: 0.42, dampingFraction: 0.8)
+
     /// Hover: wings expand from notch
-    static let expandHover = Animation.spring(response: 0.3, dampingFraction: 0.7)
+    static let expandHover = panelSpring
 
     /// Click: center panel drops down
-    static let expandClick = Animation.spring(response: 0.35, dampingFraction: 0.8)
+    static let expandClick = panelSpring
 
     /// Collapse: panel retracts smoothly
-    static let collapse = Animation.smooth(duration: 0.4)
+    static let collapse = panelSpring
 
     // MARK: - Content Transitions
 
