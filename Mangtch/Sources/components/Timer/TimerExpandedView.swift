@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TimerExpandedView: View {
     let viewModel: TimerViewModel
-    @ObservedObject private var themeEngine = ThemeEngine.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         VStack(spacing: 16) {
@@ -35,20 +35,20 @@ struct TimerExpandedView: View {
                         .padding(.vertical, 5)
                         .background(
                             viewModel.mode == mode
-                                ? themeEngine.currentTheme.accentColor.opacity(0.2)
+                                ? themeManager.currentTheme.accentColor.opacity(0.2)
                                 : Color.clear
                         )
                         .foregroundStyle(
                             viewModel.mode == mode
-                                ? themeEngine.currentTheme.accentColor
-                                : themeEngine.currentTheme.textSecondary
+                                ? themeManager.currentTheme.accentColor
+                                : themeManager.currentTheme.textSecondary
                         )
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.isActive)
             }
         }
-        .background(themeEngine.currentTheme.backgroundSecondary.opacity(0.5))
+        .background(themeManager.currentTheme.backgroundSecondary.opacity(0.5))
         .clipShape(Capsule())
     }
 
@@ -62,17 +62,17 @@ struct TimerExpandedView: View {
                     Image(systemName: "minus")
                         .font(.system(size: 13, weight: .medium))
                         .frame(width: 28, height: 28)
-                        .background(themeEngine.currentTheme.backgroundSecondary.opacity(0.5))
+                        .background(themeManager.currentTheme.backgroundSecondary.opacity(0.5))
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(themeEngine.currentTheme.textSecondary)
+                .foregroundStyle(themeManager.currentTheme.textSecondary)
             }
 
             // Progress ring + time
             ZStack {
                 Circle()
-                    .stroke(themeEngine.currentTheme.hudSliderTrackColor, lineWidth: 4)
+                    .stroke(themeManager.currentTheme.hudSliderTrackColor, lineWidth: 4)
 
                 Circle()
                     .trim(from: 0, to: viewModel.progress)
@@ -86,7 +86,7 @@ struct TimerExpandedView: View {
                 Text(viewModel.formattedTime)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(themeEngine.currentTheme.textPrimary)
+                    .foregroundStyle(themeManager.currentTheme.textPrimary)
                     .contentTransition(.numericText())
                     .animation(.linear(duration: 0.25), value: viewModel.formattedTime)
             }
@@ -98,11 +98,11 @@ struct TimerExpandedView: View {
                     Image(systemName: "plus")
                         .font(.system(size: 13, weight: .medium))
                         .frame(width: 28, height: 28)
-                        .background(themeEngine.currentTheme.backgroundSecondary.opacity(0.5))
+                        .background(themeManager.currentTheme.backgroundSecondary.opacity(0.5))
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(themeEngine.currentTheme.textSecondary)
+                .foregroundStyle(themeManager.currentTheme.textSecondary)
             }
         }
     }
@@ -116,7 +116,7 @@ struct TimerExpandedView: View {
                 actionButton(
                     icon: "arrow.counterclockwise",
                     label: "Reset",
-                    color: themeEngine.currentTheme.textSecondary
+                    color: themeManager.currentTheme.textSecondary
                 ) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         viewModel.reset()
@@ -130,7 +130,7 @@ struct TimerExpandedView: View {
                 label: startPauseLabel,
                 color: viewModel.state == .running
                     ? .yellow
-                    : themeEngine.currentTheme.accentColor
+                    : themeManager.currentTheme.accentColor
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     viewModel.toggleStartPause()

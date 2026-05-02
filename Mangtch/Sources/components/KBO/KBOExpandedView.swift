@@ -5,7 +5,7 @@ import AppKit
 /// is today; users can step backward/forward via header chevrons.
 struct KBOExpandedView: View {
     let viewModel: KBOViewModel
-    @ObservedObject private var themeEngine = ThemeEngine.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()

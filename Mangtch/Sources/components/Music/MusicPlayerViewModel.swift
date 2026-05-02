@@ -26,7 +26,7 @@ final class MusicPlayerViewModel {
 
     func startObserving() {
         // Fetch current state immediately (in case events were sent before we subscribed)
-        let bridge = MediaBridge.shared
+        let bridge = MusicManager.shared
         if let info = bridge.nowPlaying {
             updateNowPlaying(info)
         }
@@ -73,15 +73,15 @@ final class MusicPlayerViewModel {
     // MARK: - Playback Controls
 
     func togglePlayPause() {
-        MediaBridge.shared.togglePlayPause()
+        MusicManager.shared.togglePlayPause()
     }
 
     func nextTrack() {
-        MediaBridge.shared.nextTrack()
+        MusicManager.shared.nextTrack()
     }
 
     func previousTrack() {
-        MediaBridge.shared.previousTrack()
+        MusicManager.shared.previousTrack()
     }
 
     // MARK: - Private

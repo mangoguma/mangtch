@@ -26,9 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Initialize system bridges
-        NSLog("[AppDelegate] About to call MediaBridge.shared.startMonitoring()")
-        MediaBridge.shared.startMonitoring()
-        NSLog("[AppDelegate] MediaBridge.shared.startMonitoring() completed")
+        NSLog("[AppDelegate] About to call MusicManager.shared.startMonitoring()")
+        MusicManager.shared.startMonitoring()
+        NSLog("[AppDelegate] MusicManager.shared.startMonitoring() completed")
         SystemInfoBridge.shared.startMonitoring()
 
         // Register all widgets
@@ -85,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         Task { @MainActor in
             WidgetRegistry.shared.deactivateAll()
-            MediaBridge.shared.stopMonitoring()
+            MusicManager.shared.stopMonitoring()
             SystemInfoBridge.shared.stopMonitoring()
             GestureHandler.shared.teardown()
             ShortcutManager.shared.teardown()

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AppearanceSettingsView: View {
     @State private var settings = SettingsManager.shared
-    @ObservedObject var themeEngine = ThemeEngine.shared
+    @ObservedObject var themeManager = ThemeManager.shared
     @State private var selectedTheme: String = UserDefaults.standard.string(forKey: "selectedTheme") ?? "default"
 
     var body: some View {
@@ -48,15 +48,15 @@ struct AppearanceSettingsView: View {
                         }
                         .pickerStyle(.segmented)
                         .onChange(of: selectedTheme) { oldValue, newValue in
-                            let theme = ThemeEngine.themeForName(newValue)
-                            themeEngine.setTheme(theme, name: newValue)
+                            let theme = ThemeManager.themeForName(newValue)
+                            themeManager.setTheme(theme, name: newValue)
                         }
                     }
 
                     Divider()
 
                     // Live Preview Panel
-                    ThemePreviewPanel(theme: themeEngine.currentTheme)
+                    ThemePreviewPanel(theme: themeManager.currentTheme)
                 }
                 .padding(.vertical, 4)
             } header: {

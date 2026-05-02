@@ -10,11 +10,11 @@ enum ActivePlayer: String {
     case appleMusic = "com.apple.Music"
 }
 
-// MARK: - MediaBridge
+// MARK: - MusicManager
 
 @MainActor
-final class MediaBridge: ObservableObject {
-    static let shared = MediaBridge()
+final class MusicManager: ObservableObject {
+    static let shared = MusicManager()
 
     // MARK: - Published State
 
@@ -57,7 +57,7 @@ final class MediaBridge: ObservableObject {
     // MARK: - Public API
 
     func startMonitoring() {
-        NSLog("[MediaBridge] ===== startMonitoring() (AppleScript mode) =====")
+        NSLog("[MusicManager] ===== startMonitoring() (AppleScript mode) =====")
 
         // Detect active player immediately
         detectActivePlayer()
@@ -83,7 +83,7 @@ final class MediaBridge: ObservableObject {
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
                 let bundleId = app.bundleIdentifier ?? ""
                 if bundleId == ActivePlayer.spotify.rawValue || bundleId == ActivePlayer.appleMusic.rawValue {
-                    NSLog("[MediaBridge] Music app launched: \(bundleId)")
+                    NSLog("[MusicManager] Music app launched: \(bundleId)")
                     Task { @MainActor in
                         self?.detectActivePlayer()
                         self?.pollNowPlaying()
@@ -101,7 +101,7 @@ final class MediaBridge: ObservableObject {
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
                 let bundleId = app.bundleIdentifier ?? ""
                 if bundleId == ActivePlayer.spotify.rawValue || bundleId == ActivePlayer.appleMusic.rawValue {
-                    NSLog("[MediaBridge] Music app terminated: \(bundleId)")
+                    NSLog("[MusicManager] Music app terminated: \(bundleId)")
                     Task { @MainActor in
                         self?.detectActivePlayer()
                         // Clear now playing if the terminated app was the active player
@@ -116,11 +116,11 @@ final class MediaBridge: ObservableObject {
         }
         workspaceObservers.append(terminateObserver)
 
-        NSLog("[MediaBridge] Monitoring started with 2s polling + workspace observers")
+        NSLog("[MusicManager] Monitoring started with 2s polling + workspace observers")
     }
 
     func stopMonitoring() {
-        NSLog("[MediaBridge] Stopping monitoring")
+        NSLog("[MusicManager] Stopping monitoring")
         pollingTimer?.invalidate()
         pollingTimer = nil
         artworkFetchTask?.cancel()
@@ -265,7 +265,7 @@ final class MediaBridge: ObservableObject {
             activePlayer = nil
         }
 
-        NSLog("[MediaBridge] Active player: \(activePlayer?.rawValue ?? "none") (Spotify=\(spotifyRunning), Music=\(appleMusicRunning))")
+        NSLog("[MusicManager] Active player: \(activePlayer?.rawValue ?? "none") (Spotify=\(spotifyRunning), Music=\(appleMusicRunning))")
     }
 
     private func isAppRunning(_ bundleId: String) -> Bool {
@@ -322,7 +322,7 @@ final class MediaBridge: ObservableObject {
 
         let parts = output.components(separatedBy: "|||")
         guard parts.count == 8 else {
-            NSLog("[MediaBridge] Spotify: unexpected parts count: \(parts.count)")
+            NSLog("[MusicManager] Spotify: unexpected parts count: \(parts.count)")
             return
         }
 
@@ -393,7 +393,7 @@ final class MediaBridge: ObservableObject {
 
         let parts = output.components(separatedBy: "|||")
         guard parts.count == 6 else {
-            NSLog("[MediaBridge] Music: unexpected parts count: \(parts.count)")
+            NSLog("[MusicManager] Music: unexpected parts count: \(parts.count)")
             return
         }
 
@@ -584,7 +584,7 @@ final class MediaBridge: ObservableObject {
             // Don't log for "not running" type errors - they're expected
             let errorNum = error["NSAppleScriptErrorNumber"] as? Int ?? 0
             if errorNum != -600 && errorNum != -1728 {
-                NSLog("[MediaBridge] AppleScript error: \(error)")
+                NSLog("[MusicManager] AppleScript error: \(error)")
             }
         }
         return output.stringValue

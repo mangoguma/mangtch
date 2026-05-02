@@ -3,10 +3,10 @@ import Combine
 
 /// Centralized theme management system for Mangtch
 @MainActor
-final class ThemeEngine: ObservableObject {
+final class ThemeManager: ObservableObject {
     // MARK: - Singleton
 
-    static let shared = ThemeEngine()
+    static let shared = ThemeManager()
 
     // MARK: - Published State
 
@@ -76,11 +76,11 @@ final class ThemeEngine: ObservableObject {
         stopArtworkObservation()
 
         // Apply current artwork immediately if available
-        if let artwork = MediaBridge.shared.currentArtwork {
+        if let artwork = MusicManager.shared.currentArtwork {
             applyArtworkTheme(from: artwork)
         }
 
-        artworkSubscription = MediaBridge.shared.$currentArtwork
+        artworkSubscription = MusicManager.shared.$currentArtwork
             .receive(on: DispatchQueue.main)
             .sink { [weak self] image in
                 if let image = image {

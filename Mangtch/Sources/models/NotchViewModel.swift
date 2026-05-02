@@ -65,7 +65,7 @@ final class NotchViewModel {
     }
     let wingWidth: CGFloat = 120
     var panelCornerRadius: CGFloat {
-        ThemeEngine.shared.currentTheme.panelCornerRadius
+        ThemeManager.shared.currentTheme.panelCornerRadius
     }
 
     // MARK: - Private

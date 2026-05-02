@@ -2,17 +2,17 @@ import SwiftUI
 
 struct ExpandedPlayerView: View {
     let viewModel: MusicPlayerViewModel
-    @ObservedObject private var themeEngine = ThemeEngine.shared
-    @ObservedObject private var mediaBridge = MediaBridge.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var musicManager = MusicManager.shared
     @ObservedObject private var spotifyAuth = SpotifyAuth.shared
 
     /// Heart only makes sense when we can actually toggle the source's
     /// "liked" state. For Spotify that means signed-in (Web API); Apple
     /// Music still works through AppleScript without auth.
     private var canShowLikeButton: Bool {
-        switch mediaBridge.activePlayer {
+        switch musicManager.activePlayer {
         case .spotify:
-            return spotifyAuth.isAuthorized && mediaBridge.nowPlaying?.trackID != nil
+            return spotifyAuth.isAuthorized && musicManager.nowPlaying?.trackID != nil
         case .appleMusic:
             return true
         case .none:
@@ -21,9 +21,9 @@ struct ExpandedPlayerView: View {
     }
 
     var body: some View {
-        let artwork = mediaBridge.currentArtwork
-        let dominant = mediaBridge.dominantColor
-        let secondary = mediaBridge.secondaryColor
+        let artwork = musicManager.currentArtwork
+        let dominant = musicManager.dominantColor
+        let secondary = musicManager.secondaryColor
 
         VStack(spacing: 0) {
             // Artwork + info + controls row
@@ -38,23 +38,23 @@ struct ExpandedPlayerView: View {
                         Text(info.title)
                             .font(.system(size: 13, weight: .bold))
                             .lineLimit(1)
-                            .foregroundStyle(themeEngine.currentTheme.textPrimary)
+                            .foregroundStyle(themeManager.currentTheme.textPrimary)
 
                         Text(info.artist)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(themeEngine.currentTheme.textSecondary)
+                            .foregroundStyle(themeManager.currentTheme.textSecondary)
                             .lineLimit(1)
 
                         if !info.album.isEmpty {
                             Text(info.album)
                                 .font(.system(size: 10))
-                                .foregroundStyle(themeEngine.currentTheme.textSecondary.opacity(0.5))
+                                .foregroundStyle(themeManager.currentTheme.textSecondary.opacity(0.5))
                                 .lineLimit(1)
                         }
                     } else {
                         Text("Not Playing")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(themeEngine.currentTheme.textSecondary)
+                            .foregroundStyle(themeManager.currentTheme.textSecondary)
                     }
 
                     Spacer().frame(height: 6)
@@ -68,12 +68,12 @@ struct ExpandedPlayerView: View {
                         // Like button — hidden when there's no working backend
                         // (e.g. Spotify without Web API sign-in)
                         if canShowLikeButton {
-                            Button(action: { mediaBridge.toggleLike() }) {
-                                Image(systemName: mediaBridge.isLiked ? "heart.fill" : "heart")
+                            Button(action: { musicManager.toggleLike() }) {
+                                Image(systemName: musicManager.isLiked ? "heart.fill" : "heart")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(mediaBridge.isLiked
+                                    .foregroundStyle(musicManager.isLiked
                                         ? Color.red
-                                        : themeEngine.currentTheme.textSecondary.opacity(0.6))
+                                        : themeManager.currentTheme.textSecondary.opacity(0.6))
                             }
                             .buttonStyle(PlayerButtonStyle())
                         }
@@ -140,21 +140,21 @@ struct ExpandedPlayerView: View {
             Button(action: { viewModel.previousTrack() }) {
                 Image(systemName: "backward.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(themeEngine.currentTheme.textPrimary.opacity(0.8))
+                    .foregroundStyle(themeManager.currentTheme.textPrimary.opacity(0.8))
             }
             .buttonStyle(PlayerButtonStyle())
 
             Button(action: { viewModel.togglePlayPause() }) {
                 Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 16))
-                    .foregroundStyle(themeEngine.currentTheme.textPrimary)
+                    .foregroundStyle(themeManager.currentTheme.textPrimary)
             }
             .buttonStyle(PlayerButtonStyle())
 
             Button(action: { viewModel.nextTrack() }) {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(themeEngine.currentTheme.textPrimary.opacity(0.8))
+                    .foregroundStyle(themeManager.currentTheme.textPrimary.opacity(0.8))
             }
             .buttonStyle(PlayerButtonStyle())
         }
@@ -164,13 +164,13 @@ struct ExpandedPlayerView: View {
 
     @ViewBuilder
     private func progressBar(dominant: Color) -> some View {
-        let fillColor = dominant != .clear ? dominant : themeEngine.currentTheme.accentColor
+        let fillColor = dominant != .clear ? dominant : themeManager.currentTheme.accentColor
 
         VStack(spacing: 3) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(themeEngine.currentTheme.backgroundSecondary.opacity(0.6))
+                        .fill(themeManager.currentTheme.backgroundSecondary.opacity(0.6))
                         .frame(height: 3)
 
                     Capsule()
@@ -184,13 +184,13 @@ struct ExpandedPlayerView: View {
             HStack {
                 Text(viewModel.elapsedFormatted)
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .foregroundStyle(themeEngine.currentTheme.textSecondary.opacity(0.6))
+                    .foregroundStyle(themeManager.currentTheme.textSecondary.opacity(0.6))
 
                 Spacer()
 
                 Text(viewModel.remainingFormatted)
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .foregroundStyle(themeEngine.currentTheme.textSecondary.opacity(0.6))
+                    .foregroundStyle(themeManager.currentTheme.textSecondary.opacity(0.6))
             }
         }
     }

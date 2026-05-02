@@ -8,7 +8,7 @@ final class SpotifyAPI {
     static let shared = SpotifyAPI()
 
     /// Cache `isLiked` results keyed by track ID for 60 s. Track changes
-    /// fire on every poll (every 2 s in MediaBridge), and `/me/tracks/contains`
+    /// fire on every poll (every 2 s in MusicManager), and `/me/tracks/contains`
     /// is rate-limited per app, so this avoids hammering it.
     private struct CacheEntry { let liked: Bool; let storedAt: Date }
     private var cache: [String: CacheEntry] = [:]

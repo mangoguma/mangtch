@@ -10,7 +10,7 @@ The Theme system provides a protocol-based architecture for managing all visual 
 
 ```
 ThemeProtocol.swift      - Defines the NotchTheme protocol
-ThemeEngine.swift        - Singleton manager (@MainActor, ObservableObject)
+ThemeManager.swift        - Singleton manager (@MainActor, ObservableObject)
 DefaultTheme.swift       - Default theme matching current design
 DarkTheme.swift          - Darker color palette with deeper shadows
 LightTheme.swift         - Lighter color palette with softer shadows
@@ -24,15 +24,15 @@ LightTheme.swift         - Lighter color palette with softer shadows
 import SwiftUI
 
 struct MyView: View {
-    @State private var themeEngine = ThemeEngine.shared
+    @State private var themeManager = ThemeManager.shared
 
     var body: some View {
         VStack {
             Text("Hello")
-                .foregroundColor(themeEngine.currentTheme.textPrimary)
+                .foregroundColor(themeManager.currentTheme.textPrimary)
         }
-        .background(themeEngine.currentTheme.panelMaterial)
-        .cornerRadius(themeEngine.currentTheme.panelCornerRadius)
+        .background(themeManager.currentTheme.panelMaterial)
+        .cornerRadius(themeManager.currentTheme.panelCornerRadius)
     }
 }
 ```
@@ -41,13 +41,13 @@ struct MyView: View {
 
 ```swift
 // Switch to dark theme
-ThemeEngine.shared.setTheme(DarkTheme(), name: "dark")
+ThemeManager.shared.setTheme(DarkTheme(), name: "dark")
 
 // Switch to light theme
-ThemeEngine.shared.setTheme(LightTheme(), name: "light")
+ThemeManager.shared.setTheme(LightTheme(), name: "light")
 
 // Switch to default theme
-ThemeEngine.shared.setTheme(DefaultTheme(), name: "default")
+ThemeManager.shared.setTheme(DefaultTheme(), name: "default")
 ```
 
 ### Theme persistence
@@ -98,13 +98,13 @@ Theme selection is automatically persisted to UserDefaults and restored on app l
 
 ## Migration Status
 
-**Created**: Theme infrastructure files (ThemeProtocol, ThemeEngine, DefaultTheme, DarkTheme, LightTheme)
+**Created**: Theme infrastructure files (ThemeProtocol, ThemeManager, DefaultTheme, DarkTheme, LightTheme)
 
 **Not yet migrated**: Existing files still use hardcoded values. Migration will be handled separately.
 
 ## Next Steps
 
-1. Migrate NotchContentView to use ThemeEngine
-2. Migrate HUDSliderView to use ThemeEngine
+1. Migrate NotchContentView to use ThemeManager
+2. Migrate HUDSliderView to use ThemeManager
 3. Add theme selection UI in AppearanceSettingsView
 4. Consider state-dependent shadow variations (expanded vs hovering)

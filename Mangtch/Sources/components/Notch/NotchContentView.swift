@@ -4,7 +4,7 @@ struct NotchContentView: View {
     @State private var viewModel = NotchViewModel.shared
     @State private var widgetRegistry = WidgetRegistry.shared
     @State private var settings = SettingsManager.shared
-    @ObservedObject private var themeEngine = ThemeEngine.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         GeometryReader { geo in
@@ -37,7 +37,7 @@ struct NotchContentView: View {
             // As expandedHeight shrinks from maxExpandedHeight → 0,
             // the content is clipped from the bottom (like a drawer closing).
             expandedContent
-                .background(themeEngine.currentTheme.panelMaterial)
+                .background(themeManager.currentTheme.panelMaterial)
                 .clipShape(
                     RoundedRectangle(cornerRadius: viewModel.panelCornerRadius)
                 )
@@ -60,7 +60,7 @@ struct NotchContentView: View {
             leftWing
                 .frame(width: viewModel.wingWidth)
                 .frame(height: viewModel.notchGeometry.notchHeight)
-                .background(themeEngine.currentTheme.panelMaterial)
+                .background(themeManager.currentTheme.panelMaterial)
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
@@ -76,7 +76,7 @@ struct NotchContentView: View {
             rightWing
                 .frame(width: viewModel.wingWidth)
                 .frame(height: viewModel.notchGeometry.notchHeight)
-                .background(themeEngine.currentTheme.panelMaterial)
+                .background(themeManager.currentTheme.panelMaterial)
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
@@ -278,7 +278,7 @@ struct NotchContentView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(themeEngine.currentTheme.panelMaterial)
+            .background(themeManager.currentTheme.panelMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             .frame(width: 320)
