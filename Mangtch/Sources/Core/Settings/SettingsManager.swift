@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import Defaults
 import ServiceManagement
 
 @Observable
@@ -8,163 +9,105 @@ import ServiceManagement
 final class SettingsManager {
     static let shared = SettingsManager()
 
-    // MARK: - Settings Keys
-
-    private enum Keys {
-        static let launchAtLogin = "launchAtLogin"
-        static let animationsEnabled = "animationsEnabled"
-        static let enableMusicPlayer = "enableMusicPlayer"
-        static let enableFileShelf = "enableFileShelf"
-        static let fileShelfMaxItems = "fileShelfMaxItems"
-        static let fileShelfExpirationHours = "fileShelfExpirationHours"
-        static let hoverSensitivity = "hoverSensitivity"
-        static let panelWidthMultiplier = "panelWidthMultiplier"
-        static let showInMenuBar = "showInMenuBar"
-        static let automaticallyCheckForUpdates = "automaticallyCheckForUpdates"
-        static let hasCompletedOnboarding = "hasCompletedOnboarding"
-        static let hideInFullscreen = "hideInFullscreen"
-        static let spotifyClientID = "spotifyClientID"
-        static let lastExpandedWidgetID = "lastExpandedWidgetID"
-        static let kboSelectedGameID = "kboSelectedGameID"
-        static let kboTickerEnabled = "kboTickerEnabled"
-        static let kboTextToSpeechEnabled = "kboTextToSpeechEnabled"
-    }
-
-    // MARK: - Properties
-
-    private let defaults = UserDefaults.standard
-
     var launchAtLogin: Bool {
-        get { defaults.bool(forKey: Keys.launchAtLogin) }
+        get { Defaults[.launchAtLogin] }
         set {
-            defaults.set(newValue, forKey: Keys.launchAtLogin)
+            Defaults[.launchAtLogin] = newValue
             updateLoginItem(enabled: newValue)
         }
     }
 
     var animationsEnabled: Bool {
-        get { defaults.bool(forKey: Keys.animationsEnabled) }
-        set { defaults.set(newValue, forKey: Keys.animationsEnabled) }
+        get { Defaults[.animationsEnabled] }
+        set { Defaults[.animationsEnabled] = newValue }
     }
 
     var enableMusicPlayer: Bool {
-        get { defaults.bool(forKey: Keys.enableMusicPlayer) }
-        set { defaults.set(newValue, forKey: Keys.enableMusicPlayer) }
+        get { Defaults[.enableMusicPlayer] }
+        set { Defaults[.enableMusicPlayer] = newValue }
     }
 
     var enableFileShelf: Bool {
-        get { defaults.bool(forKey: Keys.enableFileShelf) }
-        set { defaults.set(newValue, forKey: Keys.enableFileShelf) }
+        get { Defaults[.enableFileShelf] }
+        set { Defaults[.enableFileShelf] = newValue }
     }
 
     var fileShelfMaxItems: Int {
-        get { defaults.integer(forKey: Keys.fileShelfMaxItems) }
-        set { defaults.set(newValue, forKey: Keys.fileShelfMaxItems) }
+        get { Defaults[.fileShelfMaxItems] }
+        set { Defaults[.fileShelfMaxItems] = newValue }
     }
 
     var fileShelfExpirationHours: Int {
-        get { defaults.integer(forKey: Keys.fileShelfExpirationHours) }
-        set { defaults.set(newValue, forKey: Keys.fileShelfExpirationHours) }
+        get { Defaults[.fileShelfExpirationHours] }
+        set { Defaults[.fileShelfExpirationHours] = newValue }
     }
 
     var hoverSensitivity: Double {
-        get { defaults.double(forKey: Keys.hoverSensitivity) }
-        set { defaults.set(newValue, forKey: Keys.hoverSensitivity) }
+        get { Defaults[.hoverSensitivity] }
+        set { Defaults[.hoverSensitivity] = newValue }
     }
 
     var panelWidthMultiplier: Double {
-        get { defaults.double(forKey: Keys.panelWidthMultiplier) }
-        set { defaults.set(newValue, forKey: Keys.panelWidthMultiplier) }
+        get { Defaults[.panelWidthMultiplier] }
+        set { Defaults[.panelWidthMultiplier] = newValue }
     }
 
     var showInMenuBar: Bool {
-        get { defaults.bool(forKey: Keys.showInMenuBar) }
-        set { defaults.set(newValue, forKey: Keys.showInMenuBar) }
+        get { Defaults[.showInMenuBar] }
+        set { Defaults[.showInMenuBar] = newValue }
     }
 
     var automaticallyCheckForUpdates: Bool {
-        get { defaults.bool(forKey: Keys.automaticallyCheckForUpdates) }
+        get { Defaults[.automaticallyCheckForUpdates] }
         set {
-            defaults.set(newValue, forKey: Keys.automaticallyCheckForUpdates)
+            Defaults[.automaticallyCheckForUpdates] = newValue
             UpdateManager.shared.updater?.automaticallyChecksForUpdates = newValue
         }
     }
 
     var hasCompletedOnboarding: Bool {
-        get { defaults.bool(forKey: Keys.hasCompletedOnboarding) }
-        set { defaults.set(newValue, forKey: Keys.hasCompletedOnboarding) }
+        get { Defaults[.hasCompletedOnboarding] }
+        set { Defaults[.hasCompletedOnboarding] = newValue }
     }
 
     var hideInFullscreen: Bool {
-        get { defaults.bool(forKey: Keys.hideInFullscreen) }
-        set { defaults.set(newValue, forKey: Keys.hideInFullscreen) }
+        get { Defaults[.hideInFullscreen] }
+        set { Defaults[.hideInFullscreen] = newValue }
     }
 
     /// Spotify Web API Client ID (PKCE flow — no secret).
     /// User pastes this from https://developer.spotify.com/dashboard.
     var spotifyClientID: String {
-        get { defaults.string(forKey: Keys.spotifyClientID) ?? "" }
-        set { defaults.set(newValue, forKey: Keys.spotifyClientID) }
+        get { Defaults[.spotifyClientID] }
+        set { Defaults[.spotifyClientID] = newValue }
     }
 
     /// ID of the widget shown in the expanded panel; persisted across sessions.
     /// nil on first run — the switcher falls back to the music player.
     var lastExpandedWidgetID: String? {
-        get { defaults.string(forKey: Keys.lastExpandedWidgetID) }
-        set { defaults.set(newValue, forKey: Keys.lastExpandedWidgetID) }
+        get { Defaults[.lastExpandedWidgetID] }
+        set { Defaults[.lastExpandedWidgetID] = newValue }
     }
 
     /// Game ID the user pinned to the KBO widget's left-wing compact view.
     /// nil = no pin → wing falls back to music. Stored as the Naver-format
     /// gameId (e.g. "20250501LGHH02025"); validity is the widget's concern.
     var kboSelectedGameID: String? {
-        get { defaults.string(forKey: Keys.kboSelectedGameID) }
-        set { defaults.set(newValue, forKey: Keys.kboSelectedGameID) }
+        get { Defaults[.kboSelectedGameID] }
+        set { Defaults[.kboSelectedGameID] = newValue }
     }
 
-    /// Whether the right-wing play ticker is shown when a KBO game is
-    /// pinned. Defaults to true — most users who pin a game want the
-    /// commentary; turning it off keeps the music info visible while
-    /// still seeing the score on the left wing.
     var kboTickerEnabled: Bool {
-        get { defaults.bool(forKey: Keys.kboTickerEnabled) }
-        set { defaults.set(newValue, forKey: Keys.kboTickerEnabled) }
+        get { Defaults[.kboTickerEnabled] }
+        set { Defaults[.kboTickerEnabled] = newValue }
     }
 
-    /// Read each new play aloud via macOS `say`. Off by default —
-    /// announces every pitch/result during a live game which most
-    /// people don't want without explicitly opting in.
     var kboTextToSpeechEnabled: Bool {
-        get { defaults.bool(forKey: Keys.kboTextToSpeechEnabled) }
-        set { defaults.set(newValue, forKey: Keys.kboTextToSpeechEnabled) }
+        get { Defaults[.kboTextToSpeechEnabled] }
+        set { Defaults[.kboTextToSpeechEnabled] = newValue }
     }
 
-    // MARK: - Initialization
-
-    private init() {
-        registerDefaults()
-    }
-
-    private func registerDefaults() {
-        defaults.register(defaults: [
-            Keys.launchAtLogin: false,
-            Keys.animationsEnabled: true,
-            Keys.enableMusicPlayer: true,
-            Keys.enableFileShelf: true,
-            Keys.fileShelfMaxItems: 3,
-            Keys.fileShelfExpirationHours: 24,
-            Keys.hoverSensitivity: 0.5,
-            Keys.panelWidthMultiplier: 1.0,
-            Keys.showInMenuBar: true,
-            Keys.automaticallyCheckForUpdates: true,
-            Keys.hasCompletedOnboarding: false,
-            Keys.hideInFullscreen: true,
-            Keys.kboTickerEnabled: true,
-            Keys.kboTextToSpeechEnabled: false,
-        ])
-    }
-
-    // MARK: - Launch at Login
+    private init() {}
 
     private func updateLoginItem(enabled: Bool) {
         if #available(macOS 13.0, *) {
@@ -180,11 +123,7 @@ final class SettingsManager {
         }
     }
 
-    // MARK: - Reset
-
     func resetToDefaults() {
-        let domain = Bundle.main.bundleIdentifier ?? "com.yojeong.mangtch"
-        defaults.removePersistentDomain(forName: domain)
-        registerDefaults()
+        Defaults.removeAll()
     }
 }
