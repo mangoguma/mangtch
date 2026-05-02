@@ -45,6 +45,13 @@ final class NotchViewModel {
         }
     }
 
+    /// Which wing the cursor is over, computed by GestureHandler from
+    /// the global mouse monitor. SwiftUI .onHover and NSTrackingArea
+    /// don't fire reliably inside our `.nonactivatingPanel`, so wing
+    /// views read this instead to flip their hover state.
+    enum WingHover { case none, left, right }
+    var hoveredWing: WingHover = .none
+
     // MARK: - Configuration
 
     let maxExpandedHeight: CGFloat = 260

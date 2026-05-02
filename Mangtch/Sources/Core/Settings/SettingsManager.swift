@@ -26,6 +26,8 @@ final class SettingsManager {
         static let spotifyClientID = "spotifyClientID"
         static let lastExpandedWidgetID = "lastExpandedWidgetID"
         static let kboSelectedGameID = "kboSelectedGameID"
+        static let kboTickerEnabled = "kboTickerEnabled"
+        static let kboTextToSpeechEnabled = "kboTextToSpeechEnabled"
     }
 
     // MARK: - Properties
@@ -120,6 +122,23 @@ final class SettingsManager {
         set { defaults.set(newValue, forKey: Keys.kboSelectedGameID) }
     }
 
+    /// Whether the right-wing play ticker is shown when a KBO game is
+    /// pinned. Defaults to true — most users who pin a game want the
+    /// commentary; turning it off keeps the music info visible while
+    /// still seeing the score on the left wing.
+    var kboTickerEnabled: Bool {
+        get { defaults.bool(forKey: Keys.kboTickerEnabled) }
+        set { defaults.set(newValue, forKey: Keys.kboTickerEnabled) }
+    }
+
+    /// Read each new play aloud via macOS `say`. Off by default —
+    /// announces every pitch/result during a live game which most
+    /// people don't want without explicitly opting in.
+    var kboTextToSpeechEnabled: Bool {
+        get { defaults.bool(forKey: Keys.kboTextToSpeechEnabled) }
+        set { defaults.set(newValue, forKey: Keys.kboTextToSpeechEnabled) }
+    }
+
     // MARK: - Initialization
 
     private init() {
@@ -140,6 +159,8 @@ final class SettingsManager {
             Keys.automaticallyCheckForUpdates: true,
             Keys.hasCompletedOnboarding: false,
             Keys.hideInFullscreen: true,
+            Keys.kboTickerEnabled: true,
+            Keys.kboTextToSpeechEnabled: false,
         ])
     }
 

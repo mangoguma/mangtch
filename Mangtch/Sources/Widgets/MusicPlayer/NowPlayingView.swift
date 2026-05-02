@@ -2,25 +2,67 @@ import SwiftUI
 
 // MARK: - Compact Artwork View (Left Wing)
 
-/// Shows album art thumbnail + playing indicator.
-/// Used in the left wing of the notch.
+/// Shows album art thumbnail + playing indicator. Hovering swaps to
+/// playback controls — left wing is the music wing now, including the
+/// transport buttons that used to live on the right.
 struct CompactArtworkView: View {
     let viewModel: MusicPlayerViewModel
+    private var notchVM: NotchViewModel { NotchViewModel.shared }
 
     var body: some View {
-        HStack(spacing: 6) {
-            // Album art thumbnail
-            artworkThumbnail
-
-            // Playing indicator
-            if viewModel.isPlaying {
-                AudioVisualizerView(isPlaying: true)
-                    .scaleEffect(0.6)
-                    .frame(width: 14, height: 12)
+        let isHovering = notchVM.hoveredWing == .left
+        // Use a ZStack with opacity instead of an if/else swap so the
+        // button views stay alive in the SwiftUI tree across hover
+        // transitions — SwiftUI was tearing them down between mouseDown
+        // and mouseUp, killing every click.
+        ZStack {
+            HStack(spacing: 6) {
+                artworkThumbnail
+                if viewModel.isPlaying {
+                    AudioVisualizerView(isPlaying: true)
+                        .scaleEffect(0.6)
+                        .frame(width: 14, height: 12)
+                }
             }
+            .opacity(isHovering ? 0 : 1)
+            .allowsHitTesting(!isHovering)
+
+            compactControls
+                .opacity(isHovering ? 1 : 0)
+                .allowsHitTesting(isHovering)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .animation(.easeInOut(duration: 0.18), value: isHovering)
+    }
+
+    private var compactControls: some View {
+        // .onTapGesture instead of SwiftUI Button — Button's gesture
+        // recognizer only fires its action when the hosting window is
+        // key, and our notch panel deliberately stays non-key while
+        // hovered (keeping focus on the user's foreground app).
+        // onTapGesture has no such requirement.
+        HStack(spacing: 2) {
+            Image(systemName: "backward.fill")
+                .font(.system(size: 9))
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+                .onTapGesture { viewModel.previousTrack() }
+
+            Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 11))
+                .frame(width: 26, height: 22)
+                .contentShape(Rectangle())
+                .onTapGesture { viewModel.togglePlayPause() }
+
+            Image(systemName: "forward.fill")
+                .font(.system(size: 9))
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+                .onTapGesture { viewModel.nextTrack() }
+        }
+        .foregroundStyle(.primary)
     }
 
     // MARK: - Artwork Thumbnail
@@ -52,31 +94,21 @@ struct CompactArtworkView: View {
 
 // MARK: - Compact Info View (Right Wing)
 
-/// Shows track title/artist, switches to playback controls on hover.
-/// Used in the right wing of the notch.
+/// Shows track title/artist on the right wing. Static — playback
+/// controls moved to the left wing's CompactArtworkView so the right
+/// wing is free for KBO ticker / future widget overlays.
 struct CompactInfoView: View {
     let viewModel: MusicPlayerViewModel
-
-    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 6) {
             if let info = viewModel.nowPlaying, !info.title.isEmpty {
-                if isHovering {
-                    // Compact playback controls on hover
-                    compactControls
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                } else {
-                    // Track info
-                    VStack(alignment: .leading, spacing: 1) {
-                        MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
-
-                        MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
+                VStack(alignment: .leading, spacing: 1) {
+                    MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
+                    MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 Text("No music")
                     .font(.system(size: 11))
@@ -86,42 +118,5 @@ struct CompactInfoView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovering = hovering
-            }
-        }
-    }
-
-    // MARK: - Compact Controls
-
-    private var compactControls: some View {
-        HStack(spacing: 2) {
-            Button(action: { viewModel.previousTrack() }) {
-                Image(systemName: "backward.fill")
-                    .font(.system(size: 9))
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Button(action: { viewModel.togglePlayPause() }) {
-                Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 11))
-                    .frame(width: 28, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Button(action: { viewModel.nextTrack() }) {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 9))
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        }
-        .foregroundStyle(.primary)
     }
 }

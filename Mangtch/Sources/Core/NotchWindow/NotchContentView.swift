@@ -53,10 +53,10 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private func wingsRow(in geo: GeometryProxy) -> some View {
-        let fileShelf = (widgetRegistry.widget(for: "file-shelf")?.wrapped as? FileShelfWidget)
-
+        // Plain HStack restored from 03225a3 era — when wing button clicks
+        // were known to work. Drop handling for File Shelf moved off the
+        // wings entirely so it can't intercept Button mouseDown events.
         HStack(spacing: 0) {
-            // Left wing (always visible)
             leftWing
                 .frame(width: viewModel.wingWidth)
                 .frame(height: viewModel.notchGeometry.notchHeight)
@@ -70,11 +70,9 @@ struct NotchContentView: View {
                     )
                 )
 
-            // Spacer for the physical notch
             Spacer()
                 .frame(width: viewModel.notchGeometry.notchWidth)
 
-            // Right wing (always visible)
             rightWing
                 .frame(width: viewModel.wingWidth)
                 .frame(height: viewModel.notchGeometry.notchHeight)
@@ -88,13 +86,6 @@ struct NotchContentView: View {
                     )
                 )
         }
-        // Treat the whole wings row as a drop target. Without this, the user
-        // has to hover the file-shelf compact icon precisely while dragging,
-        // which is awkward on a 14pt target. The contentShape ensures the
-        // notch gap (a SwiftUI Spacer) is hit-tested too — without it, drags
-        // over the empty middle don't register.
-        .contentShape(Rectangle())
-        .modifier(FileShelfDropOnWings(fileShelf: fileShelf))
     }
 
     // MARK: - Wing Contents
@@ -125,11 +116,17 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // Music info (track + hover-controls) is always here. It only ever
-        // disappears if the music widget itself is disabled.
-        if let musicWidget = widgetRegistry.widget(for: "music-player"),
-           let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-           musicWidget.isEnabled {
+        // When KBO is the active widget the right wing belongs to its
+        // play ticker — base layer is the latest play (or "중계 대기 중"
+        // idle), hover swaps to the ticker / TTS toggle buttons.
+        // Otherwise the music track info sits here as before.
+        if viewModel.currentExpandedWidgetID == "kbo",
+           let kbo = (widgetRegistry.widget(for: "kbo")?.wrapped as? KBOWidget)?.viewModel {
+            KBORightWingView(viewModel: kbo)
+                .transition(.opacity)
+        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
+                  let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
+                  musicWidget.isEnabled {
             actualWidget.makeCompactInfoView()
                 .transition(.opacity)
         } else {

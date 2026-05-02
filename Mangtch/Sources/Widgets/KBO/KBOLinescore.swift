@@ -36,11 +36,22 @@ struct KBOLinescore: Equatable {
     let awayTeamName: String         // "KT"
     let homeTeamName: String         // "두산"
 
+    /// Most recent play description from the text-relay feed, e.g.
+    /// "강민호 : 좌익수 앞 1루타". nil for games without a play stream
+    /// (pre-game / cancelled). Used to drive a ticker on the right wing.
+    let latestPlay: Play?
+
     struct Totals: Equatable {
         let runs: Int
         let hits: Int
         let errors: Int
         let walks: Int
+    }
+
+    struct Play: Equatable {
+        let seqno: Int
+        let inning: Int
+        let text: String
     }
 }
 
@@ -84,6 +95,11 @@ extension KBOLinescore {
         self.awayTeamName = ""
         self.homeTeamName = ""
 
+        // Latest play — scan textRelays for the textOption with the
+        // highest seqno that has non-empty text. That's the most recent
+        // commentary line we can surface in the right-wing ticker.
+        self.latestPlay = Self.findLatestPlay(in: raw)
+
         if let score = trd.inningScore,
            let homeMap = score.home, let awayMap = score.away,
            !homeMap.isEmpty || !awayMap.isEmpty {
@@ -126,6 +142,49 @@ extension KBOLinescore {
 
     private static func maxKey(_ dict: [String: String]) -> Int {
         dict.keys.compactMap(Int.init).max() ?? 0
+    }
+
+    /// Scan textRelays for the textOption with the highest seqno and
+    /// non-empty text. Naver puts every play (pitches, hits, subs,
+    /// inning summary lines) into textRelays[].textOptions[]; the seqno
+    /// is monotonically increasing, so the max-seqno line is the most
+    /// recent thing the broadcast called.
+    private static func findLatestPlay(in raw: Data) -> Play? {
+        struct Outer: Decodable {
+            struct Result: Decodable { let textRelayData: Inner? }
+            let result: Result?
+        }
+        struct Inner: Decodable { let textRelays: [Relay]? }
+        struct Relay: Decodable {
+            let inn: Int?
+            let textOptions: [Option]?
+        }
+        struct Option: Decodable {
+            let seqno: Int?
+            let text: String?
+            let type: Int?
+        }
+
+        guard let outer = try? JSONDecoder().decode(Outer.self, from: raw),
+              let relays = outer.result?.textRelayData?.textRelays
+        else { return nil }
+
+        var best: Play?
+        for relay in relays {
+            guard let inning = relay.inn, let options = relay.textOptions else { continue }
+            for opt in options {
+                guard let seqno = opt.seqno,
+                      let text = opt.text?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !text.isEmpty,
+                      // type 99 is the "=====" inning-divider noise
+                      opt.type != 99
+                else { continue }
+                if best == nil || seqno > best!.seqno {
+                    best = Play(seqno: seqno, inning: inning, text: text)
+                }
+            }
+        }
+        return best
     }
 }
 

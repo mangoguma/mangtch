@@ -49,6 +49,33 @@ final class KBOViewModel {
         return games.first(where: { $0.gameId == id })
     }
 
+    // MARK: - Live ticker state
+
+    /// Most recent play text from the pinned (or viewed) live game.
+    /// Auto-clears 5 s after being set so the right-wing ticker fades
+    /// itself out instead of standing forever after one new play.
+    private(set) var latestPlayText: String?
+    private var lastSeenSeqno: Int = 0
+    private var tickerClearTask: Task<Void, Never>?
+
+    /// Mirror SettingsManager.kboTickerEnabled / kboTextToSpeechEnabled
+    /// here so SwiftUI views observing this @Observable can react instantly
+    /// to toggle-button taps from the wing without going through defaults.
+    var tickerEnabled: Bool {
+        get { SettingsManager.shared.kboTickerEnabled }
+        set { SettingsManager.shared.kboTickerEnabled = newValue }
+    }
+    var ttsEnabled: Bool {
+        get { SettingsManager.shared.kboTextToSpeechEnabled }
+        set { SettingsManager.shared.kboTextToSpeechEnabled = newValue }
+    }
+
+    /// Game whose plays should be tickered/spoken. Priority: viewed >
+    /// pinned. Both share the same relay-fetch path.
+    private var trackedGame: KBOGame? {
+        viewingGame ?? selectedGame
+    }
+
     // MARK: - Private
 
     private var pollTimer: Timer?
@@ -123,11 +150,13 @@ final class KBOViewModel {
                !pinned.isLive {
                 self.selectedGameID = nil
             }
-            // If the user is viewing a live game's detail, refresh the
-            // linescore in lockstep with the schedule poll so the inning
-            // data tracks the score the user just saw update in the row.
-            if let viewing = self.viewingGame, viewing.isLive {
-                self.fetchLinescoreNow(for: viewing)
+            // Refresh the relay (linescore + textRelays) for whichever
+            // game we're tracking — the one being viewed in detail, or
+            // failing that, the pinned wing game. This is what feeds new
+            // plays into the right-wing ticker and TTS even when the
+            // panel isn't expanded.
+            if let tracked = self.trackedGame, tracked.isLive {
+                self.fetchLinescoreNow(for: tracked)
             }
             // Re-arm the timer with whatever cadence now matches reality
             // (live game polling is faster than scheduled-only polling).
@@ -244,10 +273,75 @@ final class KBOViewModel {
         linescoreTask = Task { @MainActor in
             self.isLoadingLinescore = true
             let result = await KBOService.fetchLinescore(gameId: gameId, season: season)
-            // Don't overwrite if the user navigated away mid-fetch.
-            guard !Task.isCancelled, self.viewingGameID == gameId else { return }
-            self.viewingLinescore = result
+            guard !Task.isCancelled else { return }
+            // Linescore is stored only when the user is actually viewing
+            // this game's detail. For pure background tracking (pinned
+            // but not expanded) we just want the play side-effects.
+            if self.viewingGameID == gameId {
+                self.viewingLinescore = result
+            }
             self.isLoadingLinescore = false
+            if let play = result?.latestPlay {
+                self.handleNewPlay(play, gameID: gameId)
+            }
+        }
+    }
+
+    // MARK: - Play detection / ticker / TTS
+
+    private var lastSeenGameID: String?
+
+    /// Decide whether the latest play seen in this fetch is genuinely new
+    /// for the tracked game, and surface it to the ticker / TTS pipeline.
+    /// First observation per game is treated as baseline so we don't blast
+    /// every play in the recent history at once when the user pins or
+    /// switches games mid-broadcast.
+    private func handleNewPlay(_ play: KBOLinescore.Play, gameID: String) {
+        let isFirstObservation = (lastSeenGameID != gameID)
+        if isFirstObservation {
+            lastSeenGameID = gameID
+            lastSeenSeqno = 0
+        }
+        guard play.seqno > lastSeenSeqno else { return }
+        lastSeenSeqno = play.seqno
+
+        // Show the latest play immediately, even on the first poll for a
+        // newly-pinned game — otherwise the wing sits at "중계 대기 중"
+        // until the next pitch, which feels broken.
+        if tickerEnabled {
+            latestPlayText = play.text
+            scheduleTickerClear()
+        }
+        // Skip TTS on the first observation so we don't speak a stale
+        // play from before the user pinned the game.
+        if ttsEnabled && !isFirstObservation {
+            Self.speak(play.text)
+        }
+    }
+
+    private func scheduleTickerClear() {
+        tickerClearTask?.cancel()
+        let snapshot = latestPlayText
+        tickerClearTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            // Only clear if it's still the same play — a new one would
+            // have already replaced and rescheduled.
+            if latestPlayText == snapshot {
+                latestPlayText = nil
+            }
+        }
+    }
+
+    /// Read the play aloud via macOS `say`. Detached so URLSession poll
+    /// timing isn't affected by the audio runtime. Korean voice ("Yuna")
+    /// since plays are written in Korean.
+    private static func speak(_ text: String) {
+        Task.detached {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+            process.arguments = ["-v", "Yuna", text]
+            try? process.run()
         }
     }
 

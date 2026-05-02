@@ -10,7 +10,6 @@ final class NotchWindow: NSPanel {
     private var expandedHeightObservation: Any?
     private var fullscreenObservation: Any?
     private let fullscreenObserver = FullscreenObserver()
-    private var hostingController: NSHostingController<NotchContentView>?
     private var allowKeyWindow = false
 
     private init() {
@@ -75,22 +74,22 @@ final class NotchWindow: NSPanel {
 
         NSLog("[NotchWindow] Panel frame set")
 
-        // Host SwiftUI content — use NSHostingController with safeAreaRegions = []
-        // to prevent macOS from applying notch safe area insets
+        // Custom NSHostingView subclass that returns acceptsFirstMouse=true
+        // so the first click in our non-key panel is delivered as a real
+        // mouseDown to SwiftUI views (default behaviour is to swallow it
+        // as a window-activation click).
         let swiftUIContent = NotchContentView()
-        let controller = NSHostingController(rootView: swiftUIContent)
-        controller.safeAreaRegions = []
-        self.hostingController = controller
-        let hostingView = controller.view
+        let hostingView = FirstMouseHostingView(rootView: swiftUIContent)
         hostingView.frame = self.contentView?.bounds ?? .zero
         hostingView.autoresizingMask = [.width, .height]
         self.contentView = hostingView
 
-        // Forward registration to the freshly installed contentView so SwiftUI
-        // .onDrop modifiers in the hosted view actually receive drag-from-
-        // Finder events. nonactivating panels otherwise silently drop them.
-        self.registerForDraggedTypes([.fileURL])
-
+        // Note: we deliberately do NOT call self.registerForDraggedTypes
+        // here. Doing so makes AppKit absorb mouseDown events on the
+        // contentView (looking for a drag-start gesture) which kills every
+        // SwiftUI Button click on the wings. Drag-from-Finder is detected
+        // separately by the global leftMouseDragged monitor below, and the
+        // actual drop handling lives in SwiftUI .onDrop modifiers.
         self.orderFrontRegardless()
 
         NSLog("[NotchWindow] ✓ Window setup complete and visible")
@@ -335,3 +334,8 @@ final class NotchWindow: NSPanel {
         updateWindowFrame()
     }
 }
+
+private final class FirstMouseHostingView: NSHostingView<NotchContentView> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
