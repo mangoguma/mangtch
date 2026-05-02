@@ -59,7 +59,8 @@ private struct ScrollPanReader: NSViewRepresentable {
         private var handler: (CGFloat, PanPhase) -> Void
 
         private weak var hostView: NSView?
-        private var monitor: Any?
+        private var localMonitor: Any?
+        private var globalMonitor: Any?
         private var sum: CGFloat = 0
         private var fired = false
         private var idleTimer: Task<Void, Never>?
@@ -78,24 +79,44 @@ private struct ScrollPanReader: NSViewRepresentable {
 
         func attach(to view: NSView) {
             hostView = view
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            // Local monitor catches scrolls when our nonactivating panel
+            // is allowed to receive them.
+            localMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 guard let self else { return event }
                 if event.window === self.hostView?.window {
                     self.consume(event)
                 }
                 return event
             }
+            // Global monitor is the fallback for scrolls that the window
+            // server routes elsewhere (typical for nonactivatingPanel +
+            // canBecomeKey=false). We can only observe globals, never
+            // mutate them, so this purely fires the gesture callback.
+            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self else { return }
+                Task { @MainActor [weak self] in
+                    guard let self, self.cursorIsOverHost() else { return }
+                    self.consume(event)
+                }
+            }
         }
 
         func detach() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
+            for token in [localMonitor, globalMonitor].compactMap({ $0 }) {
+                NSEvent.removeMonitor(token)
             }
-            monitor = nil
+            localMonitor = nil
+            globalMonitor = nil
             idleTimer?.cancel()
             idleTimer = nil
             sum = 0
             fired = false
+        }
+
+        private func cursorIsOverHost() -> Bool {
+            guard let window = hostView?.window else { return false }
+            let cursor = NSEvent.mouseLocation
+            return window.frame.contains(cursor)
         }
 
         private func consume(_ event: NSEvent) {
