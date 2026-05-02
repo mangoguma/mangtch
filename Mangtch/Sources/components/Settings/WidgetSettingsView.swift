@@ -1,7 +1,9 @@
 import SwiftUI
+import Defaults
 
 struct WidgetSettingsView: View {
     @State private var registry = WidgetRegistry.shared
+    @Default(.expandedDragDetection) private var expandedDragDetection
 
     var body: some View {
         Form {
@@ -42,6 +44,22 @@ struct WidgetSettingsView: View {
 
             Section("File Shelf") {
                 @State var settings = SettingsManager.shared
+
+                Toggle(isOn: $expandedDragDetection) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-expand on drag")
+                        Text("Open the shelf when a file is dragged toward the notch")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: expandedDragDetection) { _, newValue in
+                    if newValue {
+                        DragDetector.shared.start()
+                    } else {
+                        DragDetector.shared.stop()
+                    }
+                }
 
                 HStack {
                     Text("Maximum files")

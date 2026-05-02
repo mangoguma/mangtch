@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Combine
+import Defaults
 import Sparkle
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -40,6 +41,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Setup gesture handling
         Task { @MainActor in
             GestureHandler.shared.setup()
+        }
+
+        // Drag detector (auto-surface FileShelf when a file is dragged
+        // toward the notch). Off-by-default behavior is gated by Defaults.
+        Task { @MainActor in
+            if Defaults[.expandedDragDetection] {
+                DragDetector.shared.start()
+            }
         }
 
         // Setup global shortcuts
@@ -88,6 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MusicManager.shared.stopMonitoring()
             SystemInfoBridge.shared.stopMonitoring()
             GestureHandler.shared.teardown()
+            DragDetector.shared.stop()
             ShortcutManager.shared.teardown()
             MenuBarManager.shared.teardown()
         }

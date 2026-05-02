@@ -22,4 +22,5 @@ extension Defaults.Keys {
     static let kboSelectedGameID = Key<String?>("kboSelectedGameID", default: nil)
     static let kboTickerEnabled = Key<Bool>("kboTickerEnabled", default: true)
     static let kboTextToSpeechEnabled = Key<Bool>("kboTextToSpeechEnabled", default: false)
+    static let expandedDragDetection = Key<Bool>("expandedDragDetection", default: true)
 }
