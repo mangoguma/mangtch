@@ -160,6 +160,8 @@ struct NotchGeometry {
                 notchMaxX = frame.midX + estimatedWidth / 2
             }
 
+            NSLog("[NotchGeometry] safeTop=\(safeTop) frame=\(frame) leftArea=\(leftArea) rightArea=\(rightArea) notchWidth=\(notchMaxX - notchMinX) screens=\(NSScreen.screens.count) localizedName=\(screen.localizedName)")
+
             return NotchGeometry(
                 notchWidth: notchMaxX - notchMinX,
                 notchHeight: safeTop,

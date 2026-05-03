@@ -6,6 +6,24 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.3.1</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.3.1</h2>
+        <ul>
+          <li>KBO 베이스 색을 strike와 동일한 노란색으로 통일 (기존 빨강 → 충돌 해소)</li>
+          <li>KBO 패널에서 오늘 외 날짜를 보는 동안 wing이 음악으로 떨어지지 않고 KBO 컨텍스트 유지</li>
+          <li>NotchGeometry 진단 로그 추가 — 다른 Mac에서 wing이 안 뜨는 케이스 디버깅용</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 03 May 2026 16:00:00 +0900</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.3.1/Mangtch-0.3.1.zip"
+                 length="3098964"
+                 sparkle:edSignature="6Y5i3SV8aL6U/v/xnGMfLYYo7pCE+MqrqQ0LV7QUYwBgQlJHQJ336TCaq2WRGkI5Afygh/OL5kzl4IIE0MiMCA=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.3.0</title>
       <description><![CDATA[
         <h2>Mangtch 0.3.0</h2>
