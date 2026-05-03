@@ -6,6 +6,27 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.4.0</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.4.0</h2>
+        <ul>
+          <li>feat: 음악 패널에 LRCLIB 기반 싱크 가사 패널 — 라인 탭으로 그 시점으로 시킹, 재생 위치 따라 가라오케 하이라이트</li>
+          <li>feat: 패널을 펼치면 wing이 보여주던 위젯으로 자동 전환 (KBO 라이브 중이면 KBO, 아니면 음악)</li>
+          <li>refactor: right wing 너비 시스템 재구성 — content 측정/`.fixedSize` 폐기, panel-derived 단일 소스로 통일. 호버 시 wing이 들썩이거나 패널 열 때 잘리던 현상 제거</li>
+          <li>polish: 곡 변경 시 wing이 새 제목 길이만큼만 정확히 늘어났다가 복귀 (NSFont metrics로 픽셀 측정, 애니메이션 없는 즉시 스냅)</li>
+          <li>polish: 하트 버튼 항상 표시 — Spotify 미인증이어도 보이고, 클릭하면 Settings로 안내</li>
+          <li>polish: wing과 expanded 패널이 한 덩어리로 — 데스크톱이 비치던 틈 제거, 모서리 라운딩이 패널 열림 진행도와 함께 0으로 보간</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 03 May 2026 23:30:00 +0900</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.4.0/Mangtch-0.4.0.zip"
+                 length="3129573"
+                 sparkle:edSignature="KLl7UooV8V6SulOUVvb/McOIjMG3j3qnkaeT70FNxrRXVN8TH7JlbckTEt6BTxwb45uTMFqQ6+3XZoK8lWrIDw=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.3.2</title>
       <description><![CDATA[
         <h2>Mangtch 0.3.2</h2>
