@@ -150,17 +150,33 @@ struct NotchGeometry {
             let notchMinX: CGFloat
             let notchMaxX: CGFloat
 
-            if leftArea != .zero && rightArea != .zero {
+            // Sanity range for an actual hardware notch — every shipping
+            // notched MacBook is between ~150pt and ~400pt wide. macOS 26
+            // (Tahoe) appears to return broken auxiliaryTopLeftArea /
+            // auxiliaryTopRightArea on some builds, which produced a
+            // notchWidth of ~2820pt and panel/wings that spanned the entire
+            // screen. When the auxiliary areas are present but yield a
+            // width outside this range, treat them as untrustworthy and
+            // fall back to a centered estimate.
+            let minSaneNotchWidth: CGFloat = 150
+            let maxSaneNotchWidth: CGFloat = 400
+            let estimatedWidth: CGFloat = 200
+
+            let auxiliaryDerivedWidth: CGFloat = {
+                guard leftArea != .zero, rightArea != .zero else { return -1 }
+                return rightArea.minX - leftArea.maxX
+            }()
+
+            if auxiliaryDerivedWidth >= minSaneNotchWidth,
+               auxiliaryDerivedWidth <= maxSaneNotchWidth {
                 notchMinX = leftArea.maxX
                 notchMaxX = rightArea.minX
             } else {
-                // Fallback: estimate from screen center
-                let estimatedWidth: CGFloat = 180
                 notchMinX = frame.midX - estimatedWidth / 2
                 notchMaxX = frame.midX + estimatedWidth / 2
             }
 
-            NSLog("[NotchGeometry] safeTop=\(safeTop) frame=\(frame) leftArea=\(leftArea) rightArea=\(rightArea) notchWidth=\(notchMaxX - notchMinX) screens=\(NSScreen.screens.count) localizedName=\(screen.localizedName)")
+            NSLog("[NotchGeometry] safeTop=\(safeTop) frame=\(frame) leftArea=\(leftArea) rightArea=\(rightArea) auxDerivedWidth=\(auxiliaryDerivedWidth) finalNotchWidth=\(notchMaxX - notchMinX) screens=\(NSScreen.screens.count) localizedName=\(screen.localizedName)")
 
             return NotchGeometry(
                 notchWidth: notchMaxX - notchMinX,

@@ -6,6 +6,23 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.3.2</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.3.2</h2>
+        <ul>
+          <li>fix: macOS 26 (Tahoe)에서 wing이 화면을 가로지르며 패널이 거대화되던 문제 — 노치 폭이 sane range(150~400pt)를 벗어나면 200pt 추정값으로 fallback</li>
+          <li>NotchGeometry 진단 로그에 auxDerivedWidth/finalNotchWidth 추가</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sun, 03 May 2026 21:30:00 +0900</pubDate>
+      <sparkle:version>5</sparkle:version>
+      <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.3.2/Mangtch-0.3.2.zip"
+                 length="3098837"
+                 sparkle:edSignature="+yxKW3GDVEWL9XQZ+uPdrLBWe0+g2K8MmeIYMeXmkEGkP9HcjEWb6uhP87MoaGIIJ6tN1v9Xy9dIE6T2fA1xBg=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.3.1</title>
       <description><![CDATA[
         <h2>Mangtch 0.3.1</h2>
