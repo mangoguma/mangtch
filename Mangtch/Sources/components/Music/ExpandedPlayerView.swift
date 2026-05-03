@@ -43,13 +43,13 @@ struct ExpandedPlayerView: View {
         let secondary = musicManager.secondaryColor
 
         VStack(spacing: 0) {
-            // Artwork + info + controls row
-            HStack(spacing: 14) {
+            // Artwork + info/transport + lyrics + like
+            HStack(alignment: .top, spacing: 14) {
                 // Album artwork
                 artworkImage(artwork, dominant: dominant)
                     .frame(width: 80, height: 80)
 
-                // Track info + transport
+                // Track info + transport (fixed-ish so lyrics has room)
                 VStack(alignment: .leading, spacing: 4) {
                     if let info = viewModel.nowPlaying {
                         Text(info.title)
@@ -76,38 +76,37 @@ struct ExpandedPlayerView: View {
 
                     Spacer().frame(height: 6)
 
-                    // Transport controls + like button
-                    HStack(spacing: 0) {
-                        transportControls
+                    transportControls
+                }
+                .frame(width: 140, alignment: .leading)
 
-                        Spacer()
+                // Synced lyrics — flexes to fill the remaining width
+                LyricsPanel(viewModel: viewModel, dominant: dominant)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 80)
 
-                        // Like button — always visible when there's a track.
-                        // When the active backend can't actually toggle
-                        // (Spotify without Web API auth), the click opens
-                        // Settings instead of silently doing nothing.
-                        if canShowLikeButton {
-                            Button(action: handleLikeTap) {
-                                Image(systemName: musicManager.isLiked ? "heart.fill" : "heart")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(musicManager.isLiked
-                                        ? Color.red
-                                        : themeManager.currentTheme.textSecondary.opacity(0.6))
-                                    .opacity(canToggleLike ? 1 : 0.5)
-                            }
-                            .buttonStyle(PlayerButtonStyle())
-                            .help(canToggleLike
-                                  ? (musicManager.isLiked ? "Unlike" : "Like")
-                                  : "Connect Spotify in Settings to enable Likes")
-                        }
+                // Like button — always visible when there's a track.
+                if canShowLikeButton {
+                    Button(action: handleLikeTap) {
+                        Image(systemName: musicManager.isLiked ? "heart.fill" : "heart")
+                            .font(.system(size: 13))
+                            .foregroundStyle(musicManager.isLiked
+                                ? Color.red
+                                : themeManager.currentTheme.textSecondary.opacity(0.6))
+                            .opacity(canToggleLike ? 1 : 0.5)
                     }
+                    .buttonStyle(PlayerButtonStyle())
+                    .help(canToggleLike
+                          ? (musicManager.isLiked ? "Unlike" : "Like")
+                          : "Connect Spotify in Settings to enable Likes")
+                    .padding(.top, 32)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 6)
 
-            // Progress bar
+            // Progress bar (seekable)
             progressBar(dominant: dominant)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
@@ -199,10 +198,25 @@ struct ExpandedPlayerView: View {
                     Capsule()
                         .fill(fillColor)
                         .frame(width: max(0, geo.size.width * viewModel.progress), height: 3)
-                        .animation(.linear(duration: 1.0 / 60.0), value: viewModel.progress)
+                        .animation(viewModel.isScrubbing ? nil : .linear(duration: 1.0 / 60.0),
+                                   value: viewModel.progress)
                 }
+                // Tall transparent hit area so the 3pt bar is easy to grab.
+                .frame(height: 14)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let f = value.location.x / max(1, geo.size.width)
+                            viewModel.previewSeek(toFraction: f)
+                        }
+                        .onEnded { value in
+                            let f = value.location.x / max(1, geo.size.width)
+                            viewModel.commitSeek(toFraction: f)
+                        }
+                )
             }
-            .frame(height: 3)
+            .frame(height: 14)
 
             HStack {
                 Text(viewModel.elapsedFormatted)
@@ -216,6 +230,106 @@ struct ExpandedPlayerView: View {
                     .foregroundStyle(themeManager.currentTheme.textSecondary.opacity(0.6))
             }
         }
+    }
+}
+
+// MARK: - Lyrics Panel
+
+private struct LyricsPanel: View {
+    let viewModel: MusicPlayerViewModel
+    let dominant: Color
+    @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var lyricsManager = LyricsManager.shared
+
+    var body: some View {
+        Group {
+            switch lyricsManager.lyrics {
+            case .synced(let lines):
+                syncedView(lines: lines)
+            case .plain(let text):
+                plainView(text: text)
+            case .none:
+                placeholderView
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+        .onAppear { loadIfNeeded() }
+        .onChange(of: viewModel.nowPlaying?.title) { _, _ in loadIfNeeded() }
+        .onChange(of: viewModel.nowPlaying?.artist) { _, _ in loadIfNeeded() }
+    }
+
+    private func loadIfNeeded() {
+        guard let info = viewModel.nowPlaying,
+              !info.title.isEmpty, !info.artist.isEmpty else { return }
+        lyricsManager.load(for: info)
+    }
+
+    @ViewBuilder
+    private var placeholderView: some View {
+        let label = lyricsManager.isLoading ? "Loading lyrics…" : "No lyrics found"
+        Text(label)
+            .font(.system(size: 10))
+            .foregroundStyle(themeManager.currentTheme.textSecondary.opacity(0.5))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func plainView(text: String) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundStyle(themeManager.currentTheme.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func syncedView(lines: [LRCLine]) -> some View {
+        // Active line index is derived from viewModel.progress, which the
+        // display-link timer updates ~60Hz, so the highlight tracks playback
+        // smoothly without us running our own timer.
+        let elapsed = (viewModel.nowPlaying?.duration ?? 0) * viewModel.progress
+        let activeIdx = currentIndex(for: elapsed, in: lines) ?? -1
+        let highlight = dominant != .clear ? dominant : themeManager.currentTheme.textPrimary
+
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { idx, line in
+                        Text(line.text.isEmpty ? "♪" : line.text)
+                            .font(.system(size: 11,
+                                          weight: idx == activeIdx ? .semibold : .regular))
+                            .foregroundStyle(idx == activeIdx
+                                ? highlight
+                                : themeManager.currentTheme.textSecondary.opacity(0.55))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id(idx)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .onChange(of: activeIdx) { _, newIdx in
+                guard newIdx >= 0 else { return }
+                withAnimation(.easeOut(duration: 0.25)) {
+                    proxy.scrollTo(newIdx, anchor: .center)
+                }
+            }
+        }
+    }
+
+    private func currentIndex(for time: TimeInterval, in lines: [LRCLine]) -> Int? {
+        var lo = 0, hi = lines.count - 1, idx = -1
+        while lo <= hi {
+            let mid = (lo + hi) / 2
+            if lines[mid].time <= time { idx = mid; lo = mid + 1 } else { hi = mid - 1 }
+        }
+        return idx >= 0 ? idx : nil
     }
 }
 

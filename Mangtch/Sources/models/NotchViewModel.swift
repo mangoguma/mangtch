@@ -77,19 +77,6 @@ final class NotchViewModel {
     /// player names) from pushing the panel off the side of the screen.
     static let maxWingWidth: CGFloat = 260
 
-    /// Compact wing width — content-sized, used while the panel is
-    /// idle/hovering. Set by NotchContentView via PreferenceKey
-    /// (max of left/right measured widths + margin, clamped). Updates
-    /// to `wingWidth`/`panelWidth` flow through whenever this changes
-    /// while wings are in their compact (rounded) state.
-    var compactWingWidth: CGFloat = 120 {
-        didSet {
-            guard !wingsFlat, oldValue != compactWingWidth else { return }
-            wingWidth = compactWingWidth
-            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
-        }
-    }
-
     /// Default panel width when no widget declares one (or none is
     /// active yet). Wide enough for music + most secondary widgets;
     /// widgets with content-heavier expanded views can override via
@@ -99,14 +86,41 @@ final class NotchViewModel {
     /// Wing width to actually render with. Stored (not computed) so that
     /// `withAnimation` blocks in transition methods can interpolate it
     /// smoothly. Recomputed via `targetWingWidth()` whenever inputs
-    /// change (state, active widget, compact measurement).
+    /// change (state, active widget, preview).
     var wingWidth: CGFloat = 120
 
-    /// What `wingWidth` should be right now given the current `wingsFlat`
-    /// flag and active widget. Callers wrap their assignment in
-    /// `withAnimation` to interpolate the change.
+    /// Width to render the wing at while a freshly-started track is being
+    /// previewed (~1.5s after the track changes). `nil` means no preview;
+    /// a value temporarily replaces `panelModeWingWidth`. Caller (the
+    /// music view model) sizes this to the actual title text width so
+    /// the wing fits the new track exactly, no more no less.
+    var previewWingWidth: CGFloat? = nil {
+        didSet {
+            guard oldValue != previewWingWidth else { return }
+            snapWingWidth()
+        }
+    }
+
+    /// What `wingWidth` should be right now. Both compact and panel modes
+    /// pull from a single source so a hover-to-expand never causes a
+    /// width snap. A non-nil `previewWingWidth` temporarily overrides
+    /// the resting width but is clamped so it can never shrink below
+    /// the panel-derived resting width or grow past `maxWingWidth`.
     private func targetWingWidth() -> CGFloat {
-        wingsFlat ? panelModeWingWidth : compactWingWidth
+        let resting = panelModeWingWidth
+        guard let preview = previewWingWidth else { return resting }
+        return min(max(preview, resting), Self.maxWingWidth)
+    }
+
+    /// Re-run `targetWingWidth()` and propagate to `wingWidth`/`panelWidth`.
+    /// No animation — the track-change preview snaps the wing to the new
+    /// title's width and back. Animating the width change felt mechanical
+    /// at any tempo we tried (fast = snappy, slow = laggy); a clean cut
+    /// reads as "the new track replaced the old" rather than chrome
+    /// pulsing for attention.
+    private func snapWingWidth() {
+        wingWidth = targetWingWidth()
+        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
     }
 
     /// True when wings should render in their flat, panel-continuous
@@ -196,6 +210,7 @@ final class NotchViewModel {
         guard currentState == .hovering else { return }
         hoverDebounceTask?.cancel()
         collapseDelayTask?.cancel()
+        autoSelectWidgetForExpand()
         performTransition(to: .expanded)
     }
 
@@ -212,10 +227,38 @@ final class NotchViewModel {
     func forceExpand() {
         hoverDebounceTask?.cancel()
         collapseDelayTask?.cancel()
+        autoSelectWidgetForExpand()
         if currentState == .idle {
             performTransition(to: .hovering)
         }
         performTransition(to: .expanded)
+    }
+
+    /// Pick the widget the panel should open to based on what's actively
+    /// surfacing in the wings. KBO claiming the wing while a game is
+    /// live should also claim the panel; otherwise fall back to music
+    /// when there's a track. Without this, users had to manually click
+    /// the music or baseball tab even though the wing already reflected
+    /// what they were paying attention to.
+    private func autoSelectWidgetForExpand() {
+        let registry = WidgetRegistry.shared
+
+        if let kbo = registry.widget(for: "kbo")?.wrapped as? KBOWidget,
+           registry.widget(for: "kbo")?.isEnabled == true,
+           kbo.viewModel.selectedGame?.isLive == true {
+            if currentExpandedWidgetID != "kbo" {
+                currentExpandedWidgetID = "kbo"
+            }
+            return
+        }
+
+        if let music = registry.widget(for: "music-player")?.wrapped as? MusicPlayerWidget,
+           registry.widget(for: "music-player")?.isEnabled == true,
+           music.viewModel.nowPlaying != nil {
+            if currentExpandedWidgetID != "music-player" {
+                currentExpandedWidgetID = "music-player"
+            }
+        }
     }
 
     /// Toggle between states

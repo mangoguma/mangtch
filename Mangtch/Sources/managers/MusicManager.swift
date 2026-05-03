@@ -203,6 +203,23 @@ final class MusicManager: ObservableObject {
         }
     }
 
+    /// Jump playback to an absolute position in seconds. Both Spotify and
+    /// Apple Music support `set player position to N` via AppleScript.
+    func seek(to seconds: TimeInterval) {
+        guard let player = activePlayer else { return }
+        let target = max(0, seconds)
+        let str = String(format: "%.2f", target)
+        switch player {
+        case .spotify:
+            runAppleScript("tell application \"Spotify\" to set player position to \(str)")
+        case .appleMusic:
+            runAppleScript("tell application \"Music\" to set player position to \(str)")
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.pollNowPlaying()
+        }
+    }
+
     func toggleLike() {
         guard let player = activePlayer else { return }
 

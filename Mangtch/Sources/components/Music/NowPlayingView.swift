@@ -100,42 +100,20 @@ struct CompactArtworkView: View {
 struct CompactInfoView: View {
     let viewModel: MusicPlayerViewModel
 
-    /// Cap on the natural width the wing will grow to before MarqueeText
-    /// has to scroll. Long titles past this scroll within a fixed pane
-    /// instead of pushing the chrome arbitrarily wide.
-    private static let maxNaturalWidth: CGFloat = 200
-
     var body: some View {
+        // Wing width is owned by NotchViewModel (panel-derived, plus a
+        // brief boost during track-change previews). This view fills
+        // whatever it's given; MarqueeText scrolls when the title is
+        // wider than the wing — no intrinsic-width tricks here, those
+        // fought the parent frame and produced clipped/jumpy chrome.
         HStack(spacing: 6) {
             if let info = viewModel.nowPlaying, !info.title.isEmpty {
-                // ZStack pairs a hidden, fixed-size Text with the visible
-                // MarqueeText. MarqueeText is GeometryReader-based and
-                // reports ~0 intrinsic width, so the right wing's
-                // `.fixedSize` measurement collapsed the wing on first
-                // layout (one clipped character) and snapped open when
-                // switching back from KBO. The hidden Text gives the
-                // wing a real natural width on the first pass, capped so
-                // long titles scroll instead of stretching the chrome.
-                ZStack(alignment: .leading) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(info.title)
-                            .font(.system(size: 11, weight: .semibold))
-                            .lineLimit(1)
-                        Text(info.artist)
-                            .font(.system(size: 10))
-                            .lineLimit(1)
-                    }
-                    .fixedSize()
-                    .opacity(0)
-                    .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
-                        MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
-                            .foregroundStyle(.secondary)
-                    }
+                VStack(alignment: .leading, spacing: 1) {
+                    MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
+                    MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: Self.maxNaturalWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 Text("No music")
                     .font(.system(size: 11))
@@ -143,7 +121,7 @@ struct CompactInfoView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 8)
         .padding(.vertical, 4)
     }
 }

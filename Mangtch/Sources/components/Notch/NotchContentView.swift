@@ -86,28 +86,25 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private func wingsRow(in geo: GeometryProxy) -> some View {
-        // Wings size to their content via PreferenceKey measurement. The
-        // inner content renders at its intrinsic horizontal size (via
-        // `.fixedSize`), GeometryReader measures it, and `onPreferenceChange`
-        // pushes the max of (left, right) back to NotchViewModel so panel
-        // and gesture math stay in sync.
+        // Wings render at the width NotchViewModel decides — derived from
+        // the active widget's `preferredPanelWidth` (or boosted briefly
+        // for a track-change preview). Content fills that width. We
+        // deliberately don't use `.fixedSize` + content measurement: the
+        // measurement-driven path produced unstable widths (snapping
+        // wider on hover, clipping on the wing edge in panel mode when
+        // the natural content was wider than the panel-derived width).
         //
         // Wing-bottom rounding is driven by `wingsFlat`, *not* by the
         // panel's animating height — because the corner snap needs to
         // *lead* on expand (corners flatten before the panel grows) and
         // *lag* on collapse (panel shrinks fully before corners round
         // back). NotchViewModel sequences `wingsFlat` separately from
-        // `expandedHeight` to make that happen. Each transition uses its
-        // own `withAnimation`, so SwiftUI smoothly interpolates the
-        // radius in step with that snap rather than the panel's spring.
+        // `expandedHeight` to make that happen.
         let wingBottomRadius: CGFloat = viewModel.wingsFlat ? 0 : viewModel.panelCornerRadius
 
         HStack(spacing: 0) {
             leftWing
-                .fixedSize(horizontal: true, vertical: false)
-                .background(WingMeasure(side: .left))
-                .frame(width: viewModel.wingWidth, alignment: .center)
-                .frame(height: viewModel.notchGeometry.notchHeight)
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -129,10 +126,7 @@ struct NotchContentView: View {
                        height: viewModel.notchGeometry.notchHeight)
 
             rightWing
-                .fixedSize(horizontal: true, vertical: false)
-                .background(WingMeasure(side: .right))
-                .frame(width: viewModel.wingWidth, alignment: .center)
-                .frame(height: viewModel.notchGeometry.notchHeight)
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -150,18 +144,6 @@ struct NotchContentView: View {
             var seen: [WingButton: WingHitZone] = [:]
             for z in zones { seen[z.button] = z }
             viewModel.wingHitZones = Array(seen.values)
-        }
-        .onPreferenceChange(WingContentWidthKey.self) { measured in
-            // Take the larger side so both wings stay equal width and the
-            // notch cutout in the panel keeps centred over the hardware
-            // notch. Add a small horizontal margin so content doesn't kiss
-            // the curve, then clamp to the configured min/max.
-            let proposed = max(measured.left, measured.right) + 16
-            let clamped = min(max(proposed, NotchViewModel.minWingWidth),
-                              NotchViewModel.maxWingWidth)
-            if abs(viewModel.compactWingWidth - clamped) > 0.5 {
-                viewModel.compactWingWidth = clamped
-            }
         }
     }
 
@@ -367,45 +349,6 @@ struct NotchContentView: View {
         case .idle: return AnimationTokens.collapse
         case .hovering: return AnimationTokens.expandHover
         case .expanded: return AnimationTokens.expandClick
-        }
-    }
-}
-
-// MARK: - Wing measurement
-
-/// Reports the natural intrinsic width of each wing's content. The HStack
-/// reads `.left` and `.right` independently and the parent picks the
-/// max so both wings stay symmetric around the notch.
-private struct WingContentWidths: Equatable {
-    var left: CGFloat = 0
-    var right: CGFloat = 0
-}
-
-private struct WingContentWidthKey: PreferenceKey {
-    static let defaultValue = WingContentWidths()
-    static func reduce(value: inout WingContentWidths, nextValue: () -> WingContentWidths) {
-        let next = nextValue()
-        value.left = max(value.left, next.left)
-        value.right = max(value.right, next.right)
-    }
-}
-
-/// Reads the size of the wing content it's attached to as a `.background`,
-/// then writes that width into a `WingContentWidthKey` preference under
-/// the appropriate side. Vertical size is ignored — wing height is fixed
-/// to the notch.
-private struct WingMeasure: View {
-    enum Side { case left, right }
-    let side: Side
-
-    var body: some View {
-        GeometryReader { proxy in
-            Color.clear.preference(
-                key: WingContentWidthKey.self,
-                value: side == .left
-                    ? WingContentWidths(left: proxy.size.width, right: 0)
-                    : WingContentWidths(left: 0, right: proxy.size.width)
-            )
         }
     }
 }
