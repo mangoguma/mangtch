@@ -226,10 +226,10 @@ private struct BasesDiamond: View {
 
     private func base(filled: Bool, size: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-            .fill(filled ? Color.red : Color.clear)
+            .fill(filled ? Color.yellow : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .strokeBorder(filled ? Color.red : Color.white.opacity(0.7), lineWidth: 1)
+                    .strokeBorder(filled ? Color.yellow : Color.white.opacity(0.7), lineWidth: 1)
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))
