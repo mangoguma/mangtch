@@ -229,10 +229,12 @@ struct NotchContentView: View {
             return timer.viewModel.displayTime > 0 || timer.viewModel.isActive
         }
         if let kbo = widget.wrapped as? KBOWidget {
-            // Only claim the wing while the pinned game is actually being
-            // played. Scheduled / finished / unpinned all fall back to
-            // music, since a static "vs" or final score isn't useful at
-            // wing-glance scale.
+            // Hold the wing while the user is browsing a non-today date —
+            // they're clearly in the KBO context and flipping to music
+            // wings under a KBO panel is jarring. Otherwise only claim the
+            // wing for a pinned live game; static "vs" or final scores
+            // aren't useful at wing-glance scale.
+            if !kbo.viewModel.isShowingToday { return true }
             return kbo.viewModel.selectedGame?.isLive == true
         }
         return true
