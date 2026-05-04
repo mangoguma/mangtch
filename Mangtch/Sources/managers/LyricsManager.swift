@@ -26,7 +26,7 @@ final class LyricsManager {
         lyrics = .none
         isLoading = true
 
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             let result = await LRCLIBService.shared.fetch(
                 title: info.title,
                 artist: info.artist,
