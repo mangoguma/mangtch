@@ -22,10 +22,12 @@
 ## ✨ Features
 
 - **🎵 Music Player** — Now-Playing info from Spotify or Apple Music, hover-to-show transport controls, album-art-driven theme tinting. Optional Spotify Web API sign-in syncs the heart button with your Liked Songs.
+- **🎤 Synced Lyrics** — Time-synced lyrics fetched from LRCLIB scroll inline with the track. Falls back to plain lyrics, or hides cleanly when none exist.
 - **📁 File Shelf** — Drag any file from Finder toward the notch and the panel auto-expands onto the shelf so you can drop it. Files stick around as a clipboard you can drag back out into other apps.
-- **⏱️ Timer & Stopwatch** — Countdown timer and stopwatch with a circular progress ring; the inning-style read continues to update in the panel.
+- **⏱️ Timer & Stopwatch** — Countdown timer and stopwatch with a circular progress ring; the read keeps updating in the panel.
 - **⚾ KBO Schedule** — Today's Korean baseball games at a glance: live games show a pulsing badge, finished games dim the loser, scheduled games show first-pitch time. Pin a live game to the left wing and the score updates in place. Step day-by-day with chevrons or jump out to Naver Sports.
-- **🪟 Widget Switcher** — A tab row inside the expanded panel flips between widgets, and the left wing follows whatever widget you're looking at while the right wing stays anchored to music.
+- **🪟 Panel-Aware Widget Switcher** — A tab row inside the expanded panel flips between widgets; the left wing follows whatever widget you're looking at while the right wing stays anchored to music. Wing previews fit content automatically.
+- **🖐️ Trackpad Gestures** — Two-finger pan/scroll over the notch expands or collapses the panel. Drag a file toward the notch and the FileShelf auto-surfaces.
 - **🎨 Album-Art Theming** — Dynamic colors extracted from the current track tint the panel material.
 - **⌨️ Global Shortcut** — Toggle the panel from anywhere with `Cmd+Shift+N`.
 - **🪶 Apple-Frameworks Only** — No Electron, no extra runtime; just SwiftPM + Sparkle for updates.
