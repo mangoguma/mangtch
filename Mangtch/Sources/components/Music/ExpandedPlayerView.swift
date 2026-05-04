@@ -263,6 +263,9 @@ private struct LyricsPanel: View {
         .onAppear { loadIfNeeded() }
         .onChange(of: viewModel.nowPlaying?.title) { _, _ in loadIfNeeded() }
         .onChange(of: viewModel.nowPlaying?.artist) { _, _ in loadIfNeeded() }
+        // NowPlaying often delivers duration on a later tick than title/artist.
+        // Round to seconds so we don't thrash on sub-second jitter.
+        .onChange(of: Int((viewModel.nowPlaying?.duration ?? 0).rounded())) { _, _ in loadIfNeeded() }
     }
 
     private func loadIfNeeded() {

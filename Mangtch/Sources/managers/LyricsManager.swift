@@ -27,12 +27,21 @@ final class LyricsManager {
         isLoading = true
 
         Task { @MainActor [weak self] in
-            let result = await LRCLIBService.shared.fetch(
+            var result = await LRCLIBService.shared.fetch(
                 title: info.title,
                 artist: info.artist,
                 album: info.album,
                 duration: info.duration
             )
+            // LRCLIB has weak coverage for K-pop and CJK; NetEase often
+            // fills the gap. Run it only when the primary source is empty.
+            if result == .none {
+                result = await NetEaseLyricsService.shared.fetch(
+                    title: info.title,
+                    artist: info.artist,
+                    duration: info.duration
+                )
+            }
             guard let self else { return }
             // Only commit if the request is still the latest one we kicked off.
             if self.inflightKey == key {
