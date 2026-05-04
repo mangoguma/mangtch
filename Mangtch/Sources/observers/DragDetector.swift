@@ -78,11 +78,19 @@ final class DragDetector {
         }
 
         let cursor = NSEvent.mouseLocation
-        let inHotzone = isInsideNotchHotzone(cursor)
+        // Resolve to the panel under the cursor so a drag onto an
+        // external display surfaces *that* panel's shelf, not the
+        // primary's. Falls back to the primary when the cursor is on a
+        // screen with no panel (e.g. `showOnAllDisplays` off and the
+        // user is dragging across a non-target display).
+        let targetWindow = NotchWindowManager.shared.window(under: cursor)
+        let inHotzone = (targetWindow != nil) && isInsideNotchHotzone(cursor, window: targetWindow!)
 
         if inHotzone, !insideNotchHotzone {
             insideNotchHotzone = true
-            surfaceShelf()
+            if let window = targetWindow {
+                surfaceShelf(on: window.viewModel)
+            }
         } else if !inHotzone, insideNotchHotzone {
             insideNotchHotzone = false
         }
@@ -98,14 +106,15 @@ final class DragDetector {
         return types.contains(where: accepted.contains)
     }
 
-    /// The hit zone is the notch's footprint plus a small lead-in below it
-    /// so users approaching from the screen don't have to thread the needle.
-    private func isInsideNotchHotzone(_ point: CGPoint) -> Bool {
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? NSScreen.main else {
-            return false
-        }
-        let geometry = NotchViewModel.shared.notchGeometry
-        let panelWidth = geometry.notchWidth + (NotchViewModel.shared.wingWidth * 2)
+    /// The hit zone is the panel's notch footprint plus a small lead-in
+    /// below so users approaching from the screen don't have to thread
+    /// the needle. Geometry comes from the per-window VM so multi-display
+    /// setups use each screen's actual notch dimensions.
+    private func isInsideNotchHotzone(_ point: CGPoint, window: NotchWindow) -> Bool {
+        let screen = window.attachedScreen
+        let viewModel = window.viewModel
+        let geometry = viewModel.notchGeometry
+        let panelWidth = geometry.notchWidth + (viewModel.wingWidth * 2)
         let topY = screen.frame.maxY
         let leadIn: CGFloat = 24
         let hotzone = CGRect(
@@ -117,8 +126,7 @@ final class DragDetector {
         return hotzone.contains(point)
     }
 
-    private func surfaceShelf() {
-        let model = NotchViewModel.shared
+    private func surfaceShelf(on model: NotchViewModel) {
         if WidgetRegistry.shared.widget(for: "file-shelf") != nil {
             model.currentExpandedWidgetID = "file-shelf"
         }

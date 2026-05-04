@@ -127,9 +127,15 @@ struct NotchGeometry {
     let isFloatingMode: Bool
 
     static func detect() -> NotchGeometry {
-        // IMPORTANT: Use screens[0] (built-in display) instead of .main
-        // because .main returns the screen with focus, which might be external
-        guard let screen = NSScreen.screens.first else {
+        // The active screen is whichever the user picked in Settings; by
+        // default that's the built-in display (`NSScreen.screens[0]`).
+        // We deliberately do *not* use `.main` because focus changes would
+        // make the panel jump between displays.
+        return detect(for: NotchScreenResolver.activeScreen())
+    }
+
+    static func detect(for screenOrNil: NSScreen?) -> NotchGeometry {
+        guard let screen = screenOrNil else {
             return NotchGeometry(
                 notchWidth: 0, notchHeight: 0,
                 screenWidth: 1440, screenHeight: 900,
@@ -189,9 +195,15 @@ struct NotchGeometry {
                 isFloatingMode: false
             )
         } else {
-            // Floating mode: create a virtual pill-shaped panel
+            // Floating mode (external display, no hardware notch): create
+            // a virtual pill-shaped panel sized like a menu bar so the
+            // wing contents (artwork, visualizer) actually have room to
+            // render. The chosen height matches the system menu bar when
+            // it's present on this screen, otherwise falls back to 32pt
+            // (similar visual weight to the MacBook notch's ~37pt).
             let floatingWidth: CGFloat = 200
-            let floatingHeight: CGFloat = 8 // Small grab area at top
+            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+            let floatingHeight: CGFloat = max(menuBarHeight, 32)
             let midX = frame.midX
 
             return NotchGeometry(

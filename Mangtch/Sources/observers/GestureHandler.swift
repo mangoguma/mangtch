@@ -95,10 +95,23 @@ final class GestureHandler {
     // MARK: - Mouse Handling
 
     private func handleMouseMoved(at point: NSPoint) {
-        let viewModel = NotchViewModel.shared
+        // Route to whichever panel owns the screen the cursor is on. In
+        // single-display mode this is identical to reading `.shared`;
+        // multi-display lets each panel hover/expand independently.
+        guard let window = NotchWindowManager.shared.window(under: point) else {
+            // Cursor is on a screen with no panel — collapse any panel
+            // that's still in a hover state because the user clearly
+            // moved away.
+            for vm in NotchWindowManager.shared.viewModels.values where vm.currentState == .hovering {
+                vm.collapse()
+            }
+            return
+        }
+        let viewModel = window.viewModel
+        let screen = window.attachedScreen
         let geo = viewModel.notchGeometry
 
-        guard geo.hasNotch, let screen = NSScreen.screens.first else { return }
+        guard geo.hasNotch || geo.isFloatingMode else { return }
 
         // The physical notch zone (covered area between wings)
         let notchZone = NSRect(
@@ -177,12 +190,23 @@ final class GestureHandler {
     }
 
     private func handleGlobalClick(at point: NSPoint) {
-        let viewModel = NotchViewModel.shared
+        // Each panel handles its own outside-click collapse. A click on
+        // screen A shouldn't dismiss screen B's open panel — and clicks
+        // anywhere on the desktop should dismiss whichever panel is open
+        // on that screen.
+        guard let window = NotchWindowManager.shared.window(under: point) else {
+            // Click on a screen with no panel still acts like an outside
+            // click for any open panel.
+            for vm in NotchWindowManager.shared.viewModels.values where vm.currentState == .expanded {
+                vm.collapse()
+            }
+            return
+        }
+        let viewModel = window.viewModel
+        let screen = window.attachedScreen
 
         switch viewModel.currentState {
         case .expanded:
-            // Click outside the expanded panel collapses it.
-            guard let screen = NSScreen.screens.first else { return }
             let geo = viewModel.notchGeometry
             let panelRect = NSRect(
                 x: screen.frame.midX - viewModel.panelWidth / 2,
@@ -201,7 +225,7 @@ final class GestureHandler {
             // the click as a window-activation gesture instead. Dispatch
             // the click to the right action manually based on which wing
             // and where within it the cursor landed.
-            handleWingClick(at: point)
+            handleWingClick(at: point, viewModel: viewModel)
 
         case .idle:
             break
@@ -212,8 +236,7 @@ final class GestureHandler {
     /// frames, reported via PreferenceKey. No more hand-rolled geometry —
     /// when wing widths or button layouts change, the rects update
     /// automatically and clicks stay aligned with what the user sees.
-    private func handleWingClick(at point: NSPoint) {
-        let viewModel = NotchViewModel.shared
+    private func handleWingClick(at point: NSPoint, viewModel: NotchViewModel) {
         guard let zone = viewModel.wingHitZones.first(where: { $0.rect.contains(point) })
         else { return }
         dispatch(zone.button)
@@ -248,9 +271,10 @@ final class GestureHandler {
 
     private func handleKeyDown(_ event: NSEvent) {
         switch event.keyCode {
-        case 53: // Escape
-            if NotchViewModel.shared.currentState != .idle {
-                NotchViewModel.shared.collapse()
+        case 53: // Escape — collapse every open panel, regardless of which
+                 // display it lives on.
+            for vm in NotchWindowManager.shared.viewModels.values where vm.currentState != .idle {
+                vm.collapse()
             }
         default:
             break

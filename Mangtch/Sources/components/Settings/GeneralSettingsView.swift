@@ -1,10 +1,15 @@
 import SwiftUI
 import ServiceManagement
+import AppKit
 
 struct GeneralSettingsView: View {
     @State private var settings = SettingsManager.shared
     @ObservedObject private var spotifyAuth = SpotifyAuth.shared
     @State private var clientIDInput: String = ""
+    /// Re-read on every screen-parameters change so a freshly connected
+    /// or disconnected display shows up in the picker without reopening
+    /// the settings window.
+    @State private var availableScreens: [NSScreen] = NSScreen.screens
 
     var body: some View {
         Form {
@@ -18,6 +23,33 @@ struct GeneralSettingsView: View {
                     get: { settings.showInMenuBar },
                     set: { settings.showInMenuBar = $0 }
                 ))
+            }
+
+            Section("Display") {
+                Toggle("Show on all displays", isOn: Binding(
+                    get: { settings.showOnAllDisplays },
+                    set: { settings.showOnAllDisplays = $0 }
+                ))
+
+                if !settings.showOnAllDisplays {
+                    Picker("Show notch on", selection: Binding(
+                        get: { settings.notchScreen },
+                        set: { settings.notchScreen = $0 }
+                    )) {
+                        // Empty string = built-in (default). Use the actual
+                        // screen-zero name as the label so the user can tell
+                        // which physical display "Built-in" maps to.
+                        let builtInLabel = NSScreen.screens.first?.localizedName ?? "Built-in"
+                        Text("Built-in (\(builtInLabel))").tag("")
+                        ForEach(availableScreens.dropFirst(), id: \.localizedName) { screen in
+                            Text(screen.localizedName).tag(screen.localizedName)
+                        }
+                    }
+                }
+                Text("Pick which display the notch panel attaches to. " +
+                     "Disconnected displays fall back to the built-in screen automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Behavior") {
@@ -80,6 +112,10 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .onAppear {
             clientIDInput = settings.spotifyClientID
+            availableScreens = NSScreen.screens
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
+            availableScreens = NSScreen.screens
         }
     }
 

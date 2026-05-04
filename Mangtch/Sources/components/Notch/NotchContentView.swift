@@ -1,10 +1,22 @@
 import SwiftUI
 
 struct NotchContentView: View {
-    @State private var viewModel = NotchViewModel.shared
+    /// The per-window view model. Each `NotchWindow` constructs its own
+    /// content view with its own VM so multi-display fan-out gives every
+    /// panel independent hover/expand state.
+    @State private var viewModel: NotchViewModel
+    /// The host panel — needed by `WingHitZone` to convert SwiftUI-global
+    /// rects to screen coordinates from *this* window, not whatever the
+    /// `NotchWindow.shared` accessor happens to resolve to.
+    private let hostWindow: NotchWindow
     @State private var widgetRegistry = WidgetRegistry.shared
     @State private var settings = SettingsManager.shared
     @ObservedObject private var themeManager = ThemeManager.shared
+
+    init(viewModel: NotchViewModel, hostWindow: NotchWindow) {
+        self._viewModel = State(initialValue: viewModel)
+        self.hostWindow = hostWindow
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -37,6 +49,7 @@ struct NotchContentView: View {
         // appearance setting. This single environment override replaces
         // hand-tinting every Text/Image in the widget tree.
         .environment(\.colorScheme, .dark)
+        .environment(\.notchHostWindow, hostWindow)
     }
 
     // MARK: - Panel Content
@@ -71,15 +84,13 @@ struct NotchContentView: View {
 
     // MARK: - Panel Background
 
-    /// Solid near-black panel background. Pure `Color.black` made faint
-    /// strokes (empty B/S/O rings, secondary text, divider lines)
-    /// disappear into the canvas — `Color(white: 0.14)` is dark enough to
-    /// read as "black panel" while still letting low-contrast elements
-    /// breathe. No translucent material: the chrome must not bleed the
+    /// Pure-black panel background. The display's hardware notch is
+    /// pure black, so anything lighter shows a visible seam against the
+    /// cutout. No translucent material — the chrome must not bleed the
     /// desktop colour through.
     @ViewBuilder
     private var panelBackground: some View {
-        Color(white: 0.14)
+        Color.black
     }
 
     // MARK: - Wings Row
@@ -121,7 +132,7 @@ struct NotchContentView: View {
             // without a notch (external monitors, non-notch MBPs) it
             // bridges the wings into one continuous bar instead of
             // leaving a desktop-coloured strip showing through.
-            Color(white: 0.14)
+            Color.black
                 .frame(width: viewModel.notchGeometry.notchWidth,
                        height: viewModel.notchGeometry.notchHeight)
 

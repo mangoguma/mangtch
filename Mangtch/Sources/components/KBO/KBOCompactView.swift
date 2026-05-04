@@ -7,7 +7,8 @@ import SwiftUI
 /// inside our .nonactivatingPanel.
 struct KBOCompactView: View {
     let viewModel: KBOViewModel
-    private var notchVM: NotchViewModel { NotchViewModel.shared }
+    @Environment(\.notchHostWindow) private var hostWindow
+    private var notchVM: NotchViewModel { hostWindow?.viewModel ?? NotchViewModel.shared }
 
     @State private var pulse = false
 

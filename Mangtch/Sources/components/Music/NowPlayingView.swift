@@ -7,7 +7,11 @@ import SwiftUI
 /// transport buttons that used to live on the right.
 struct CompactArtworkView: View {
     let viewModel: MusicPlayerViewModel
-    private var notchVM: NotchViewModel { NotchViewModel.shared }
+    @Environment(\.notchHostWindow) private var hostWindow
+    /// Read the per-window VM so this wing reflects *this* panel's hover
+    /// state in multi-display setups. Falls back to primary if the env
+    /// value isn't injected (e.g. previews, settings host).
+    private var notchVM: NotchViewModel { hostWindow?.viewModel ?? NotchViewModel.shared }
 
     var body: some View {
         let isHovering = notchVM.hoveredWing == .left

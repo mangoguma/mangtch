@@ -75,6 +75,18 @@ final class SettingsManager {
         set { Defaults[.hideInFullscreen] = newValue }
     }
 
+    /// Localized name of the screen the notch panel attaches to. Empty
+    /// string = built-in display (`NSScreen.screens[0]`).
+    var notchScreen: String {
+        get { Defaults[.notchScreen] }
+        set { Defaults[.notchScreen] = newValue }
+    }
+
+    var showOnAllDisplays: Bool {
+        get { Defaults[.showOnAllDisplays] }
+        set { Defaults[.showOnAllDisplays] = newValue }
+    }
+
     /// Spotify Web API Client ID (PKCE flow — no secret).
     /// User pastes this from https://developer.spotify.com/dashboard.
     var spotifyClientID: String {

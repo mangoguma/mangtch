@@ -17,8 +17,10 @@ struct FileShelfDropDelegate: DropDelegate {
         // of the panel's current state — the user is mid-drag and shouldn't
         // need to hover-then-drop in two motions.
         Task { @MainActor in
-            NotchViewModel.shared.currentExpandedWidgetID = "file-shelf"
-            NotchViewModel.shared.forceExpand()
+            for vm in NotchWindowManager.shared.allViewModels {
+                vm.currentExpandedWidgetID = "file-shelf"
+                vm.forceExpand()
+            }
         }
     }
 

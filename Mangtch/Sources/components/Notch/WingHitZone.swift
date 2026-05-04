@@ -1,6 +1,21 @@
 import SwiftUI
 import AppKit
 
+/// Host `NotchWindow` for the current SwiftUI subtree. Injected at the
+/// top of each panel's content view so wing-hit-zone reporters can pick
+/// the *right* window for screen-coordinate conversion in multi-display
+/// setups (the `NotchWindow.shared` accessor only sees the primary).
+private struct NotchHostWindowKey: EnvironmentKey {
+    static let defaultValue: NotchWindow? = nil
+}
+
+extension EnvironmentValues {
+    var notchHostWindow: NotchWindow? {
+        get { self[NotchHostWindowKey.self] }
+        set { self[NotchHostWindowKey.self] = newValue }
+    }
+}
+
 /// Identifies a clickable region that lives on the notch's wings. Each
 /// wing button (music transport, KBO toggles, etc.) registers itself
 /// with one of these via the `.wingHitZone(_:)` modifier; GestureHandler
@@ -32,15 +47,13 @@ struct WingHitZonesKey: PreferenceKey {
 
 private struct WingHitZoneReporter: ViewModifier {
     let button: WingButton
+    @Environment(\.notchHostWindow) private var hostWindow
 
     func body(content: Content) -> some View {
         content.background(
             GeometryReader { proxy in
                 let global = proxy.frame(in: .global)
-                // SwiftUI's `.global` is the panel window's coordinate
-                // space (origin top-left). Convert to NSScreen coords by
-                // adding the window's screen origin and flipping Y.
-                let screenRect = Self.toScreen(rect: global)
+                let screenRect = toScreen(rect: global)
                 Color.clear.preference(
                     key: WingHitZonesKey.self,
                     value: [WingHitZone(button: button, rect: screenRect)]
@@ -50,17 +63,15 @@ private struct WingHitZoneReporter: ViewModifier {
     }
 
     /// SwiftUI `.global` is the host window's content-view coordinate
-    /// space (origin top-left, y growing down). NotchWindow is centred
-    /// horizontally above the screen and only `panelWidth + 40` wide, so
-    /// we need its actual frame to get to screen (NSEvent) coordinates.
-    /// `convertToScreen` does the AppKit flip + offset for us.
+    /// space (origin top-left, y growing down); AppKit window/screen y
+    /// goes UP from the bottom-left. Flip inside the window first, then
+    /// hand the window-coord rect to `convertToScreen` (which also
+    /// applies the host's screen origin offset).
     @MainActor
-    private static func toScreen(rect: CGRect) -> CGRect {
-        let window = NotchWindow.shared
-        // SwiftUI `.global` y is measured from the window's TOP going
-        // down; AppKit window/screen y goes UP from the bottom-left.
-        // Convert by flipping inside the window first, then handing the
-        // window-coord rect to `convertToScreen`.
+    private func toScreen(rect: CGRect) -> CGRect {
+        // Fall back to the primary if env injection somehow missed —
+        // single-display setups still resolve correctly that way.
+        let window = hostWindow ?? NotchWindow.shared
         let flippedY = window.frame.height - rect.minY - rect.height
         let inWindow = CGRect(x: rect.minX, y: flippedY,
                               width: rect.width, height: rect.height)

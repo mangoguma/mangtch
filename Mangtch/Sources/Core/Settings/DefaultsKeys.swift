@@ -23,4 +23,11 @@ extension Defaults.Keys {
     static let kboTickerEnabled = Key<Bool>("kboTickerEnabled", default: true)
     static let kboTextToSpeechEnabled = Key<Bool>("kboTextToSpeechEnabled", default: false)
     static let expandedDragDetection = Key<Bool>("expandedDragDetection", default: true)
+    /// Identifier of the screen the notch panel should attach to. Empty
+    /// string (default) means the built-in display (`NSScreen.screens[0]`).
+    /// Otherwise the value is `NSScreen.localizedName`.
+    static let notchScreen = Key<String>("notchScreen", default: "")
+    /// When true, a notch panel is mirrored onto every connected display.
+    /// `notchScreen` is ignored while this is on.
+    static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
 }

@@ -71,22 +71,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             OnboardingWindow.shared.show()
         }
 
-        // Setup notch window with delay to ensure WindowServer connection
+        // Setup notch window(s) with delay to ensure WindowServer connection.
+        // Manager handles screen-change reconciliation internally.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             Task { @MainActor in
-                NotchWindow.shared.setup()
+                NotchWindowManager.shared.sync()
             }
         }
-
-        // Observe screen changes for repositioning
-        NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                Task { @MainActor in
-                    NotchWindow.shared.reposition()
-                }
-            }
-            .store(in: &cancellables)
 
         print("[Mangtch] Launch complete")
     }

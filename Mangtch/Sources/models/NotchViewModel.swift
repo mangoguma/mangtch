@@ -1,13 +1,23 @@
 import SwiftUI
 import Combine
+import Defaults
 
 @Observable
 @MainActor
 final class NotchViewModel {
-    // MARK: - Singleton
-    static let shared = NotchViewModel()
+    // MARK: - Primary instance accessor
+    /// Returns the panel attached to the resolver-chosen "primary"
+    /// display. External callsites (music VM, KBO, shortcuts, drag
+    /// detector) target the primary so behaviour is unchanged on
+    /// single-display setups; the manager owns secondary instances when
+    /// `showOnAllDisplays` is on.
+    static var shared: NotchViewModel { NotchWindowManager.shared.primaryViewModel }
 
     // MARK: - State
+
+    /// The screen this view model is attached to. Each `NotchWindow`
+    /// owns one VM matched to its display.
+    let screen: NSScreen
 
     private(set) var currentState: NotchState = .idle
     private(set) var previousState: NotchState = .idle
@@ -138,12 +148,48 @@ final class NotchViewModel {
     /// Half of the active widget's preferred panel width minus the
     /// hardware notch. Falls back to a sensible default when no widget
     /// is registered or the active one doesn't declare a width.
+    ///
+    /// When the panel is closed, the wing width follows whichever widget
+    /// is *actually* on the wing — not the last panel-selected one. KBO
+    /// without a pinned live game falls back to music in `hasContentToShow`,
+    /// so the width must follow that fallback too; otherwise peeking at
+    /// the KBO panel and closing without pinning leaves the wing
+    /// permanently wider than the music it's now displaying.
     private var panelModeWingWidth: CGFloat {
-        let preferred = WidgetRegistry.shared
-            .widget(for: currentExpandedWidgetID)?
-            .preferredPanelWidth ?? Self.defaultPanelWidth
+        let registry = WidgetRegistry.shared
+        let activeID: String
+        if currentState == .expanded {
+            activeID = currentExpandedWidgetID
+        } else {
+            activeID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
+        }
+        let preferred = registry.widget(for: activeID)?.preferredPanelWidth
+            ?? Self.defaultPanelWidth
         let half = (preferred - notchGeometry.notchWidth) / 2
         return min(max(half, Self.minWingWidth), Self.maxWingWidth)
+    }
+
+    /// Mirrors `NotchContentView.hasContentToShow`: when the panel-selected
+    /// widget has nothing live worth surfacing on the wing, the wings
+    /// render music as a fallback — so the *width* should follow music too.
+    private func effectiveWingWidgetID(fallback: String) -> String {
+        let registry = WidgetRegistry.shared
+        guard let active = registry.widget(for: fallback), active.isEnabled else {
+            return "music-player"
+        }
+        if let kbo = active.wrapped as? KBOWidget {
+            let claimsWing = !kbo.viewModel.isShowingToday
+                || kbo.viewModel.selectedGame?.isLive == true
+            return claimsWing ? fallback : "music-player"
+        }
+        if let fs = active.wrapped as? FileShelfWidget {
+            return fs.viewModel.items.isEmpty ? "music-player" : fallback
+        }
+        if let timer = active.wrapped as? TimerWidget {
+            let claimsWing = timer.viewModel.displayTime > 0 || timer.viewModel.isActive
+            return claimsWing ? fallback : "music-player"
+        }
+        return fallback
     }
 
     /// Hit zones for clickable wing buttons, in screen coordinates.
@@ -175,10 +221,20 @@ final class NotchViewModel {
 
     // MARK: - Init
 
-    private init() {
-        notchGeometry = NotchGeometry.detect()
-        currentExpandedWidgetID = SettingsManager.shared.lastExpandedWidgetID ?? "music-player"
+    init(screen: NSScreen) {
+        self.screen = screen
+        self.notchGeometry = NotchGeometry.detect(for: screen)
+        self.currentExpandedWidgetID = SettingsManager.shared.lastExpandedWidgetID ?? "music-player"
         setupScreenChangeObserver()
+        updatePanelDimensions()
+    }
+
+    /// Re-detect notch geometry from the current `screen`. Called by the
+    /// owning `NotchWindow` when display parameters change. Keeps the
+    /// per-instance geometry in sync with the actual hardware so multiple
+    /// VMs (one per display) don't all read primary-screen dimensions.
+    func refreshGeometry() {
+        notchGeometry = NotchGeometry.detect(for: screen)
         updatePanelDimensions()
     }
 
@@ -393,11 +449,16 @@ final class NotchViewModel {
     // MARK: - Screen Change Observer
 
     private func setupScreenChangeObserver() {
+        // Each VM rebinds to its own screen on hardware-parameter changes.
+        // Display add/remove and preference flips are handled by
+        // `NotchWindowManager`, which tears down/replaces VMs as needed —
+        // so we only need to refresh local geometry here.
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.notchGeometry = NotchGeometry.detect()
-                self?.updatePanelDimensions()
+                guard let self else { return }
+                self.notchGeometry = NotchGeometry.detect(for: self.screen)
+                self.updatePanelDimensions()
                 EventBus.shared.send(.screenChanged)
             }
             .store(in: &cancellables)

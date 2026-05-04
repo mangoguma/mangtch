@@ -125,22 +125,25 @@ final class MusicPlayerViewModel {
         lastFetchTime = Date()
         updateProgress()
 
-        // Detect track change for notification (skip if panel is expanded — already visible)
-        if let prev = previousTrack, prev != info.title, !info.title.isEmpty,
-           NotchViewModel.shared.currentState != .expanded {
+        // Detect track change for notification (skip if any panel is
+        // already expanded — the controls are visible there).
+        let allVMs = NotchWindowManager.shared.allViewModels
+        let anyExpanded = allVMs.contains(where: { $0.currentState == .expanded })
+        if let prev = previousTrack, prev != info.title, !info.title.isEmpty, !anyExpanded {
             showTrackChangeNotification = true
             trackChangeInfo = info
-            // Briefly widen the right wing to exactly the title's text
-            // width (NotchViewModel clamps to >= panelModeWingWidth and
-            // <= maxWingWidth) so the new track fits without arbitrarily
-            // overshooting to the cap.
-            NotchViewModel.shared.previewWingWidth = previewWingWidth(for: info)
+            // Broadcast the title-fit preview width to every panel; each
+            // VM clamps to its own panelModeWingWidth so external
+            // monitors with different notch geometry still fit cleanly.
+            let preview = previewWingWidth(for: info)
+            for vm in allVMs { vm.previewWingWidth = preview }
 
-            // Auto-dismiss after the notification window elapses.
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(AnimationTokens.trackChangeNotificationDuration * 1_000_000_000))
                 showTrackChangeNotification = false
-                NotchViewModel.shared.previewWingWidth = nil
+                for vm in NotchWindowManager.shared.allViewModels {
+                    vm.previewWingWidth = nil
+                }
             }
         }
     }

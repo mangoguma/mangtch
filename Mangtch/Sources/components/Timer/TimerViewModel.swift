@@ -184,7 +184,10 @@ final class TimerViewModel {
         state = .finished
         NSSound.beep()
 
-        // Show the notch panel with notification
-        NotchViewModel.shared.expand()
+        // Surface the timer on every visible panel — a finished timer is
+        // a notification, and the user might be looking at any display.
+        for vm in NotchWindowManager.shared.allViewModels {
+            vm.expand()
+        }
     }
 }

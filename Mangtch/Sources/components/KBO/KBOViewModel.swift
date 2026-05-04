@@ -365,10 +365,13 @@ final class KBOViewModel {
         let extra = (viewingGameID != nil) ? expandedExtra : 0
 
         let needed = headerSection + rowsTotal + extra + outerPadding + safetyBuffer
-        let additional = needed - NotchViewModel.shared.maxExpandedHeight
+        // Broadcast to every panel so multi-display setups grow in sync.
         // Only ever grow the panel — keep maxExpandedHeight as the floor
         // so other widgets aren't squeezed if KBO would otherwise shrink it.
-        NotchViewModel.shared.additionalExpandedHeight = max(0, additional)
+        for vm in NotchWindowManager.shared.allViewModels {
+            let additional = needed - vm.maxExpandedHeight
+            vm.additionalExpandedHeight = max(0, additional)
+        }
     }
 
     // MARK: - Wing pin

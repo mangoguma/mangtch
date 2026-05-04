@@ -4,15 +4,31 @@ import Combine
 import Observation
 
 final class NotchWindow: NSPanel {
-    static let shared = NotchWindow()
+    /// Convenience accessor that resolves to the primary panel via the
+    /// manager. External callers (drag detector, music VM, etc.) only
+    /// need the canonical instance; multi-display fan-out is a manager
+    /// concern.
+    @MainActor
+    static var shared: NotchWindow { NotchWindowManager.shared.primaryWindow }
+
+    let viewModel: NotchViewModel
+    /// The display this panel is anchored to. Frame/screen lookups go
+    /// through here instead of the global resolver so a panel that owns
+    /// an external display keeps using *its* coordinates even if the
+    /// user changes the primary in Settings.
+    let attachedScreen: NSScreen
+
     private var cancellables = Set<AnyCancellable>()
     private var panelWidthObservation: Any?
     private var expandedHeightObservation: Any?
     private var fullscreenObservation: Any?
     private let fullscreenObserver = FullscreenObserver()
     private var allowKeyWindow = false
+    private var didSetup = false
 
-    private init() {
+    init(screen: NSScreen, viewModel: NotchViewModel) {
+        self.viewModel = viewModel
+        self.attachedScreen = screen
         super.init(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
@@ -47,18 +63,16 @@ final class NotchWindow: NSPanel {
 
     @MainActor
     func setup() {
-        guard let screen = NSScreen.screens.first else {
-            NSLog("[NotchWindow] No screens found, retrying in 0.5 seconds...")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                Task { @MainActor in
-                    self.setup()
-                }
-            }
+        // Idempotent — manager.sync() may call this every screen-change
+        // notification. Repeat invocations only refresh the frame.
+        if didSetup {
+            updateWindowFrame()
             return
         }
 
-        NSLog("[NotchWindow] ✓ Screen found (screens[0])")
-        let geo = NotchGeometry.detect()
+        let screen = self.attachedScreen
+        NSLog("[NotchWindow] Setting up on screen: \(screen.localizedName)")
+        let geo = NotchGeometry.detect(for: screen)
 
         if geo.hasNotch {
             NSLog("[NotchWindow] ✓ Notch detected! notchHeight=\(geo.notchHeight)")
@@ -78,7 +92,7 @@ final class NotchWindow: NSPanel {
         // so the first click in our non-key panel is delivered as a real
         // mouseDown to SwiftUI views (default behaviour is to swallow it
         // as a window-activation click).
-        let swiftUIContent = NotchContentView()
+        let swiftUIContent = NotchContentView(viewModel: self.viewModel, hostWindow: self)
         let hostingView = FirstMouseHostingView(rootView: swiftUIContent)
         hostingView.frame = self.contentView?.bounds ?? .zero
         hostingView.autoresizingMask = [.width, .height]
@@ -94,56 +108,15 @@ final class NotchWindow: NSPanel {
 
         NSLog("[NotchWindow] ✓ Window setup complete and visible")
 
+        didSetup = true
         setupStateObserver()
         setupPanelWidthObserver()
         setupExpandedHeightObserver()
         setupFullscreenObserver()
-        setupExternalFileDragMonitor()
-    }
-
-    private var fileDragMonitor: Any?
-
-    /// macOS .nonactivatingPanel windows don't receive drag-from-Finder
-    /// events reliably, so SwiftUI .onDrop modifiers inside our hosting
-    /// view never fire. Watch leftMouseDragged events from other processes
-    /// and, when the cursor crosses the notch with a file-bearing drag
-    /// pasteboard, force-expand the panel onto the FileShelf widget so
-    /// the user can drop there.
-    private func setupExternalFileDragMonitor() {
-        if fileDragMonitor != nil { return }
-        fileDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] _ in
-            guard let self else { return }
-            let dragPasteboard = NSPasteboard(name: .drag)
-            guard dragPasteboard.availableType(from: [.fileURL]) != nil else { return }
-            let mouse = NSEvent.mouseLocation
-            Task { @MainActor in
-                guard self.isMouseOverPanel(mouse) else { return }
-                if NotchViewModel.shared.currentState != .expanded {
-                    NotchViewModel.shared.currentExpandedWidgetID = "file-shelf"
-                    NotchViewModel.shared.forceExpand()
-                }
-            }
-        }
-    }
-
-    @MainActor
-    private func isMouseOverPanel(_ point: NSPoint) -> Bool {
-        // The trigger zone is wider than the actual panel — users dragging
-        // up from a Finder window need a forgiving target near the top of
-        // the screen, not just the literal wing rectangle. Define a band
-        // centered on the notch, panel-width wide, extending ~120pt down
-        // from the top of the primary screen.
-        guard let screen = NSScreen.screens.first else { return false }
-        let viewModel = NotchViewModel.shared
-        let zoneWidth = viewModel.panelWidth + 80
-        let zoneHeight: CGFloat = 120
-        let zone = NSRect(
-            x: screen.frame.midX - zoneWidth / 2,
-            y: screen.frame.maxY - zoneHeight,
-            width: zoneWidth,
-            height: zoneHeight
-        )
-        return zone.contains(point)
+        // External file-drag detection lives in `DragDetector`, which
+        // already routes per-screen via `NotchWindowManager.window(under:)`.
+        // We used to install a duplicate monitor here for the primary
+        // panel; removing it avoids two `forceExpand` calls per drag.
     }
 
     // MARK: - Dynamic Window Sizing
@@ -152,9 +125,9 @@ final class NotchWindow: NSPanel {
     /// This prevents the window from covering clickable areas below.
     @MainActor
     private func updateWindowFrame() {
-        guard let screen = NSScreen.screens.first else { return }
-        let geo = NotchViewModel.shared.notchGeometry
-        let viewModel = NotchViewModel.shared
+        let screen = self.attachedScreen
+        let geo = self.viewModel.notchGeometry
+        let viewModel = self.viewModel
 
         // Window dimensions = only what's visible + small margin for shadow
         let contentHeight: CGFloat = geo.notchHeight + viewModel.expandedHeight
@@ -166,12 +139,10 @@ final class NotchWindow: NSPanel {
         // Always center since both wings are always visible
         let panelX = screen.frame.midX - targetWidth / 2
 
-        let panelY: CGFloat
-        if geo.isFloatingMode {
-            panelY = screen.frame.maxY - panelHeight - 25
-        } else {
-            panelY = screen.frame.maxY - panelHeight
-        }
+        // Top-align in both modes. In notch mode the wings tuck under
+        // the safe area (notchHeight); in floating mode they sit in the
+        // menu-bar slot, so the same `maxY - panelHeight` is correct.
+        let panelY: CGFloat = screen.frame.maxY - panelHeight
 
         let frame = NSRect(x: panelX, y: panelY, width: targetWidth, height: panelHeight)
         self.setFrame(frame, display: true)
@@ -186,10 +157,23 @@ final class NotchWindow: NSPanel {
                 self?.handleStateChange(state)
             }
             .store(in: &cancellables)
+
+        // Reposition when screen geometry changes (display connect/disconnect)
+        // OR when the user picks a different display in Settings —
+        // NotchViewModel emits `.screenChanged` for both paths.
+        EventBus.shared.on { event -> Void? in
+            if case .screenChanged = event { return () } else { return nil }
+        }
+        .sink { [weak self] _ in
+            Task { @MainActor in
+                self?.updateWindowFrame()
+            }
+        }
+        .store(in: &cancellables)
     }
 
     private func handleStateChange(_ state: NotchState) {
-        let previousState = NotchViewModel.shared.previousState
+        let previousState = self.viewModel.previousState
 
         switch state {
         case .idle:
@@ -222,9 +206,9 @@ final class NotchWindow: NSPanel {
     /// Duration should match the collapse spring's response time.
     @MainActor
     private func animateWindowFrame(duration: TimeInterval) {
-        guard let screen = NSScreen.screens.first else { return }
-        let geo = NotchViewModel.shared.notchGeometry
-        let viewModel = NotchViewModel.shared
+        let screen = self.attachedScreen
+        let geo = self.viewModel.notchGeometry
+        let viewModel = self.viewModel
 
         let contentHeight: CGFloat = geo.notchHeight + viewModel.expandedHeight
         let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
@@ -233,12 +217,10 @@ final class NotchWindow: NSPanel {
         let targetWidth: CGFloat = viewModel.panelWidth + 40
 
         let panelX = screen.frame.midX - targetWidth / 2
-        let panelY: CGFloat
-        if geo.isFloatingMode {
-            panelY = screen.frame.maxY - panelHeight - 25
-        } else {
-            panelY = screen.frame.maxY - panelHeight
-        }
+        // Top-align in both modes. In notch mode the wings tuck under
+        // the safe area (notchHeight); in floating mode they sit in the
+        // menu-bar slot, so the same `maxY - panelHeight` is correct.
+        let panelY: CGFloat = screen.frame.maxY - panelHeight
 
         let targetFrame = NSRect(x: panelX, y: panelY, width: targetWidth, height: panelHeight)
 
@@ -253,7 +235,7 @@ final class NotchWindow: NSPanel {
 
     private func setupPanelWidthObserver() {
         panelWidthObservation = withObservationTracking {
-            _ = NotchViewModel.shared.panelWidth
+            _ = self.viewModel.panelWidth
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.updateWindowFrame()
@@ -266,7 +248,7 @@ final class NotchWindow: NSPanel {
 
     private func setupExpandedHeightObserver() {
         expandedHeightObservation = withObservationTracking {
-            _ = NotchViewModel.shared.expandedHeight
+            _ = self.viewModel.expandedHeight
         } onChange: { [weak self] in
             Task { @MainActor in
                 // State transitions (idle ↔ hovering ↔ expanded) drive the
@@ -276,7 +258,7 @@ final class NotchWindow: NSPanel {
                 // the content down — the panel briefly clips visible content.
                 // Only react to expandedHeight changes that aren't part of a
                 // state transition (e.g. screen-geometry shifts).
-                if NotchViewModel.shared.currentState == .expanded {
+                if self?.viewModel.currentState == .expanded {
                     self?.updateWindowFrame()
                 }
                 self?.setupExpandedHeightObserver()
