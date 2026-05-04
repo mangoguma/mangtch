@@ -186,7 +186,9 @@ struct ExpandedPlayerView: View {
 
     @ViewBuilder
     private func progressBar(dominant: Color) -> some View {
-        let fillColor = dominant != .clear ? dominant : themeManager.currentTheme.accentColor
+        let rawFill = dominant != .clear ? dominant : themeManager.currentTheme.accentColor
+        // 3pt UI element on a black panel needs 3:1 minimum (WCAG AA).
+        let fillColor = rawFill.contrastBoosted(against: .black, targetRatio: 3.0)
 
         VStack(spacing: 3) {
             GeometryReader { geo in
@@ -295,7 +297,10 @@ private struct LyricsPanel: View {
         // smoothly without us running our own timer.
         let elapsed = (viewModel.nowPlaying?.duration ?? 0) * viewModel.progress
         let activeIdx = currentIndex(for: elapsed, in: lines) ?? -1
-        let highlight = dominant != .clear ? dominant : themeManager.currentTheme.textPrimary
+        // Lift the dominant colour against the black panel so a dark or
+        // muddy artwork-derived hue still clears WCAG AA on the highlight.
+        let highlight = (dominant != .clear ? dominant : themeManager.currentTheme.textPrimary)
+            .contrastBoosted(against: .black, targetRatio: 4.5)
 
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
