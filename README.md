@@ -29,6 +29,7 @@
 - **🪟 Panel-Aware Widget Switcher** — A tab row inside the expanded panel flips between widgets; the left wing follows whatever widget you're looking at while the right wing stays anchored to music. Wing previews fit content automatically.
 - **🖐️ Trackpad Gestures** — Two-finger pan/scroll over the notch expands or collapses the panel. Drag a file toward the notch and the FileShelf auto-surfaces.
 - **🎨 Album-Art Theming** — Dynamic colors extracted from the current track tint the panel material.
+- **🖥️ Multi-Display** — Mirror the panel onto every connected display, with hover/expand state independent per screen and content (track preview, KBO box-score growth) synced across panels. External monitors fall back to a floating menu-bar pill when the hardware notch is absent.
 - **⌨️ Global Shortcut** — Toggle the panel from anywhere with `Cmd+Shift+N`.
 - **🪶 Apple-Frameworks Only** — No Electron, no extra runtime; just SwiftPM + Sparkle for updates.
 
@@ -39,12 +40,9 @@
 | Requirement | Details |
 |-------------|---------|
 | **macOS** | 14.0 (Sonoma) or later |
-| **Hardware** | MacBook with a notch (Pro 14"/16" 2021+, Air 13"/15" M2+) |
+| **Hardware** | Notched MacBook for the hardware-pill look; non-notched displays (older MacBooks, external monitors) get a menu-bar–height floating pill instead |
 | **Chip** | Apple Silicon recommended; Intel is best-effort |
 | **Build** | Xcode 15+ (for the Apple Development signing identity) or `swift` CLI 5.9+ |
-
-> [!NOTE]
-> mangtch needs a MacBook **with a notch**. External displays and notch-less MacBooks aren't supported yet.
 
 ---
 
@@ -195,7 +193,6 @@ The body should explain *why* — what was broken or missing — not just restat
 
 ## ⚠️ Known limitations
 
-- **External-display fallback** is on the roadmap; right now mangtch needs the built-in notched display.
 - **KBO logos** are rendered in v1 from Naver's CDN. The endpoint is unofficial; if Naver changes the schema the widget falls back to text-only badges.
 - **Spotify Web API extended access** isn't requested — the Liked Songs sync uses the unified `/me/library` endpoint and works in development mode for the registered user.
 
