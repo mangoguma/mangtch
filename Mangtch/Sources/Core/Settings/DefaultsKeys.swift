@@ -23,6 +23,12 @@ extension Defaults.Keys {
     static let kboTickerEnabled = Key<Bool>("kboTickerEnabled", default: true)
     static let kboTextToSpeechEnabled = Key<Bool>("kboTextToSpeechEnabled", default: false)
     static let expandedDragDetection = Key<Bool>("expandedDragDetection", default: true)
+    /// When true, dwelling the cursor over the notch cutout opens the panel
+    /// (after `minimumHoverDuration`). When false, only pan-down or click
+    /// triggers expand. Wing hover (idle → hovering) is unaffected.
+    static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: true)
+    /// Seconds the cursor must rest over the notch before auto-expand fires.
+    static let minimumHoverDuration = Key<Double>("minimumHoverDuration", default: 0.3)
     /// Identifier of the screen the notch panel should attach to. Empty
     /// string (default) means the built-in display (`NSScreen.screens[0]`).
     /// Otherwise the value is `NSScreen.localizedName`.

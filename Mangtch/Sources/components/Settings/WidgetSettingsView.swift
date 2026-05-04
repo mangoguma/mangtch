@@ -4,6 +4,8 @@ import Defaults
 struct WidgetSettingsView: View {
     @State private var registry = WidgetRegistry.shared
     @Default(.expandedDragDetection) private var expandedDragDetection
+    @Default(.openNotchOnHover) private var openNotchOnHover
+    @Default(.minimumHoverDuration) private var minimumHoverDuration
 
     var body: some View {
         Form {
@@ -39,6 +41,31 @@ struct WidgetSettingsView: View {
                         .labelsHidden()
                     }
                     .padding(.vertical, 4)
+                }
+            }
+
+            Section("Notch") {
+                Toggle(isOn: $openNotchOnHover) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Open on hover")
+                        Text("Dwell over the notch to expand. Disable to require a swipe-down or click.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack {
+                    Text("Hover duration")
+                    Spacer()
+                    Picker("", selection: $minimumHoverDuration) {
+                        Text("Instant").tag(0.0)
+                        Text("0.2s").tag(0.2)
+                        Text("0.3s").tag(0.3)
+                        Text("0.5s").tag(0.5)
+                        Text("1s").tag(1.0)
+                    }
+                    .frame(width: 100)
+                    .disabled(!openNotchOnHover)
                 }
             }
 

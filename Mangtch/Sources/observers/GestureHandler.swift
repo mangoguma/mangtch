@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Defaults
 
 @MainActor
 final class GestureHandler {
@@ -7,6 +8,9 @@ final class GestureHandler {
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
+    /// Per-panel pending auto-expand tasks. Keyed by ObjectIdentifier of the
+    /// view model so multi-display panels each have their own dwell timer.
+    private var pendingExpandTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     private init() {}
 
@@ -164,12 +168,30 @@ final class GestureHandler {
             }
 
         case .hovering:
-            // Expand when hovering over the notch's covered area
+            // Expand when the cursor dwells on the notch cutout. boring.notch
+            // gates this on `openNotchOnHover` + `minimumHoverDuration`; we
+            // do the same so accidental cursor passes don't pop the panel.
+            let key = ObjectIdentifier(viewModel)
             if notchZone.contains(point) {
-                viewModel.expand()
+                if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
+                    let duration = Defaults[.minimumHoverDuration]
+                    pendingExpandTasks[key] = Task { @MainActor [weak self, weak viewModel] in
+                        try? await Task.sleep(for: .seconds(duration))
+                        guard !Task.isCancelled, let viewModel else { return }
+                        if viewModel.currentState == .hovering {
+                            viewModel.expand()
+                        }
+                        self?.pendingExpandTasks.removeValue(forKey: key)
+                    }
+                }
+            } else {
+                pendingExpandTasks[key]?.cancel()
+                pendingExpandTasks.removeValue(forKey: key)
             }
             // Collapse back to idle when mouse leaves the hover zone
             if !hoverZone.contains(point) {
+                pendingExpandTasks[key]?.cancel()
+                pendingExpandTasks.removeValue(forKey: key)
                 viewModel.collapse()
             }
 
