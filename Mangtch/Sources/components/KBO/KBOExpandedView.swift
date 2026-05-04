@@ -82,12 +82,15 @@ struct KBOExpandedView: View {
                 .buttonStyle(.plain)
             }
 
-            if !viewModel.isShowingToday {
-                Button("오늘") { viewModel.resetToToday() }
-                    .font(.system(size: 10))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tint)
-            }
+            // Keep the button slot reserved even when on "today" so the
+            // surrounding buttons don't reflow horizontally as the user
+            // steps days. Fade + disable instead of conditional insertion.
+            Button("오늘") { viewModel.resetToToday() }
+                .font(.system(size: 10))
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+                .opacity(viewModel.isShowingToday ? 0 : 1)
+                .allowsHitTesting(!viewModel.isShowingToday)
 
             // Jump out to Naver Sports for the full schedule view.
             Button {
@@ -101,10 +104,11 @@ struct KBOExpandedView: View {
             .buttonStyle(.plain)
             .help("네이버 스포츠에서 보기")
 
-            if viewModel.isLoading {
-                ProgressView()
-                    .controlSize(.mini)
-            }
+            // Same reserved-slot trick — a popping ProgressView would
+            // shove the whole row sideways every fetch.
+            ProgressView()
+                .controlSize(.mini)
+                .opacity(viewModel.isLoading ? 1 : 0)
         }
     }
 

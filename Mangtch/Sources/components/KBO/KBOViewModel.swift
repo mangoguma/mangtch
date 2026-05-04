@@ -11,12 +11,18 @@ final class KBOViewModel {
     private(set) var isLoading: Bool = false
     private(set) var lastError: String?
 
-    /// Date currently being browsed in the expanded view. Defaults to
-    /// today (KBO timezone). Doesn't persist across launches — opening the
-    /// widget should always start on today.
-    var displayedDate: Date = KBOService.currentKBODate() {
+    /// Date the UI is rendering. Lags `pendingDate` until a fetch lands —
+    /// so the header label, "오늘" button visibility, and games list all
+    /// flip in lockstep instead of the label snapping ahead of the
+    /// network round-trip.
+    private(set) var displayedDate: Date = KBOService.currentKBODate()
+
+    /// Date the user has navigated to (drives fetches). Setting this
+    /// kicks a fetch; `displayedDate` is committed atomically with the
+    /// resulting games when the fetch completes.
+    private var pendingDate: Date = KBOService.currentKBODate() {
         didSet {
-            guard !Calendar.korea.isDate(oldValue, inSameDayAs: displayedDate) else { return }
+            guard !Calendar.korea.isDate(oldValue, inSameDayAs: pendingDate) else { return }
             fetchNow()
         }
     }
@@ -191,15 +197,18 @@ final class KBOViewModel {
 
     private func fetchNow() {
         fetchTask?.cancel()
-        let date = displayedDate
+        let date = pendingDate
         fetchTask = Task { @MainActor in
             isLoading = true
             let fresh = await KBOService.fetchGames(date: date)
             // Guard against stale completions arriving after stopMonitoring
             // or after the user has navigated to a different day.
             guard !Task.isCancelled,
-                  Calendar.korea.isDate(date, inSameDayAs: self.displayedDate)
+                  Calendar.korea.isDate(date, inSameDayAs: self.pendingDate)
             else { return }
+            // Commit the date label and the games list together so the
+            // header text and content swap in the same frame.
+            self.displayedDate = date
             self.games = fresh
             self.lastError = nil
             self.isLoading = false
@@ -240,14 +249,15 @@ final class KBOViewModel {
 
     // MARK: - Day Navigation
 
-    /// Shifts the displayed day by ±1. Triggers a fresh fetch via didSet.
+    /// Shifts the browsed day by ±1. The visible date won't change until
+    /// the resulting fetch lands — see `pendingDate`.
     func shiftDay(by days: Int) {
-        guard let new = Calendar.korea.date(byAdding: .day, value: days, to: displayedDate) else { return }
-        displayedDate = new
+        guard let new = Calendar.korea.date(byAdding: .day, value: days, to: pendingDate) else { return }
+        pendingDate = new
     }
 
     func resetToToday() {
-        displayedDate = KBOService.currentKBODate()
+        pendingDate = KBOService.currentKBODate()
     }
 
     /// Schedule (all-games) cadence: 60s during live windows so the row
