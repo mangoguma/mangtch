@@ -6,6 +6,25 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.6.0</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.6.0</h2>
+        <ul>
+          <li>feat: NetEase Cloud Music을 보조 가사 소스로 추가 — LRCLIB가 못 찾는 K-pop / J-pop / CJK 곡 커버. 메타데이터 스크립트(한글·카나·한자) 검사로 잘못된 언어 가사가 박히는 일 방지 (한국어 곡인데 중국어 번역본이 뜨던 케이스 차단)</li>
+          <li>feat: LRCLIB 쿼리 정규화 — "(feat. …)", "[Live]", "- 2009 Remaster" 등 꼬리표 제거한 변형도 같이 시도해 매칭률 상승. /api/get 어떤 실패에서든 /api/search 폴백, search 결과는 duration 거리로 베스트 픽</li>
+          <li>fix: negative cache 10분 TTL — 일시적 미스가 영구 "No lyrics"로 굳지 않도록</li>
+          <li>fix: nowPlaying duration이 title/artist보다 늦게 도착하는 케이스에서 가사 재조회 트리거 추가</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 04 May 2026 14:24:00 +0900</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.6.0/Mangtch-0.6.0.zip"
+                 length="3216667"
+                 sparkle:edSignature="/gKulyLKwiBRIzwNm3lJ1P49/U7wGZkjf3V1NkGMeNDXoqAi05NIr0PHRgDc1MIF+mee3VeYpUHafrZ8kQHQBA=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.5.0</title>
       <description><![CDATA[
         <h2>Mangtch 0.5.0</h2>
