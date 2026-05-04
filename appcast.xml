@@ -6,6 +6,28 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.5.0</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.5.0</h2>
+        <ul>
+          <li>feat: 멀티 디스플레이 — Settings → Display → "Show on all displays"로 모든 화면에 패널 미러링. 화면별 hover/expand 독립, 콘텐츠 상태(트랙 미리보기, KBO 박스스코어 확장, 드롭/타이머 surface)는 모든 패널에 동시 반영</li>
+          <li>feat: 외부 모니터/노치 없는 MacBook도 지원 — 메뉴바 높이에 맞춘 floating pill로 fallback (각 화면의 실제 메뉴바 높이에 정확히 맞춤)</li>
+          <li>feat: 호버-펼침 dwell 시간 조절 + on/off 토글</li>
+          <li>polish: 검은 패널 위에서 가사/프로그레스 바 색이 묻히는 문제 — 앨범아트 dominant 컬러를 WCAG 3:1 / 4.5:1 비율 충족할 때까지 자동 보정</li>
+          <li>fix: KBO 날짜 chevron — 헤더 텍스트와 게임 리스트가 같은 프레임에 갱신, "오늘"/로딩 인디케이터 자리 보존으로 옆 버튼 안 밀림</li>
+          <li>fix: hide-in-fullscreen이 사용자가 선택한 디스플레이를 추적 (이전엔 항상 screens[0])</li>
+          <li>fix: LRCLIB fetch task @MainActor 격리</li>
+        </ul>
+      ]]></description>
+      <pubDate>Mon, 04 May 2026 13:48:00 +0900</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.5.0/Mangtch-0.5.0.zip"
+                 length="3167883"
+                 sparkle:edSignature="C9Lp9LXu4IC7miVtDQO7ZE2uREqIyaJLHf+uycf/0PosK/wDoYdR+sERhCKB3gsR8l7bNh3CavJkRK1XgajjBg=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.4.0</title>
       <description><![CDATA[
         <h2>Mangtch 0.4.0</h2>
