@@ -77,7 +77,7 @@ final class FullscreenObserver {
     // MARK: - Combined Detection
 
     private func check() {
-        guard let screen = NSScreen.screens.first else {
+        guard let screen = NotchScreenResolver.activeScreen() else {
             applyState(false)
             return
         }
