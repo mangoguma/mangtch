@@ -196,14 +196,16 @@ struct NotchGeometry {
             )
         } else {
             // Floating mode (external display, no hardware notch): create
-            // a virtual pill-shaped panel sized like a menu bar so the
-            // wing contents (artwork, visualizer) actually have room to
-            // render. The chosen height matches the system menu bar when
-            // it's present on this screen, otherwise falls back to 32pt
-            // (similar visual weight to the MacBook notch's ~37pt).
+            // a virtual pill-shaped panel sized to the screen's actual
+            // menu-bar height so the pill sits flush *under* the menu bar
+            // edge instead of overhanging it. macOS mirrors the menu bar
+            // onto every display by default, so this is normally ~24pt.
+            // We only fall back to 32pt when the screen reports zero
+            // chrome (rare — happens with "Displays have separate Spaces"
+            // off and the screen isn't currently active).
             let floatingWidth: CGFloat = 200
             let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
-            let floatingHeight: CGFloat = max(menuBarHeight, 32)
+            let floatingHeight: CGFloat = menuBarHeight > 0 ? menuBarHeight : 32
             let midX = frame.midX
 
             return NotchGeometry(
