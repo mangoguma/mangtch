@@ -1,9 +1,18 @@
 import SwiftUI
 import ServiceManagement
 import AppKit
+import Defaults
 
 struct GeneralSettingsView: View {
-    @State private var settings = SettingsManager.shared
+    @Default(.launchAtLogin) private var launchAtLogin
+    @Default(.hideInFullscreen) private var hideInFullscreen
+    @Default(.animationsEnabled) private var animationsEnabled
+    @Default(.showInMenuBar) private var showInMenuBar
+    @Default(.showOnAllDisplays) private var showOnAllDisplays
+    @Default(.hoverSensitivity) private var hoverSensitivity
+    @Default(.notchScreen) private var notchScreen
+    @Default(.automaticallyCheckForUpdates) private var automaticallyCheckForUpdates
+    @Default(.spotifyClientID) private var spotifyClientID
     @ObservedObject private var spotifyAuth = SpotifyAuth.shared
     @State private var clientIDInput: String = ""
     /// Re-read on every screen-parameters change so a freshly connected
@@ -14,28 +23,16 @@ struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section("Startup") {
-                Toggle("Launch at login", isOn: Binding(
-                    get: { settings.launchAtLogin },
-                    set: { settings.launchAtLogin = $0 }
-                ))
+                Toggle("Launch at login", isOn: $launchAtLogin)
 
-                Toggle("Show in menu bar", isOn: Binding(
-                    get: { settings.showInMenuBar },
-                    set: { settings.showInMenuBar = $0 }
-                ))
+                Toggle("Show in menu bar", isOn: $showInMenuBar)
             }
 
             Section("Display") {
-                Toggle("Show on all displays", isOn: Binding(
-                    get: { settings.showOnAllDisplays },
-                    set: { settings.showOnAllDisplays = $0 }
-                ))
+                Toggle("Show on all displays", isOn: $showOnAllDisplays)
 
-                if !settings.showOnAllDisplays {
-                    Picker("Show notch on", selection: Binding(
-                        get: { settings.notchScreen },
-                        set: { settings.notchScreen = $0 }
-                    )) {
+                if !showOnAllDisplays {
+                    Picker("Show notch on", selection: $notchScreen) {
                         // Empty string = built-in (default). Use the actual
                         // screen-zero name as the label so the user can tell
                         // which physical display "Built-in" maps to.
@@ -53,37 +50,21 @@ struct GeneralSettingsView: View {
             }
 
             Section("Behavior") {
-                Toggle("Enable animations", isOn: Binding(
-                    get: { settings.animationsEnabled },
-                    set: { settings.animationsEnabled = $0 }
-                ))
+                Toggle("Enable animations", isOn: $animationsEnabled)
 
-                Toggle("Hide in fullscreen", isOn: Binding(
-                    get: { settings.hideInFullscreen },
-                    set: { settings.hideInFullscreen = $0 }
-                ))
+                Toggle("Hide in fullscreen", isOn: $hideInFullscreen)
                 Text("Automatically hide the notch panel when a fullscreen app is active.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 HStack {
                     Text("Hover sensitivity")
-                    Slider(
-                        value: Binding(
-                            get: { settings.hoverSensitivity },
-                            set: { settings.hoverSensitivity = $0 }
-                        ),
-                        in: 0...1,
-                        step: 0.1
-                    )
+                    Slider(value: $hoverSensitivity, in: 0...1, step: 0.1)
                 }
             }
 
             Section("Updates") {
-                Toggle("Automatically check for updates", isOn: Binding(
-                    get: { settings.automaticallyCheckForUpdates },
-                    set: { settings.automaticallyCheckForUpdates = $0 }
-                ))
+                Toggle("Automatically check for updates", isOn: $automaticallyCheckForUpdates)
 
                 HStack {
                     Text("Current version")
@@ -111,7 +92,7 @@ struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .onAppear {
-            clientIDInput = settings.spotifyClientID
+            clientIDInput = spotifyClientID
             availableScreens = NSScreen.screens
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
@@ -131,11 +112,11 @@ struct GeneralSettingsView: View {
                     TextField("Paste from developer.spotify.com/dashboard", text: $clientIDInput)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.body, design: .monospaced))
-                        .onSubmit { settings.spotifyClientID = clientIDInput }
+                        .onSubmit { spotifyClientID = clientIDInput }
                     Button("Save") {
-                        settings.spotifyClientID = clientIDInput
+                        spotifyClientID = clientIDInput
                     }
-                    .disabled(clientIDInput == settings.spotifyClientID)
+                    .disabled(clientIDInput == spotifyClientID)
                 }
                 Link("How to get a Client ID →",
                      destination: URL(string: "https://developer.spotify.com/documentation/web-api/concepts/apps")!)
@@ -166,7 +147,7 @@ struct GeneralSettingsView: View {
                 } else {
                     Button("Sign in with Spotify") {
                         // Persist whatever the user typed before launching the browser.
-                        settings.spotifyClientID = clientIDInput
+                        spotifyClientID = clientIDInput
                         spotifyAuth.startAuthFlow(clientID: clientIDInput)
                     }
                     .disabled(clientIDInput.trimmingCharacters(in: .whitespaces).isEmpty)
