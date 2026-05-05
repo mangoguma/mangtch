@@ -175,18 +175,29 @@ final class GestureHandler {
             if notchZone.contains(point) {
                 if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
                     let duration = Defaults[.minimumHoverDuration]
+                    let startTime = CFAbsoluteTimeGetCurrent()
+                    viewModel.debugHoverDuration = duration
+                    viewModel.debugHoverElapsed = 0
                     pendingExpandTasks[key] = Task { @MainActor [weak self, weak viewModel] in
-                        try? await Task.sleep(for: .seconds(duration))
+                        // Tick the debug timer at 60fps until done
+                        while !Task.isCancelled {
+                            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+                            viewModel?.debugHoverElapsed = elapsed
+                            if elapsed >= duration { break }
+                            try? await Task.sleep(for: .milliseconds(16))
+                        }
                         guard !Task.isCancelled, let viewModel else { return }
                         if viewModel.currentState == .hovering {
                             viewModel.expand()
                         }
+                        viewModel.debugHoverElapsed = 0
                         self?.pendingExpandTasks.removeValue(forKey: key)
                     }
                 }
             } else {
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
+                viewModel.debugHoverElapsed = 0
             }
             // Collapse back to idle when mouse leaves the hover zone
             if !hoverZone.contains(point) {
@@ -247,7 +258,12 @@ final class GestureHandler {
             // the click as a window-activation gesture instead. Dispatch
             // the click to the right action manually based on which wing
             // and where within it the cursor landed.
-            handleWingClick(at: point, viewModel: viewModel)
+            // If the click didn't land on a wing button, expand the panel.
+            if viewModel.wingHitZones.contains(where: { $0.rect.contains(point) }) {
+                handleWingClick(at: point, viewModel: viewModel)
+            } else {
+                viewModel.expand()
+            }
 
         case .idle:
             break
