@@ -111,8 +111,11 @@ final class MenuBarManager {
         if settingsWindow == nil {
             let hosting = NSHostingController(rootView: SettingsView())
             let window = NSWindow(contentViewController: hosting)
-            window.title = "Mangtch Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.title = "Mangtch"
+            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.toolbarStyle = .unified
             window.setContentSize(NSSize(width: 580, height: 400))
             window.center()
             window.isReleasedWhenClosed = false  // reuse instance on subsequent opens
