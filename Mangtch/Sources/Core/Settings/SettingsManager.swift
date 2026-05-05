@@ -42,11 +42,6 @@ final class SettingsManager {
         set { Defaults[.fileShelfExpirationHours] = newValue }
     }
 
-    var hoverSensitivity: Double {
-        get { Defaults[.hoverSensitivity] }
-        set { Defaults[.hoverSensitivity] = newValue }
-    }
-
     var panelWidthMultiplier: Double {
         get { Defaults[.panelWidthMultiplier] }
         set { Defaults[.panelWidthMultiplier] = newValue }

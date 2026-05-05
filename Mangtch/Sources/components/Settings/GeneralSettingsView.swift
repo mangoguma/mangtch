@@ -9,7 +9,6 @@ struct GeneralSettingsView: View {
     @Default(.animationsEnabled) private var animationsEnabled
     @Default(.showInMenuBar) private var showInMenuBar
     @Default(.showOnAllDisplays) private var showOnAllDisplays
-    @Default(.hoverSensitivity) private var hoverSensitivity
     @Default(.notchScreen) private var notchScreen
     @Default(.automaticallyCheckForUpdates) private var automaticallyCheckForUpdates
     @Default(.spotifyClientID) private var spotifyClientID
@@ -56,11 +55,6 @@ struct GeneralSettingsView: View {
                 Text("Automatically hide the notch panel when a fullscreen app is active.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-
-                HStack {
-                    Text("Hover sensitivity")
-                    Slider(value: $hoverSensitivity, in: 0...1, step: 0.1)
-                }
             }
 
             Section("Updates") {

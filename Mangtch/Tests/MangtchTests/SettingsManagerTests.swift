@@ -45,17 +45,4 @@ final class SettingsManagerTests: XCTestCase {
         XCTAssertTrue(settings.animationsEnabled)
         XCTAssertEqual(settings.fileShelfMaxItems, 3)
     }
-
-    func testHoverSensitivityRange() {
-        let settings = SettingsManager.shared
-
-        settings.hoverSensitivity = 0.0
-        XCTAssertEqual(settings.hoverSensitivity, 0.0, accuracy: 0.01)
-
-        settings.hoverSensitivity = 1.0
-        XCTAssertEqual(settings.hoverSensitivity, 1.0, accuracy: 0.01)
-
-        // Restore
-        settings.hoverSensitivity = 0.5
-    }
 }
