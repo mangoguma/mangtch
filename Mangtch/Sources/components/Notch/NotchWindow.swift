@@ -134,7 +134,12 @@ final class NotchWindow: NSPanel {
         let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
         let panelHeight: CGFloat = contentHeight + margin
 
-        let targetWidth: CGFloat = viewModel.panelWidth + 40
+        // +50pt margin (was +40) absorbs sub-frame drift between AppKit's
+        // instant `setFrame` and SwiftUI's `withAnimation` interpolation on
+        // `panelWidth`. Width-only changes mid-`.expanded` (e.g. KBO opening
+        // its linescore) animate via `animateWindowFrame`; the larger margin
+        // hides any easing-curve mismatch between the two timing systems.
+        let targetWidth: CGFloat = viewModel.panelWidth + 50
 
         // Always center since both wings are always visible
         let panelX = screen.frame.midX - targetWidth / 2
@@ -214,7 +219,12 @@ final class NotchWindow: NSPanel {
         let margin: CGFloat = viewModel.currentState == .expanded ? 30 : 10
         let panelHeight: CGFloat = contentHeight + margin
 
-        let targetWidth: CGFloat = viewModel.panelWidth + 40
+        // +50pt margin (was +40) absorbs sub-frame drift between AppKit's
+        // instant `setFrame` and SwiftUI's `withAnimation` interpolation on
+        // `panelWidth`. Width-only changes mid-`.expanded` (e.g. KBO opening
+        // its linescore) animate via `animateWindowFrame`; the larger margin
+        // hides any easing-curve mismatch between the two timing systems.
+        let targetWidth: CGFloat = viewModel.panelWidth + 50
 
         let panelX = screen.frame.midX - targetWidth / 2
         // Top-align in both modes. In notch mode the wings tuck under
@@ -238,8 +248,19 @@ final class NotchWindow: NSPanel {
             _ = self.viewModel.panelWidth
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.updateWindowFrame()
-                self?.setupPanelWidthObserver()
+                guard let self else { return }
+                // Width-only changes that fire while the panel is already
+                // expanded (e.g. KBO opening its linescore mid-session)
+                // animate the NSPanel frame so it stays in lockstep with
+                // SwiftUI's `withAnimation` on `panelWidth`. State
+                // transitions handle the frame separately via
+                // `handleStateChange`, so an instant snap there is fine.
+                if self.viewModel.currentState == .expanded {
+                    self.animateWindowFrame(duration: 0.22)
+                } else {
+                    self.updateWindowFrame()
+                }
+                self.setupPanelWidthObserver()
             }
         }
     }

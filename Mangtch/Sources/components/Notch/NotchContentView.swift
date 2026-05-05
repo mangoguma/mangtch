@@ -65,6 +65,16 @@ struct NotchContentView: View {
             // (no desktop-strip gap between them); only the bottom corners
             // are rounded.
             expandedContent
+                // Force the inner content to lay out within `panelWidth`.
+                // Without this hard frame, a widget whose natural content
+                // exceeds the wing-derived width (e.g. KBO's extra-innings
+                // linescore) draws outside the parent VStack — the
+                // `.background` then paints chrome at the wider natural
+                // width, leaving a visible step where the wings end. Each
+                // widget is responsible for declaring a `preferredPanelWidth`
+                // that fits its current state; if it doesn't, content gets
+                // visibly clipped here (loud failure, not silent chrome step).
+                .frame(width: viewModel.panelWidth, alignment: .top)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(

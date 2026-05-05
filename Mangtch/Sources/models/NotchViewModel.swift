@@ -85,7 +85,10 @@ final class NotchViewModel {
     static let minWingWidth: CGFloat = 130
     /// Ceiling width — keeps a runaway long string (long songs, long
     /// player names) from pushing the panel off the side of the screen.
-    static let maxWingWidth: CGFloat = 260
+    /// Instance-stored so `WidgetRegistry.recomputeMaxWingWidth()` can
+    /// derive it from the widest registered widget instead of a literal
+    /// that drifts every time a widget grows. Hard ceiling: 480.
+    var maxWingWidth: CGFloat = 240
 
     /// Default panel width when no widget declares one (or none is
     /// active yet). Wide enough for music + most secondary widgets;
@@ -119,7 +122,7 @@ final class NotchViewModel {
     private func targetWingWidth() -> CGFloat {
         let resting = panelModeWingWidth
         guard let preview = previewWingWidth else { return resting }
-        return min(max(preview, resting), Self.maxWingWidth)
+        return min(max(preview, resting), self.maxWingWidth)
     }
 
     /// Re-run `targetWingWidth()` and propagate to `wingWidth`/`panelWidth`.
@@ -166,7 +169,7 @@ final class NotchViewModel {
         let preferred = registry.widget(for: activeID)?.preferredPanelWidth
             ?? Self.defaultPanelWidth
         let half = (preferred - notchGeometry.notchWidth) / 2
-        return min(max(half, Self.minWingWidth), Self.maxWingWidth)
+        return min(max(half, Self.minWingWidth), self.maxWingWidth)
     }
 
     /// Mirrors `NotchContentView.hasContentToShow`: when the panel-selected
@@ -227,6 +230,7 @@ final class NotchViewModel {
         self.currentExpandedWidgetID = SettingsManager.shared.lastExpandedWidgetID ?? "music-player"
         setupScreenChangeObserver()
         updatePanelDimensions()
+        setupWidgetWidthObserver()
     }
 
     /// Re-detect notch geometry from the current `screen`. Called by the
@@ -422,7 +426,12 @@ final class NotchViewModel {
     /// screen change) that need to re-run the layout pipeline without
     /// going through a full state transition. Snaps both height and
     /// width together — phasing only matters around state edges.
-    private func updatePanelDimensions() {
+    func updatePanelDimensions() {
+        let signpostState = dimensionsSignposter.beginInterval("updatePanelDimensions")
+        defer { dimensionsSignposter.endInterval("updatePanelDimensions", signpostState) }
+
+        let prevPanel = panelWidth
+        let prevWing = wingWidth
         let animation: Animation? = SettingsManager.shared.animationsEnabled
             ? .easeInOut(duration: 0.22)
             : nil
@@ -435,6 +444,33 @@ final class NotchViewModel {
             }
             wingWidth = targetWingWidth()
             panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+        }
+        dimensionsLog.debug("panel \(prevPanel)→\(self.panelWidth) wing \(prevWing)→\(self.wingWidth) widget=\(self.currentExpandedWidgetID)")
+    }
+
+    // MARK: - Widget Width Observer
+
+    /// Re-snap wing/panel width when the active widget's `preferredPanelWidth`
+    /// changes mid-state (e.g. KBO opening its inline linescore). Uses
+    /// `withObservationTracking` so any `@Observable` state inside the
+    /// widget's computed `preferredPanelWidth` becomes a dependency.
+    private func setupWidgetWidthObserver() {
+        withObservationTracking {
+            // WHY: touch the active widget's preferredPanelWidth so observation
+            // captures the underlying @Observable dependency chain (KBO's
+            // viewingLinescore, etc.). Touch both currentExpanded and the
+            // wing-fallback widget so dynamic changes in either propagate.
+            let registry = WidgetRegistry.shared
+            let wingID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
+            _ = registry.widget(for: currentExpandedWidgetID)?.preferredPanelWidth
+            _ = registry.widget(for: wingID)?.preferredPanelWidth
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                // Re-arm first so a width change while we're updating
+                // doesn't slip past the next observer.
+                self?.setupWidgetWidthObserver()
+                self?.updatePanelDimensions()
+            }
         }
     }
 

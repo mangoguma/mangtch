@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @MainActor
 final class KBOWidget: NotchWidget {
@@ -8,10 +9,37 @@ final class KBOWidget: NotchWidget {
     let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
 
-    /// 5 game rows + day-nav + optional inline 9-column linescore.
-    /// 540pt keeps it compact while still showing all team logos,
-    /// scores, live state, and the inning grid without truncation.
-    var preferredPanelWidth: CGFloat? { 540 }
+    /// Closed = 5-cell game-row layout fits in 540pt. Open = derived from
+    /// the *actual* viewing linescore — innings count drives the grid
+    /// width, real pitcher-name text metrics drive the starter slots.
+    /// No magic literal that goes wrong on extra innings or unusually
+    /// long names; the panel chrome just follows what the content needs.
+    /// `viewingLinescore` is `@Observable`, NotchViewModel re-snaps
+    /// wing/panel via `setupWidgetWidthObserver` whenever it flips or
+    /// the inning/lineup data grows.
+    var preferredPanelWidth: CGFloat? {
+        guard let line = viewModel.viewingLinescore else { return 540 }
+        let innings = max(line.innings, 9)
+        let cellsWidth = CGFloat(innings + 4) * 22                    // grid cells
+        let gridWidth = 44 + cellsWidth                                // teamCol + cells
+        let leftSlot = Self.starterSlotWidth(line.awayStartingPitcher)
+        let rightSlot = Self.starterSlotWidth(line.homeStartingPitcher)
+        let derived = leftSlot + 8 + gridWidth + 8 + rightSlot + 16    // hstack spacing + outer pad
+        return max(540, derived)
+    }
+
+    /// Width needed to render a starter slot (badge + name) without
+    /// truncation. Uses real text metrics so foreign names like
+    /// "로드리게스" or "에르난데스" never collide with `lineLimit(1)`.
+    /// `KBOExpandedView.starterLabel` is the matching renderer.
+    @MainActor
+    private static func starterSlotWidth(_ name: String?) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let text = name ?? "—"
+        let nameWidth = (text as NSString).size(withAttributes: [.font: font]).width
+        // badge glyph (~14) + inner spacing (3) + outer slack (6).
+        return ceil(nameWidth) + 14 + 3 + 6
+    }
 
     let viewModel = KBOViewModel()
 

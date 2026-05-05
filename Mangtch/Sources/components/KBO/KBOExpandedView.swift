@@ -414,12 +414,15 @@ struct KBOExpandedView: View {
                 Text(name ?? "—")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(name == nil ? Color.secondary : Color.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .fixedSize()
                 if !isLeading { badge }
             }
         }
-        .frame(width: 64, alignment: isLeading ? .leading : .trailing)
+        // Slot sizes to its actual content — the panel chrome's
+        // `preferredPanelWidth` derivation in `KBOWidget` measures the
+        // same name with the same font, so wing/panel widen to fit
+        // exactly. No `lineLimit` (CLAUDE.md), no fixed slot width.
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func totalsCells(_ t: KBOLinescore.Totals?) -> [String] {

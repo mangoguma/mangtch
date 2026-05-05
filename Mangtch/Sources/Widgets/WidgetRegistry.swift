@@ -31,6 +31,7 @@ final class WidgetRegistry {
         guard !widgets.contains(where: { $0.id == widget.id }) else { return }
         let wrapped = AnyNotchWidget(widget)
         widgets.append(wrapped)
+        recomputeMaxWingWidth()
     }
 
     func unregister(id: String) {
@@ -38,6 +39,24 @@ final class WidgetRegistry {
             widget.deactivate()
         }
         widgets.removeAll { $0.id == id }
+        recomputeMaxWingWidth()
+    }
+
+    /// Derive `NotchViewModel.maxWingWidth` per-VM from the widest registered
+    /// widget's `preferredPanelWidth`. Eliminates the magic literal that
+    /// drifted every time a widget grew (KBO 540 → 820 → ...). Floor is
+    /// `minWingWidth` so the existing geometry invariant `panelWidth ==
+    /// notchWidth + 2·wingWidth` still holds for narrow widgets; absolute
+    /// ceiling 480 prevents a runaway widget from bricking layout.
+    private func recomputeMaxWingWidth() {
+        let declared = widgets.compactMap { $0.preferredPanelWidth }
+        let widest = max(declared.max() ?? NotchViewModel.defaultPanelWidth,
+                         NotchViewModel.defaultPanelWidth)
+        for vm in NotchWindowManager.shared.allViewModels {
+            let derived = (widest - vm.notchGeometry.notchWidth) / 2
+            vm.maxWingWidth = min(max(derived, NotchViewModel.minWingWidth), 480)
+            vm.updatePanelDimensions()
+        }
     }
 
     // MARK: - Queries
