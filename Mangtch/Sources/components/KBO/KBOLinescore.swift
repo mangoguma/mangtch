@@ -36,6 +36,13 @@ struct KBOLinescore: Equatable {
     let awayTeamName: String         // "KT"
     let homeTeamName: String         // "두산"
 
+    /// Starting pitcher names per side. Resolved as the first entry in each
+    /// lineup's `pitcher` array (KBO's relay payload lists the starter first
+    /// and appends relievers as they enter). nil pre-game when lineups
+    /// haven't been published yet, or when the response omitted the lineup.
+    let awayStartingPitcher: String?
+    let homeStartingPitcher: String?
+
     /// Most recent play description from the text-relay feed, e.g.
     /// "강민호 : 좌익수 앞 1루타". nil for games without a play stream
     /// (pre-game / cancelled). Used to drive a ticker on the right wing.
@@ -176,6 +183,13 @@ extension KBOLinescore {
         self.awayTeamName = ""
         self.homeTeamName = ""
 
+        // Starting pitcher = first entry in each side's pitcher array. KBO's
+        // relay lists the starter at index 0 and appends relievers as they
+        // enter, so the array head stays stable for the whole game.
+        let starters = Self.findStartingPitchers(rawData: raw)
+        self.awayStartingPitcher = starters.away
+        self.homeStartingPitcher = starters.home
+
         // All plays sorted by seqno ascending. The ViewModel paces them
         // out one-by-one via its queue runner; we keep `latestPlay` as a
         // convenience alias to the tail so the existing baseline-on-first-
@@ -288,6 +302,15 @@ extension KBOLinescore {
             }
         }
         return (nil, nil)
+    }
+
+    private static func findStartingPitchers(rawData: Data) -> (away: String?, home: String?) {
+        guard let outer = try? JSONDecoder().decode(LineupOuter.self, from: rawData),
+              let trd = outer.result?.textRelayData
+        else { return (nil, nil) }
+        let away = trd.awayLineup?.pitcher?.first?.name
+        let home = trd.homeLineup?.pitcher?.first?.name
+        return (away, home)
     }
 
     private static func findPitcher(rawData: Data, pcode: String?) -> String? {

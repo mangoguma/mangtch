@@ -357,7 +357,7 @@ struct KBOExpandedView: View {
 
     private func linescoreGrid(game: KBOGame, line: KBOLinescore) -> some View {
         let cols = line.innings
-        return VStack(spacing: 0) {
+        let grid = VStack(spacing: 0) {
             scoreRow(team: "팀명",
                      innings: (1...cols).map { String($0) },
                      totals: ["R", "H", "E", "B"],
@@ -378,6 +378,48 @@ struct KBOExpandedView: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .strokeBorder(.secondary.opacity(0.15), lineWidth: 0.5)
         }
+
+        // Starting pitchers flank the grid: away on the left (matches the
+        // header row's "{away} · {home}" left/right ordering), home on the
+        // right. Slot stays reserved even when a name isn't published yet
+        // so the grid doesn't jump horizontally once lineups arrive.
+        return HStack(alignment: .center, spacing: 8) {
+            starterLabel(name: line.awayStartingPitcher,
+                         teamCode: game.awayTeamCode,
+                         alignment: .leading)
+            grid
+            starterLabel(name: line.homeStartingPitcher,
+                         teamCode: game.homeTeamCode,
+                         alignment: .trailing)
+        }
+    }
+
+    private func starterLabel(name: String?,
+                              teamCode: String,
+                              alignment: HorizontalAlignment) -> some View {
+        // Tint the "P" badge with the team colour but keep the name in
+        // primary — KT/롯데/두산 colours are nearly black and would vanish
+        // against the panel's dark fill if applied to text directly.
+        let isLeading = alignment == .leading
+        let badge = Image(systemName: "p.circle.fill")
+            .font(.system(size: 11, weight: .semibold))
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, KBOTeamColors.primary(for: teamCode))
+        return VStack(alignment: alignment, spacing: 3) {
+            Text("선발")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 3) {
+                if isLeading { badge }
+                Text(name ?? "—")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(name == nil ? Color.secondary : Color.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if !isLeading { badge }
+            }
+        }
+        .frame(width: 64, alignment: isLeading ? .leading : .trailing)
     }
 
     private func totalsCells(_ t: KBOLinescore.Totals?) -> [String] {
