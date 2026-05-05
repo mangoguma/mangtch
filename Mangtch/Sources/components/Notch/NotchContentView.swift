@@ -186,19 +186,12 @@ struct NotchContentView: View {
         let centerX = windowWidth / 2
 
         ZStack(alignment: .topLeading) {
-            // hoverZone
+            // hoverZone = expand zone (full wing area)
             Rectangle()
-                .fill(Color.blue.opacity(0.2))
-                .border(Color.blue, width: 1)
+                .fill(Color.red.opacity(0.15))
+                .border(Color.red, width: 1)
                 .frame(width: panelW, height: notchH + 5)
                 .offset(x: centerX - panelW / 2, y: 0)
-
-            // notchZone
-            Rectangle()
-                .fill(Color.red.opacity(0.3))
-                .border(Color.red, width: 1)
-                .frame(width: notchW, height: notchH)
-                .offset(x: centerX - notchW / 2, y: 0)
 
             // Hover timer progress
             if viewModel.debugHoverElapsed > 0 {

@@ -266,6 +266,10 @@ final class NotchViewModel {
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
             performTransition(to: .hovering)
+            // Re-check current cursor position so the expand timer starts
+            // immediately if the cursor already reached the notch zone
+            // while the debounce was in flight.
+            GestureHandler.shared.recheckCurrentPosition()
         }
     }
 

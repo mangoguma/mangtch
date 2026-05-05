@@ -98,6 +98,13 @@ final class GestureHandler {
 
     // MARK: - Mouse Handling
 
+    /// Re-run hover logic at the current cursor position. Called after
+    /// the hover debounce completes so the expand timer starts
+    /// immediately if the cursor is already over the notch zone.
+    func recheckCurrentPosition() {
+        handleMouseMoved(at: NSEvent.mouseLocation)
+    }
+
     private func handleMouseMoved(at point: NSPoint) {
         // Route to whichever panel owns the screen the cursor is on. In
         // single-display mode this is identical to reading `.shared`;
@@ -168,11 +175,9 @@ final class GestureHandler {
             }
 
         case .hovering:
-            // Expand when the cursor dwells on the notch cutout. boring.notch
-            // gates this on `openNotchOnHover` + `minimumHoverDuration`; we
-            // do the same so accidental cursor passes don't pop the panel.
+            // Expand when the cursor dwells anywhere on the wings/notch area.
             let key = ObjectIdentifier(viewModel)
-            if notchZone.contains(point) {
+            if hoverZone.contains(point) {
                 if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
                     let duration = Defaults[.minimumHoverDuration]
                     let startTime = CFAbsoluteTimeGetCurrent()
@@ -258,12 +263,7 @@ final class GestureHandler {
             // the click as a window-activation gesture instead. Dispatch
             // the click to the right action manually based on which wing
             // and where within it the cursor landed.
-            // If the click didn't land on a wing button, expand the panel.
-            if viewModel.wingHitZones.contains(where: { $0.rect.contains(point) }) {
-                handleWingClick(at: point, viewModel: viewModel)
-            } else {
-                viewModel.expand()
-            }
+            handleWingClick(at: point, viewModel: viewModel)
 
         case .idle:
             break
