@@ -67,6 +67,10 @@ final class NotchViewModel {
     enum WingHover { case none, left, right }
     var hoveredWing: WingHover = .none
 
+    // MARK: - Debug
+    var debugHoverElapsed: Double = 0
+    var debugHoverDuration: Double = 0
+
     // MARK: - Configuration
 
     let maxExpandedHeight: CGFloat = 260

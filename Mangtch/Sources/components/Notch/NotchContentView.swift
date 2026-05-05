@@ -1,4 +1,5 @@
 import SwiftUI
+import Defaults
 
 struct NotchContentView: View {
     /// The per-window view model. Each `NotchWindow` constructs its own
@@ -22,6 +23,11 @@ struct NotchContentView: View {
         GeometryReader { geo in
             ZStack(alignment: .top) {
                 panelContent(in: geo)
+
+                // Debug zone visualization (toggle in Settings > Widgets)
+                if Defaults[.debugOverlay] {
+                    debugZoneOverlay(in: geo)
+                }
 
                 // HUD overlay (shows on top of everything)
                 hudOverlay
@@ -166,6 +172,67 @@ struct NotchContentView: View {
             for z in zones { seen[z.button] = z }
             viewModel.wingHitZones = Array(seen.values)
         }
+    }
+
+    // MARK: - Debug Zone Overlay
+
+    @ViewBuilder
+    private func debugZoneOverlay(in geo: GeometryProxy) -> some View {
+        let notchGeo = viewModel.notchGeometry
+        let notchW = notchGeo.notchWidth
+        let notchH = notchGeo.notchHeight
+        let panelW = viewModel.panelWidth
+        let windowWidth = panelW + 40
+        let centerX = windowWidth / 2
+
+        ZStack(alignment: .topLeading) {
+            // hoverZone
+            Rectangle()
+                .fill(Color.blue.opacity(0.2))
+                .border(Color.blue, width: 1)
+                .frame(width: panelW, height: notchH + 5)
+                .offset(x: centerX - panelW / 2, y: 0)
+
+            // notchZone
+            Rectangle()
+                .fill(Color.red.opacity(0.3))
+                .border(Color.red, width: 1)
+                .frame(width: notchW, height: notchH)
+                .offset(x: centerX - notchW / 2, y: 0)
+
+            // Hover timer progress
+            if viewModel.debugHoverElapsed > 0 {
+                let duration = viewModel.debugHoverDuration
+                let elapsed = viewModel.debugHoverElapsed
+                let progress = min(elapsed / max(duration, 0.01), 1.0)
+
+                VStack(spacing: 2) {
+                    // Progress bar
+                    GeometryReader { _ in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.white.opacity(0.2))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(progress >= 1.0 ? Color.green : Color.yellow)
+                                .frame(width: 120 * progress)
+                        }
+                    }
+                    .frame(width: 120, height: 6)
+
+                    Text(String(format: "%.1f / %.1fs", elapsed, duration))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+                .offset(x: centerX - 60, y: notchH + 4)
+            }
+
+            // State label
+            Text("state: \(String(describing: viewModel.currentState))")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.green)
+                .offset(x: centerX + 70, y: notchH + 6)
+        }
+        .allowsHitTesting(false)
     }
 
     // MARK: - Wing Contents
