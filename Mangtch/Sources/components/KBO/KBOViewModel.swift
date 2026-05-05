@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import AVFoundation
 
 @Observable
 @MainActor
@@ -544,16 +545,19 @@ final class KBOViewModel {
         latestPlayText = nil
     }
 
-    /// Read the play aloud via macOS `say`. Detached so URLSession poll
-    /// timing isn't affected by the audio runtime. Korean voice ("Yuna")
-    /// since plays are written in Korean.
+    /// In-process synthesizer so utterance start latency matches the
+    /// ticker's text update — spawning `/usr/bin/say` per play used to add
+    /// hundreds of ms of process boot before the first phoneme, which made
+    /// audio visibly trail the ticker. AVSpeechSynthesizer also queues
+    /// successive utterances internally so back-to-back plays don't
+    /// overlap.
+    nonisolated(unsafe) private static let synthesizer = AVSpeechSynthesizer()
+
+    /// Read the play aloud. Korean voice since plays are written in Korean.
     private static func speak(_ text: String) {
-        Task.detached {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/say")
-            process.arguments = ["-v", "Yuna", text]
-            try? process.run()
-        }
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
+        synthesizer.speak(utterance)
     }
 
     /// Pull the season year out of the game's date — KBO's endpoint needs
