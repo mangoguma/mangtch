@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import Defaults
 
 @Observable
@@ -15,9 +14,23 @@ final class NotchViewModel {
 
     // MARK: - State
 
+    /// Refresh the cached `NSScreen` reference. AppKit replaces NSScreen
+    /// instances when displays reconfigure (resolution change, sleep,
+    /// hot-plug), so the original `let`-bound reference can report a
+    /// stale `frame` — which fed back into NotchGeometry detection,
+    /// pushing the geometry of one display onto another window.
+    @MainActor
+    func rebind(to screen: NSScreen) {
+        guard self.screen !== screen else { return }
+        self.screen = screen
+        self.notchGeometry = NotchGeometry.detect(for: screen)
+        updatePanelDimensions()
+        EventBus.shared.send(.screenChanged)
+    }
+
     /// The screen this view model is attached to. Each `NotchWindow`
     /// owns one VM matched to its display.
-    let screen: NSScreen
+    private(set) var screen: NSScreen
 
     private(set) var currentState: NotchState = .idle
     private(set) var previousState: NotchState = .idle
@@ -295,7 +308,6 @@ final class NotchViewModel {
     private var hoverDebounceTask: Task<Void, Never>?
     private var collapseDelayTask: Task<Void, Never>?
     private var phaseTask: Task<Void, Never>?
-    private var cancellables = Set<AnyCancellable>()
 
     /// One unified tempo for every notch animation. Wing snap, panel
     /// height, wait between phases, and widget-swap width-changes all
@@ -314,7 +326,6 @@ final class NotchViewModel {
         self.screen = screen
         self.notchGeometry = NotchGeometry.detect(for: screen)
         self.currentExpandedWidgetID = SettingsManager.shared.lastExpandedWidgetID ?? "music-player"
-        setupScreenChangeObserver()
         updatePanelDimensions()
         setupWidgetWidthObserver()
     }
@@ -630,22 +641,5 @@ final class NotchViewModel {
         }
     }
 
-    // MARK: - Screen Change Observer
-
-    private func setupScreenChangeObserver() {
-        // Each VM rebinds to its own screen on hardware-parameter changes.
-        // Display add/remove and preference flips are handled by
-        // `NotchWindowManager`, which tears down/replaces VMs as needed —
-        // so we only need to refresh local geometry here.
-        NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.notchGeometry = NotchGeometry.detect(for: self.screen)
-                self.updatePanelDimensions()
-                EventBus.shared.send(.screenChanged)
-            }
-            .store(in: &cancellables)
-    }
 }
 

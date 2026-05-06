@@ -64,6 +64,7 @@ final class NotchWindowManager {
         for (uuid, window) in windows {
             if let fresh = targetByUUID[uuid] {
                 window.rebind(to: fresh)
+                viewModels[uuid]?.rebind(to: fresh)
             }
             window.reposition()
         }
