@@ -274,11 +274,6 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // Right wing follows whichever widget is selected in the panel
-        // switcher AND has content worth surfacing (`hasContentToShow`).
-        // Same rule as the left wing — without it, selecting KBO with no
-        // pinned live game would leave one wing on music (fallback) and
-        // the other on a stray KBO placeholder.
         let selectedID = viewModel.currentExpandedWidgetID
 
         if selectedID == "kbo",
@@ -290,13 +285,14 @@ struct NotchContentView: View {
                 .transition(.opacity)
         } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
                   let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-                  musicWidget.isEnabled {
+                  musicWidget.isEnabled,
+                  actualWidget.viewModel.nowPlaying != nil,
+                  !(actualWidget.viewModel.nowPlaying?.title.isEmpty ?? true) {
             actualWidget.makeCompactInfoView()
                 .transition(.opacity)
         } else {
-            Image(systemName: "music.note")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+            // No content — wing is symmetric but empty
+            Color.clear
         }
     }
 
