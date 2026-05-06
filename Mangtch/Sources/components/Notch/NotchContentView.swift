@@ -130,19 +130,18 @@ struct NotchContentView: View {
         let wingBottomRadius: CGFloat = viewModel.wingsFlat ? 0 : viewModel.panelCornerRadius
 
         HStack(spacing: 0) {
-            if viewModel.wingWidth > 0 {
-                leftWing
-                    .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
-                    .background(panelBackground)
-                    .clipShape(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0,
-                            bottomLeadingRadius: wingBottomRadius,
-                            bottomTrailingRadius: 0,
-                            topTrailingRadius: 0
-                        )
+            leftWing
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
+                .background(panelBackground)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: wingBottomRadius,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: 0
                     )
-            }
+                )
+                .clipped()
 
             // Fill the area beneath the hardware notch with the same
             // panel background. On Macs with a real notch this paints
@@ -150,23 +149,32 @@ struct NotchContentView: View {
             // without a notch (external monitors, non-notch MBPs) it
             // bridges the wings into one continuous bar instead of
             // leaving a desktop-coloured strip showing through.
+            // When wings are hidden, round the bottom corners so the
+            // bar doesn't look like a harsh rectangle.
             Color.black
                 .frame(width: viewModel.notchGeometry.notchWidth,
                        height: viewModel.notchGeometry.notchHeight)
-
-            if viewModel.wingWidth > 0 {
-                rightWing
-                    .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
-                    .background(panelBackground)
-                    .clipShape(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0,
-                            bottomLeadingRadius: 0,
-                            bottomTrailingRadius: wingBottomRadius,
-                            topTrailingRadius: 0
-                        )
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: viewModel.wingWidth > 0 ? 0 : viewModel.panelCornerRadius,
+                        bottomTrailingRadius: viewModel.wingWidth > 0 ? 0 : viewModel.panelCornerRadius,
+                        topTrailingRadius: 0
                     )
-            }
+                )
+
+            rightWing
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
+                .background(panelBackground)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: wingBottomRadius,
+                        topTrailingRadius: 0
+                    )
+                )
+                .clipped()
         }
         .onPreferenceChange(WingHitZonesKey.self) { zones in
             // De-dupe by button id (last writer wins) — SwiftUI may emit

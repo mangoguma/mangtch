@@ -223,12 +223,40 @@ final class NotchWindow: NSPanel {
         // When collapsing from expanded, animate the window frame shrink
         // in sync with the SwiftUI collapse spring (instead of a hardcoded delay).
         let isCollapsing = previousState == .expanded && (state == .idle || state == .hovering)
+        let isExpanding = !isCollapsing && state == .expanded
 
         if isCollapsing {
             animateWindowFrame(duration: 0.4)
+        } else if isExpanding {
+            // Pre-expand the NSPanel to the full target size BEFORE the
+            // SwiftUI animation starts. Otherwise the observation-driven
+            // updateWindowFrame lags behind SwiftUI rendering, clipping
+            // the wings/panel during the transition.
+            preExpandWindowFrame()
         } else {
             updateWindowFrame()
         }
+    }
+
+    /// Set the NSPanel frame to the fully-expanded size immediately,
+    /// before SwiftUI starts animating. This reserves enough room so
+    /// wing/panel content never clips during the grow animation.
+    @MainActor
+    private func preExpandWindowFrame() {
+        let screen = self.attachedScreen
+        let geo = self.viewModel.notchGeometry
+        let vm = self.viewModel
+
+        let targetWing = max(vm.wingWidth, NotchViewModel.minWingWidth)
+        let fullPanelWidth = geo.notchWidth + targetWing * 2
+        let fullHeight = geo.notchHeight + vm.maxExpandedHeight + vm.additionalExpandedHeight + 30
+
+        let targetWidth = fullPanelWidth + 40
+        let panelX = screen.frame.midX - targetWidth / 2
+        let panelY = screen.frame.maxY - fullHeight
+
+        let frame = NSRect(x: panelX, y: panelY, width: targetWidth, height: fullHeight)
+        self.setFrame(frame, display: true)
     }
 
     /// Smoothly animate the NSPanel frame to the target size.

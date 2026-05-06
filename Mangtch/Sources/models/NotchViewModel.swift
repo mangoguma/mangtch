@@ -122,9 +122,8 @@ final class NotchViewModel {
     /// wings. When false the wings collapse to zero width so the notch
     /// bar blends with the hardware bezel.
     var hasWingContent: Bool {
-        // Expanded/hovering — always show wings so the panel chrome is
-        // consistent while the user interacts.
-        if currentState != .idle { return true }
+        // Expanded — always show wings so the panel chrome is consistent.
+        if currentState == .expanded { return true }
 
         // Any non-music widget claiming the wing?
         let widgetID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
@@ -400,26 +399,73 @@ final class NotchViewModel {
         phaseTask?.cancel()
 
         if !wasExpanded && willBeExpanded {
-            // EXPAND: wings flatten/widen first, then panel grows.
-            phaseTask = Task { @MainActor in
-                snapWingsFlat(true)
-                try? await Task.sleep(for: .milliseconds(Int(Self.wingSnapDuration * 1000)))
-                guard !Task.isCancelled, currentState == .expanded else { return }
-                animatePanelHeight()
+            // EXPAND: flatten corners instantly, then animate panel growth.
+            // Corners must be square BEFORE the panel starts growing,
+            // otherwise the rounded gap is visible during the animation.
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                wingsFlat = true
+                wingWidth = targetWingWidth()
+                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+            }
+            let anim: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: Self.panelTransitionDuration)
+                : nil
+            withAnimation(anim) {
+                expandedHeight = maxExpandedHeight + additionalExpandedHeight
             }
         } else if wasExpanded && !willBeExpanded {
-            // COLLAPSE: panel shrinks first, then wings round/narrow back.
-            animatePanelHeight()
-            phaseTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
-                guard !Task.isCancelled, currentState != .expanded else { return }
-                snapWingsFlat(false)
+            let willHideWings = !hasWingContent
+            let anim: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: Self.panelTransitionDuration)
+                : nil
+
+            if willHideWings {
+                // No wing content — shrink panel first, then snap wings away.
+                withAnimation(anim) {
+                    expandedHeight = 0
+                }
+                phaseTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
+                    guard !Task.isCancelled else { return }
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) {
+                        wingsFlat = false
+                        wingWidth = targetWingWidth()
+                        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                    }
+                }
+            } else {
+                // Wing content stays — shrink panel + round corners together.
+                withAnimation(anim) {
+                    expandedHeight = 0
+                }
+                // Round corners after panel is gone
+                phaseTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
+                    guard !Task.isCancelled else { return }
+                    let snapAnim: Animation? = SettingsManager.shared.animationsEnabled
+                        ? .easeInOut(duration: Self.wingSnapDuration)
+                        : nil
+                    withAnimation(snapAnim) {
+                        wingsFlat = false
+                        wingWidth = targetWingWidth()
+                        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                    }
+                }
             }
         } else {
-            // Idle ↔ hovering — no panel involvement, just keep wings
-            // round and let any height that's somehow still up settle.
-            animatePanelHeight()
-            snapWingsFlat(false)
+            // Idle ↔ hovering — just update dimensions, no panel.
+            let anim: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: Self.wingSnapDuration)
+                : nil
+            withAnimation(anim) {
+                wingWidth = targetWingWidth()
+                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                expandedHeight = 0
+            }
         }
 
         EventBus.shared.send(.stateChanged(newState))
