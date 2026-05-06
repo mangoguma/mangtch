@@ -139,14 +139,34 @@ final class NotchViewModel {
         let widgetID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
         if widgetID != "music-player" { return true }
 
-        // Music widget: show wings only when a track is loaded.
-        if let musicWidget = WidgetRegistry.shared.widget(for: "music-player"),
-           let music = musicWidget.wrapped as? MusicPlayerWidget,
-           musicWidget.isEnabled {
-            return music.viewModel.nowPlaying != nil
-                && !(music.viewModel.nowPlaying?.title.isEmpty ?? true)
+        return hasMusicTrack
+    }
+
+    /// True when the right wing has content to display. The right wing
+    /// shows KBO info or music track info — when neither is available
+    /// it collapses to 0 width while the left wing stays visible.
+    var hasRightWingContent: Bool {
+        if currentState == .expanded { return true }
+
+        let selectedID = currentExpandedWidgetID
+        if selectedID == "kbo",
+           let kboWidget = WidgetRegistry.shared.widget(for: "kbo"),
+           kboWidget.isEnabled {
+            if let kbo = kboWidget.wrapped as? KBOWidget {
+                if !kbo.viewModel.isShowingToday { return true }
+                return kbo.viewModel.selectedGame?.isLive == true
+            }
         }
-        return false
+        return hasMusicTrack
+    }
+
+    /// Helper: true when music is playing or a track is loaded.
+    private var hasMusicTrack: Bool {
+        guard let musicWidget = WidgetRegistry.shared.widget(for: "music-player"),
+              let music = musicWidget.wrapped as? MusicPlayerWidget,
+              musicWidget.isEnabled else { return false }
+        return music.viewModel.nowPlaying != nil
+            && !(music.viewModel.nowPlaying?.title.isEmpty ?? true)
     }
 
     /// What `wingWidth` should be right now.
@@ -182,7 +202,13 @@ final class NotchViewModel {
     /// pulsing for attention.
     private func snapWingWidth() {
         wingWidth = targetWingWidth()
-        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+        panelWidth = computePanelWidth()
+    }
+
+    /// Compute total panel width accounting for right wing visibility.
+    private func computePanelWidth() -> CGFloat {
+        let rightW = hasRightWingContent ? wingWidth : 0
+        return notchGeometry.notchWidth + wingWidth + rightW
     }
 
     /// True when wings should render in their flat, panel-continuous
@@ -352,30 +378,21 @@ final class NotchViewModel {
         performTransition(to: .expanded)
     }
 
-    /// Pick the widget the panel should open to based on what's actively
-    /// surfacing in the wings. KBO claiming the wing while a game is
-    /// live should also claim the panel; otherwise fall back to music
-    /// when there's a track. Without this, users had to manually click
-    /// the music or baseball tab even though the wing already reflected
-    /// what they were paying attention to.
+    /// Ensure the selected widget is still valid. Only auto-select when
+    /// the current selection is disabled or missing — otherwise respect
+    /// the user's last explicit choice (persisted in Defaults).
     private func autoSelectWidgetForExpand() {
         let registry = WidgetRegistry.shared
 
-        if let kbo = registry.widget(for: "kbo")?.wrapped as? KBOWidget,
-           registry.widget(for: "kbo")?.isEnabled == true,
-           kbo.viewModel.selectedGame?.isLive == true {
-            if currentExpandedWidgetID != "kbo" {
-                currentExpandedWidgetID = "kbo"
-            }
+        // If the persisted widget is still enabled, keep it.
+        if let current = registry.widget(for: currentExpandedWidgetID),
+           current.isEnabled {
             return
         }
 
-        if let music = registry.widget(for: "music-player")?.wrapped as? MusicPlayerWidget,
-           registry.widget(for: "music-player")?.isEnabled == true,
-           music.viewModel.nowPlaying != nil {
-            if currentExpandedWidgetID != "music-player" {
-                currentExpandedWidgetID = "music-player"
-            }
+        // Fallback: pick the first enabled widget.
+        if let first = registry.enabledWidgets.first {
+            currentExpandedWidgetID = first.id
         }
     }
 
@@ -430,7 +447,7 @@ final class NotchViewModel {
             withTransaction(t) {
                 wingsFlat = true
                 wingWidth = targetWingWidth()
-                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                panelWidth = computePanelWidth()
             }
             let anim: Animation? = SettingsManager.shared.animationsEnabled
                 ? .easeInOut(duration: Self.panelTransitionDuration)
@@ -457,7 +474,7 @@ final class NotchViewModel {
                     withTransaction(t) {
                         wingsFlat = false
                         wingWidth = targetWingWidth()
-                        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                        panelWidth = computePanelWidth()
                     }
                 }
             } else {
@@ -475,7 +492,7 @@ final class NotchViewModel {
                     withAnimation(snapAnim) {
                         wingsFlat = false
                         wingWidth = targetWingWidth()
-                        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                        panelWidth = computePanelWidth()
                     }
                 }
             }
@@ -486,7 +503,7 @@ final class NotchViewModel {
                 : nil
             withAnimation(anim) {
                 wingWidth = targetWingWidth()
-                panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+                panelWidth = computePanelWidth()
                 expandedHeight = 0
             }
         }
@@ -504,7 +521,7 @@ final class NotchViewModel {
         withAnimation(animation) {
             wingsFlat = flat
             wingWidth = targetWingWidth()
-            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+            panelWidth = computePanelWidth()
         }
     }
 
@@ -581,24 +598,14 @@ final class NotchViewModel {
 
     // MARK: - Widget Width Observer
 
-    /// Re-snap wing/panel width when the active widget's `preferredPanelWidth`
-    /// changes mid-state (e.g. KBO opening its inline linescore). Uses
-    /// `withObservationTracking` so any `@Observable` state inside the
-    /// widget's computed `preferredPanelWidth` becomes a dependency.
     private func setupWidgetWidthObserver() {
         withObservationTracking {
-            // WHY: touch the active widget's preferredPanelWidth so observation
-            // captures the underlying @Observable dependency chain (KBO's
-            // viewingLinescore, etc.). Touch both currentExpanded and the
-            // wing-fallback widget so dynamic changes in either propagate.
             let registry = WidgetRegistry.shared
             let wingID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
             _ = registry.widget(for: currentExpandedWidgetID)?.preferredPanelWidth
             _ = registry.widget(for: wingID)?.preferredPanelWidth
         } onChange: { [weak self] in
             Task { @MainActor in
-                // Re-arm first so a width change while we're updating
-                // doesn't slip past the next observer.
                 self?.setupWidgetWidthObserver()
                 self?.updatePanelDimensions()
             }
