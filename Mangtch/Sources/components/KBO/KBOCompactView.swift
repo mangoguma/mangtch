@@ -67,14 +67,15 @@ struct KBOCompactView: View {
             }
 
             HStack(spacing: 3) {
+                let live = viewModel.liveScores[game.gameId]
                 teamName(game.awayTeamName, isBatting: awayBatting)
-                Text("\(game.awayTeamScore)")
+                Text("\(live?.away ?? game.awayTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
                 Text(":")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.tertiary)
-                Text("\(game.homeTeamScore)")
+                Text("\(live?.home ?? game.homeTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
                 teamName(game.homeTeamName, isBatting: homeBatting)

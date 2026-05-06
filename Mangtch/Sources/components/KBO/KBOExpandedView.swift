@@ -381,13 +381,18 @@ struct KBOExpandedView: View {
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
         } else {
+            // Prefer linescore-derived scores (10s cadence) over schedule
+            // scores (60s) so the display updates as soon as runs cross.
+            let live = viewModel.liveScores[game.gameId]
+            let away = live?.away ?? game.awayTeamScore
+            let home = live?.home ?? game.homeTeamScore
             HStack(spacing: 6) {
-                scoreNumber(game.awayTeamScore,
+                scoreNumber(away,
                             isLoser: game.winnerSide == .home)
                 Text("·")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
-                scoreNumber(game.homeTeamScore,
+                scoreNumber(home,
                             isLoser: game.winnerSide == .away)
             }
         }

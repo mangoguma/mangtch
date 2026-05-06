@@ -89,6 +89,11 @@ final class KBOViewModel {
     private(set) var startingPitchers: [String: KBOStarters] = [:]
     private var pitcherPrefetchInFlight: Set<String> = []
 
+    /// Live score override from linescore totals. Updated every 10s for
+    /// tracked games, bridging the gap between play-by-play text and the
+    /// 60s schedule poll that updates KBOGame.score fields.
+    private(set) var liveScores: [String: (away: Int, home: Int)] = [:]
+
     /// Convenience accessor for the right-wing view, which only cares
     /// about the tracked game. Computed off `liveStates` so callers stay
     /// in sync automatically.
@@ -457,6 +462,9 @@ final class KBOViewModel {
             // when Naver clears the at-bat between innings.
             self.liveStates[gameId] = result?.liveState
             self.cacheStarters(from: result, gameId: gameId)
+            if let r = result, let at = r.awayTotals, let ht = r.homeTotals {
+                self.liveScores[gameId] = (away: at.runs, home: ht.runs)
+            }
             if let plays = result?.allPlays, !plays.isEmpty {
                 self.handleNewPlays(plays, gameID: gameId)
             }
@@ -511,6 +519,9 @@ final class KBOViewModel {
             }
             self.liveStates[gameId] = result?.liveState
             self.cacheStarters(from: result, gameId: gameId)
+            if let r = result, let at = r.awayTotals, let ht = r.homeTotals {
+                self.liveScores[gameId] = (away: at.runs, home: ht.runs)
+            }
         }
     }
 
