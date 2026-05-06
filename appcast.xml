@@ -6,6 +6,34 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.7.1</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.7.1</h2>
+        <h3>Wings &amp; Notch 외형</h3>
+        <ul>
+          <li>feat: boring-notch 시그니처 — wing 외곽-위 모서리에 concave 인셋, expanded panel chrome도 같은 inset으로 클립해 wing↔panel 외곽선이 한 줄로 이어짐</li>
+          <li>feat: wing 컨텐츠 outer 정렬 — 좌측 wing은 leading, 우측 wing은 trailing. concave 곡선에 닿지 않게 안쪽 padding 보정</li>
+        </ul>
+        <h3>Wings 인터랙션</h3>
+        <ul>
+          <li>fix: wing 위 hover 만으로 패널이 자동 펼침 트리거되던 회귀 수정 — 이제 노치 본체에 dwell 했을 때만 펼침. wing controls(음악 transport, KBO 토글)이 펼침에 휘말려 사라지지 않음</li>
+          <li>fix: local mouse-down 경로에서 wing 클릭이 무시되던 문제 — 양쪽 monitor가 같은 디스패치를 통과</li>
+        </ul>
+        <h3>KBO</h3>
+        <ul>
+          <li>fix: 패널을 닫았다 다시 열어도 펼친 게임 행/이닝/라이브 중계 핀이 유지됨</li>
+          <li>fix: 날짜 네비게이션 시 핀(중계)이 풀리지 않음 — inline 행만 접고 selectedGameID는 보존</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 06 May 2026 21:30:00 +0900</pubDate>
+      <sparkle:version>11</sparkle:version>
+      <sparkle:shortVersionString>0.7.1</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.7.1/Mangtch-0.7.1.zip"
+                 length="3261131"
+                 sparkle:edSignature="7VDQGA2g5qyEr0tfHC9EU+2V2OidySejgP+vVXDs/qU6dQl9zyuK7u+UDLpl/0iIv32QpQ5zJpgVKvesgU72DQ=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.7.0</title>
       <description><![CDATA[
         <h2>Mangtch 0.7.0</h2>
