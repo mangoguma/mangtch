@@ -285,9 +285,8 @@ struct NotchContentView: View {
         // thing on the notch — losing it for a Timer/FileShelf isn't worth it.
         if viewModel.currentExpandedWidgetID != "music-player",
            let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
-           active.isEnabled,
-           hasContentToShow(active) {
-            // Selected widget has live content — show it
+           active.isEnabled {
+            // User's selected widget — always show, even without live content
             active.makeCompactView()
                 .transition(.opacity)
         } else if let timerWidget = widgetRegistry.widget(for: "timer"),

@@ -382,10 +382,9 @@ final class KBOViewModel {
 
     func collapse() {
         collapseInline()
-        selectedGameID = nil
-        // KBOExpandedView's preference change will redrive the height
-        // to match the now-shorter content; we don't reset eagerly here
-        // to avoid a one-frame snap-then-grow during the collapse animation.
+        // Keep selectedGameID — the user's pin persists across
+        // panel open/close. Only cleared when the game ends (via
+        // the !isLive check in the refresh path) or manually.
     }
 
     /// Collapse just the inline row expansion, leaving the wing pin

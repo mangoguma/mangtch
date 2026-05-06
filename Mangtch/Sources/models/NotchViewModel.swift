@@ -148,7 +148,14 @@ final class NotchViewModel {
         // Expanded — always show wings so the panel chrome is consistent.
         if currentState == .expanded { return true }
 
-        // Any non-music widget claiming the wing?
+        // User explicitly selected a non-music widget — always show wings.
+        if currentExpandedWidgetID != "music-player",
+           let widget = WidgetRegistry.shared.widget(for: currentExpandedWidgetID),
+           widget.isEnabled {
+            return true
+        }
+
+        // Any non-music widget claiming the wing via fallback?
         let widgetID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
         if widgetID != "music-player" { return true }
 

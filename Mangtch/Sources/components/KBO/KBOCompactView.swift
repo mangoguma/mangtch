@@ -31,11 +31,13 @@ struct KBOCompactView: View {
                     .padding(.vertical, 2)
             )
             .animation(.easeInOut(duration: 0.18), value: isHovering)
+            .frame(maxWidth: .infinity, alignment: .trailing)
             .onAppear { pulse = true }
         } else {
             Image(systemName: "baseball")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -107,7 +109,7 @@ struct KBOCompactView: View {
             )
             .wingHitZone(.kboTTSToggle)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(alignment: .center)
     }
 
     /// Both ON and OFF states render with a filled background pill —
