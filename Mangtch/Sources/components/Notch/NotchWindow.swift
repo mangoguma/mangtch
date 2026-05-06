@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Combine
+import Defaults
 import Observation
 
 final class NotchWindow: NSPanel {
@@ -57,8 +58,11 @@ final class NotchWindow: NSPanel {
         // Window behavior — use .mainMenu + 3 so the notch sits above menu bar
         // but with isFloatingPanel + canBecomeKey=false (idle/hover) to avoid
         // blocking menu bar item clicks.
-        self.level = .mainMenu + 3
+        // NOTE: isFloatingPanel must be set BEFORE level — it resets the
+        // window level to kCGFloatingWindowLevel (3), which would put us
+        // behind the menu bar.
         self.isFloatingPanel = true
+        self.level = .mainMenu + 3
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
         self.isOpaque = false
         self.backgroundColor = .clear
@@ -125,6 +129,14 @@ final class NotchWindow: NSPanel {
         setupPanelWidthObserver()
         setupExpandedHeightObserver()
         setupFullscreenObserver()
+        // Sync initial fullscreen state after a brief delay — at launch
+        // Mangtch is briefly frontmost (activate call in AppDelegate) so
+        // the observer's immediate check() skips. By 1s the system has
+        // settled and the real frontmost app is visible.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            self?.handleFullscreenChange()
+        }
         // External file-drag detection lives in `DragDetector`, which
         // already routes per-screen via `NotchWindowManager.window(under:)`.
         // We used to install a duplicate monitor here for the primary
@@ -153,7 +165,6 @@ final class NotchWindow: NSPanel {
         // hides any easing-curve mismatch between the two timing systems.
         let targetWidth: CGFloat = viewModel.panelWidth + 50
 
-        // Always center since both wings are always visible
         let panelX = screen.frame.midX - targetWidth / 2
 
         // Top-align in both modes. In notch mode the wings tuck under
@@ -211,12 +222,40 @@ final class NotchWindow: NSPanel {
         // When collapsing from expanded, animate the window frame shrink
         // in sync with the SwiftUI collapse spring (instead of a hardcoded delay).
         let isCollapsing = previousState == .expanded && (state == .idle || state == .hovering)
+        let isExpanding = !isCollapsing && state == .expanded
 
         if isCollapsing {
             animateWindowFrame(duration: 0.4)
+        } else if isExpanding {
+            // Pre-expand the NSPanel to the full target size BEFORE the
+            // SwiftUI animation starts. Otherwise the observation-driven
+            // updateWindowFrame lags behind SwiftUI rendering, clipping
+            // the wings/panel during the transition.
+            preExpandWindowFrame()
         } else {
             updateWindowFrame()
         }
+    }
+
+    /// Set the NSPanel frame to the fully-expanded size immediately,
+    /// before SwiftUI starts animating. This reserves enough room so
+    /// wing/panel content never clips during the grow animation.
+    @MainActor
+    private func preExpandWindowFrame() {
+        let screen = self.attachedScreen
+        let geo = self.viewModel.notchGeometry
+        let vm = self.viewModel
+
+        let targetWing = max(vm.wingWidth, NotchViewModel.minWingWidth)
+        let fullPanelWidth = geo.notchWidth + targetWing * 2
+        let fullHeight = geo.notchHeight + vm.maxExpandedHeight + vm.additionalExpandedHeight + 30
+
+        let targetWidth = fullPanelWidth + 40
+        let panelX = screen.frame.midX - targetWidth / 2
+        let panelY = screen.frame.maxY - fullHeight
+
+        let frame = NSRect(x: panelX, y: panelY, width: targetWidth, height: fullHeight)
+        self.setFrame(frame, display: true)
     }
 
     /// Smoothly animate the NSPanel frame to the target size.
@@ -310,6 +349,16 @@ final class NotchWindow: NSPanel {
                 self?.setupFullscreenObserver()
             }
         }
+
+        // Also react when user toggles hideInFullscreen in Settings
+        Defaults.publisher(.hideInFullscreen)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleFullscreenChange()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func handleFullscreenChange() {

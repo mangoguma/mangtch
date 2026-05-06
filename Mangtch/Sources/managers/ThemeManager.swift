@@ -25,17 +25,25 @@ final class ThemeManager: ObservableObject {
     // MARK: - Init
 
     private init() {
-        // Load saved theme from UserDefaults or fall back to dark.
-        // Dark gives a unified black-tinted notch regardless of wallpaper,
-        // which is what the indicators (live state pill, ticker text, etc.)
-        // are tuned to read against.
-        let savedThemeName = UserDefaults.standard.string(forKey: Self.userDefaultsKey) ?? "dark"
+        let savedThemeName = UserDefaults.standard.string(forKey: Self.userDefaultsKey) ?? "default"
         currentTheme = Self.themeForName(savedThemeName)
 
-        // If album art theme, start observing artwork
         if savedThemeName == "albumart" {
             startArtworkObservation()
         }
+
+        // Watch for system appearance changes so "default" theme follows
+        DistributedNotificationCenter.default()
+            .publisher(for: Notification.Name("AppleInterfaceThemeChangedNotification"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, self.currentThemeName == "default" else { return }
+                let theme = Self.themeForName("default")
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    self.currentTheme = theme
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Public API
@@ -64,7 +72,9 @@ final class ThemeManager: ObservableObject {
         case "albumart":
             return AlbumArtTheme()
         default:
-            return DefaultTheme()
+            // "default" follows macOS system appearance
+            let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark ? DarkTheme() : LightTheme()
         }
     }
 

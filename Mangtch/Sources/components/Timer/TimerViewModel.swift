@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Defaults
 
 enum TimerMode: String, CaseIterable {
     case countdown = "Timer"
@@ -19,7 +20,9 @@ final class TimerViewModel {
     // MARK: - State
 
     private(set) var state: TimerState = .idle
-    private(set) var mode: TimerMode = .countdown
+    private(set) var mode: TimerMode = {
+        TimerMode(rawValue: Defaults[.timerMode]) ?? .countdown
+    }()
 
     /// Elapsed time in seconds (stopwatch) or remaining time (countdown)
     private(set) var displayTime: TimeInterval = 0
@@ -135,6 +138,7 @@ final class TimerViewModel {
     func setMode(_ newMode: TimerMode) {
         guard state == .idle || state == .finished else { return }
         mode = newMode
+        Defaults[.timerMode] = newMode.rawValue
         reset()
     }
 

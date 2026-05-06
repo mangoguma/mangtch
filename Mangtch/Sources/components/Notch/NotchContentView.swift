@@ -1,4 +1,15 @@
 import SwiftUI
+import Defaults
+
+/// Reports the natural width of wing content for auto-sizing.
+/// Takes the max of all reported values so symmetric wings use
+/// the wider content's width.
+private struct MeasuredWingWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
 
 struct NotchContentView: View {
     /// The per-window view model. Each `NotchWindow` constructs its own
@@ -23,6 +34,11 @@ struct NotchContentView: View {
             ZStack(alignment: .top) {
                 panelContent(in: geo)
 
+                // Debug zone visualization (toggle in Settings > Widgets)
+                if Defaults[.debugOverlay] {
+                    debugZoneOverlay(in: geo)
+                }
+
                 // HUD overlay (shows on top of everything)
                 hudOverlay
 
@@ -43,12 +59,6 @@ struct NotchContentView: View {
             }
         }
         .ignoresSafeArea()
-        // Force dark colour scheme on every view inside the notch panel.
-        // The chrome is solid black, so `.primary` text and SF Symbol
-        // tints must resolve to white regardless of the user's macOS
-        // appearance setting. This single environment override replaces
-        // hand-tinting every Text/Image in the widget tree.
-        .environment(\.colorScheme, .dark)
         .environment(\.notchHostWindow, hostWindow)
     }
 
@@ -65,16 +75,8 @@ struct NotchContentView: View {
             // (no desktop-strip gap between them); only the bottom corners
             // are rounded.
             expandedContent
-                // Force the inner content to lay out within `panelWidth`.
-                // Without this hard frame, a widget whose natural content
-                // exceeds the wing-derived width (e.g. KBO's extra-innings
-                // linescore) draws outside the parent VStack — the
-                // `.background` then paints chrome at the wider natural
-                // width, leaving a visible step where the wings end. Each
-                // widget is responsible for declaring a `preferredPanelWidth`
-                // that fits its current state; if it doesn't, content gets
-                // visibly clipped here (loud failure, not silent chrome step).
                 .frame(width: viewModel.panelWidth, alignment: .top)
+                .environment(\.colorScheme, themeManager.currentTheme is LightTheme ? .light : .dark)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -94,13 +96,12 @@ struct NotchContentView: View {
 
     // MARK: - Panel Background
 
-    /// Pure-black panel background. The display's hardware notch is
-    /// pure black, so anything lighter shows a visible seam against the
-    /// cutout. No translucent material — the chrome must not bleed the
-    /// desktop colour through.
+    /// Panel background derived from the active theme.
     @ViewBuilder
     private var panelBackground: some View {
-        Color.black
+        Rectangle()
+            .fill(themeManager.currentTheme.panelTint)
+            .background(themeManager.currentTheme.panelMaterial)
     }
 
     // MARK: - Wings Row
@@ -125,8 +126,10 @@ struct NotchContentView: View {
 
         HStack(spacing: 0) {
             leftWing
-                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
-                .background(panelBackground)
+                .environment(\.colorScheme, .dark)
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
+                       alignment: .trailing)
+                .background(Color.black)
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
@@ -135,6 +138,7 @@ struct NotchContentView: View {
                         topTrailingRadius: 0
                     )
                 )
+                .clipped()
 
             // Fill the area beneath the hardware notch with the same
             // panel background. On Macs with a real notch this paints
@@ -142,13 +146,29 @@ struct NotchContentView: View {
             // without a notch (external monitors, non-notch MBPs) it
             // bridges the wings into one continuous bar instead of
             // leaving a desktop-coloured strip showing through.
+            // When wings are hidden, round the bottom corners so the
+            // bar doesn't look like a harsh rectangle.
+            // Extend 1pt on each side to cover sub-pixel anti-aliasing
+            // seams between the wings and the notch bar.
             Color.black
-                .frame(width: viewModel.notchGeometry.notchWidth,
+                .frame(width: viewModel.notchGeometry.notchWidth + 2,
                        height: viewModel.notchGeometry.notchHeight)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: viewModel.wingWidth > 0 ? 0 : viewModel.panelCornerRadius,
+                        bottomTrailingRadius: viewModel.wingWidth > 0 ? 0 : viewModel.panelCornerRadius,
+                        topTrailingRadius: 0
+                    )
+                )
+                .padding(.horizontal, -1)
 
             rightWing
-                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
-                .background(panelBackground)
+                .environment(\.colorScheme, .dark)
+                .frame(width: viewModel.wingWidth,
+                       height: viewModel.notchGeometry.notchHeight,
+                       alignment: .leading)
+                .background(Color.black)
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
@@ -157,15 +177,88 @@ struct NotchContentView: View {
                         topTrailingRadius: 0
                     )
                 )
+                .clipped()
         }
         .onPreferenceChange(WingHitZonesKey.self) { zones in
-            // De-dupe by button id (last writer wins) — SwiftUI may emit
-            // multiple values for the same view across hover transitions
-            // (e.g. controls at .opacity(0)).
             var seen: [WingButton: WingHitZone] = [:]
             for z in zones { seen[z.button] = z }
             viewModel.wingHitZones = Array(seen.values)
         }
+        // Hidden measurement pass — render wing content at natural size
+        // off-screen to get ideal widths without feedback loops.
+        .background(
+            HStack(spacing: 0) {
+                leftWing
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: MeasuredWingWidthKey.self, value: geo.size.width)
+                    })
+                rightWing
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: MeasuredWingWidthKey.self, value: geo.size.width)
+                    })
+            }
+            .frame(height: 0)
+            .hidden()
+        )
+        .onPreferenceChange(MeasuredWingWidthKey.self) { width in
+            viewModel.measuredCompactWidth = width
+        }
+    }
+
+    // MARK: - Debug Zone Overlay
+
+    @ViewBuilder
+    private func debugZoneOverlay(in geo: GeometryProxy) -> some View {
+        let notchGeo = viewModel.notchGeometry
+        let notchW = notchGeo.notchWidth
+        let notchH = notchGeo.notchHeight
+        let panelW = viewModel.panelWidth
+        let windowWidth = panelW + 40
+        let centerX = windowWidth / 2
+
+        ZStack(alignment: .topLeading) {
+            // hoverZone = expand zone (full wing area)
+            Rectangle()
+                .fill(Color.red.opacity(0.15))
+                .border(Color.red, width: 1)
+                .frame(width: panelW, height: notchH + 5)
+                .offset(x: centerX - panelW / 2, y: 0)
+
+            // Hover timer progress
+            if viewModel.debugHoverElapsed > 0 {
+                let duration = viewModel.debugHoverDuration
+                let elapsed = viewModel.debugHoverElapsed
+                let progress = min(elapsed / max(duration, 0.01), 1.0)
+
+                VStack(spacing: 2) {
+                    // Progress bar
+                    GeometryReader { _ in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.white.opacity(0.2))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(progress >= 1.0 ? Color.green : Color.yellow)
+                                .frame(width: 120 * progress)
+                        }
+                    }
+                    .frame(width: 120, height: 6)
+
+                    Text(String(format: "%.1f / %.1fs", elapsed, duration))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+                .offset(x: centerX - 60, y: notchH + 4)
+            }
+
+            // State label
+            Text("state: \(String(describing: viewModel.currentState))")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.green)
+                .offset(x: centerX + 70, y: notchH + 6)
+        }
+        .allowsHitTesting(false)
     }
 
     // MARK: - Wing Contents
@@ -180,7 +273,15 @@ struct NotchContentView: View {
            let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
            active.isEnabled,
            hasContentToShow(active) {
+            // Selected widget has live content — show it
             active.makeCompactView()
+                .transition(.opacity)
+        } else if let timerWidget = widgetRegistry.widget(for: "timer"),
+                  let timer = timerWidget.wrapped as? TimerWidget,
+                  timerWidget.isEnabled,
+                  (timer.viewModel.isActive || timer.viewModel.displayTime > 0) {
+            // Active timer takes priority over idle music
+            timerWidget.makeCompactView()
                 .transition(.opacity)
         } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
                   let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
@@ -196,11 +297,6 @@ struct NotchContentView: View {
 
     @ViewBuilder
     private var rightWing: some View {
-        // Right wing follows whichever widget is selected in the panel
-        // switcher AND has content worth surfacing (`hasContentToShow`).
-        // Same rule as the left wing — without it, selecting KBO with no
-        // pinned live game would leave one wing on music (fallback) and
-        // the other on a stray KBO placeholder.
         let selectedID = viewModel.currentExpandedWidgetID
 
         if selectedID == "kbo",
@@ -212,13 +308,14 @@ struct NotchContentView: View {
                 .transition(.opacity)
         } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
                   let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,
-                  musicWidget.isEnabled {
+                  musicWidget.isEnabled,
+                  actualWidget.viewModel.nowPlaying != nil,
+                  !(actualWidget.viewModel.nowPlaying?.title.isEmpty ?? true) {
             actualWidget.makeCompactInfoView()
                 .transition(.opacity)
         } else {
-            Image(systemName: "music.note")
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
+            // No content — wing is symmetric but empty
+            Color.clear
         }
     }
 

@@ -11,8 +11,6 @@ extension Defaults.Keys {
     static let enableFileShelf = Key<Bool>("enableFileShelf", default: true)
     static let fileShelfMaxItems = Key<Int>("fileShelfMaxItems", default: 3)
     static let fileShelfExpirationHours = Key<Int>("fileShelfExpirationHours", default: 24)
-    static let hoverSensitivity = Key<Double>("hoverSensitivity", default: 0.5)
-    static let panelWidthMultiplier = Key<Double>("panelWidthMultiplier", default: 1.0)
     static let showInMenuBar = Key<Bool>("showInMenuBar", default: true)
     static let automaticallyCheckForUpdates = Key<Bool>("automaticallyCheckForUpdates", default: true)
     static let hasCompletedOnboarding = Key<Bool>("hasCompletedOnboarding", default: false)
@@ -36,4 +34,8 @@ extension Defaults.Keys {
     /// When true, a notch panel is mirrored onto every connected display.
     /// `notchScreen` is ignored while this is on.
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
+    /// Last selected timer mode (countdown vs stopwatch).
+    static let timerMode = Key<String>("timerMode", default: "Timer")
+    /// Show zone overlays and hover timer on the notch panel for debugging.
+    static let debugOverlay = Key<Bool>("debugOverlay", default: false)
 }

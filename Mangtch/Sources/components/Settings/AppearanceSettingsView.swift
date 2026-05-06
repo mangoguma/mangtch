@@ -7,28 +7,6 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Panel") {
-                HStack {
-                    Text("Panel width")
-                    Slider(
-                        value: Binding(
-                            get: { settings.panelWidthMultiplier },
-                            set: { settings.panelWidthMultiplier = $0 }
-                        ),
-                        in: 0.8...1.5,
-                        step: 0.1
-                    ) {
-                        Text("Width")
-                    } minimumValueLabel: {
-                        Text("S")
-                            .font(.caption)
-                    } maximumValueLabel: {
-                        Text("L")
-                            .font(.caption)
-                    }
-                }
-            }
-
             Section {
                 VStack(alignment: .leading, spacing: 20) {
                     // Theme Picker

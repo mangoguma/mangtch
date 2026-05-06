@@ -98,4 +98,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Don't quit when settings window closes
         return false
     }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // When user double-clicks the app while already running, show settings
+        MenuBarManager.shared.openSettings()
+        return false
+    }
 }

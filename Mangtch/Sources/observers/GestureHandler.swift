@@ -98,6 +98,13 @@ final class GestureHandler {
 
     // MARK: - Mouse Handling
 
+    /// Re-run hover logic at the current cursor position. Called after
+    /// the hover debounce completes so the expand timer starts
+    /// immediately if the cursor is already over the notch zone.
+    func recheckCurrentPosition() {
+        handleMouseMoved(at: NSEvent.mouseLocation)
+    }
+
     private func handleMouseMoved(at point: NSPoint) {
         // Route to whichever panel owns the screen the cursor is on. In
         // single-display mode this is identical to reading `.shared`;
@@ -168,25 +175,34 @@ final class GestureHandler {
             }
 
         case .hovering:
-            // Expand when the cursor dwells on the notch cutout. boring.notch
-            // gates this on `openNotchOnHover` + `minimumHoverDuration`; we
-            // do the same so accidental cursor passes don't pop the panel.
+            // Expand when the cursor dwells anywhere on the wings/notch area.
             let key = ObjectIdentifier(viewModel)
-            if notchZone.contains(point) {
+            if hoverZone.contains(point) {
                 if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
                     let duration = Defaults[.minimumHoverDuration]
+                    let startTime = CFAbsoluteTimeGetCurrent()
+                    viewModel.debugHoverDuration = duration
+                    viewModel.debugHoverElapsed = 0
                     pendingExpandTasks[key] = Task { @MainActor [weak self, weak viewModel] in
-                        try? await Task.sleep(for: .seconds(duration))
+                        // Tick the debug timer at 60fps until done
+                        while !Task.isCancelled {
+                            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+                            viewModel?.debugHoverElapsed = elapsed
+                            if elapsed >= duration { break }
+                            try? await Task.sleep(for: .milliseconds(16))
+                        }
                         guard !Task.isCancelled, let viewModel else { return }
                         if viewModel.currentState == .hovering {
                             viewModel.expand()
                         }
+                        viewModel.debugHoverElapsed = 0
                         self?.pendingExpandTasks.removeValue(forKey: key)
                     }
                 }
             } else {
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
+                viewModel.debugHoverElapsed = 0
             }
             // Collapse back to idle when mouse leaves the hover zone
             if !hoverZone.contains(point) {

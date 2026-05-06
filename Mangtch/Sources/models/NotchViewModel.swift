@@ -67,6 +67,20 @@ final class NotchViewModel {
     enum WingHover { case none, left, right }
     var hoveredWing: WingHover = .none
 
+    /// Measured natural width of wing compact content. Updated by
+    /// NotchContentView's hidden measurement overlay. Used to size
+    /// wings to fit their content in idle/hovering state.
+    var measuredCompactWidth: CGFloat = 0 {
+        didSet {
+            guard oldValue != measuredCompactWidth, currentState != .expanded else { return }
+            updatePanelDimensions()
+        }
+    }
+
+    // MARK: - Debug
+    var debugHoverElapsed: Double = 0
+    var debugHoverDuration: Double = 0
+
     // MARK: - Configuration
 
     let maxExpandedHeight: CGFloat = 260
@@ -114,15 +128,70 @@ final class NotchViewModel {
         }
     }
 
-    /// What `wingWidth` should be right now. Both compact and panel modes
-    /// pull from a single source so a hover-to-expand never causes a
-    /// width snap. A non-nil `previewWingWidth` temporarily overrides
-    /// the resting width but is clamped so it can never shrink below
-    /// the panel-derived resting width or grow past `maxWingWidth`.
+    /// True when at least one widget has content worth surfacing in the
+    /// wings. When false the wings collapse to zero width so the notch
+    /// bar blends with the hardware bezel.
+    var hasWingContent: Bool {
+        // Expanded — always show wings so the panel chrome is consistent.
+        if currentState == .expanded { return true }
+
+        // Any non-music widget claiming the wing?
+        let widgetID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
+        if widgetID != "music-player" { return true }
+
+        return hasMusicTrack
+    }
+
+    /// True when the right wing has content to display. The right wing
+    /// shows KBO info or music track info — when neither is available
+    /// it collapses to 0 width while the left wing stays visible.
+    var hasRightWingContent: Bool {
+        if currentState == .expanded { return true }
+
+        let selectedID = currentExpandedWidgetID
+        if selectedID == "kbo",
+           let kboWidget = WidgetRegistry.shared.widget(for: "kbo"),
+           kboWidget.isEnabled {
+            if let kbo = kboWidget.wrapped as? KBOWidget {
+                if !kbo.viewModel.isShowingToday { return true }
+                return kbo.viewModel.selectedGame?.isLive == true
+            }
+        }
+        return hasMusicTrack
+    }
+
+    /// Helper: true when music is playing or a track is loaded.
+    private var hasMusicTrack: Bool {
+        guard let musicWidget = WidgetRegistry.shared.widget(for: "music-player"),
+              let music = musicWidget.wrapped as? MusicPlayerWidget,
+              musicWidget.isEnabled else { return false }
+        return music.viewModel.nowPlaying != nil
+            && !(music.viewModel.nowPlaying?.title.isEmpty ?? true)
+    }
+
+    /// What `wingWidth` should be right now.
+    /// - Expanded: panel-derived width (from widget's preferredPanelWidth)
+    /// - Idle/hovering: measured compact content width (auto-fit)
+    /// - Track-change preview: temporarily boosted to title width
     private func targetWingWidth() -> CGFloat {
-        let resting = panelModeWingWidth
-        guard let preview = previewWingWidth else { return resting }
-        return min(max(preview, resting), self.maxWingWidth)
+        if !hasWingContent { return 0 }
+
+        if currentState == .expanded {
+            // At least as wide as the compact content so wings never
+            // shrink on expand.
+            let compact = measuredCompactWidth + 4
+            let resting = max(panelModeWingWidth, compact)
+            guard let preview = previewWingWidth else { return min(resting, self.maxWingWidth) }
+            return min(max(preview, resting), self.maxWingWidth)
+        }
+
+        // Idle/hovering: use measured content width + small padding
+        let measured = measuredCompactWidth + 4
+        let clamped = min(max(measured, 50), self.maxWingWidth)
+
+        // Track-change preview can still boost
+        guard let preview = previewWingWidth else { return clamped }
+        return min(max(preview, clamped), self.maxWingWidth)
     }
 
     /// Re-run `targetWingWidth()` and propagate to `wingWidth`/`panelWidth`.
@@ -133,7 +202,13 @@ final class NotchViewModel {
     /// pulsing for attention.
     private func snapWingWidth() {
         wingWidth = targetWingWidth()
-        panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+        panelWidth = computePanelWidth()
+    }
+
+    /// Compute total panel width. Always symmetric (both wings) so the
+    /// window stays centered on the hardware notch.
+    private func computePanelWidth() -> CGFloat {
+        return notchGeometry.notchWidth + wingWidth * 2
     }
 
     /// True when wings should render in their flat, panel-continuous
@@ -178,21 +253,32 @@ final class NotchViewModel {
     private func effectiveWingWidgetID(fallback: String) -> String {
         let registry = WidgetRegistry.shared
         guard let active = registry.widget(for: fallback), active.isEnabled else {
-            return "music-player"
+            return activeTimerOrMusic()
         }
         if let kbo = active.wrapped as? KBOWidget {
             let claimsWing = !kbo.viewModel.isShowingToday
                 || kbo.viewModel.selectedGame?.isLive == true
-            return claimsWing ? fallback : "music-player"
+            return claimsWing ? fallback : activeTimerOrMusic()
         }
         if let fs = active.wrapped as? FileShelfWidget {
-            return fs.viewModel.items.isEmpty ? "music-player" : fallback
+            return fs.viewModel.items.isEmpty ? activeTimerOrMusic() : fallback
         }
         if let timer = active.wrapped as? TimerWidget {
             let claimsWing = timer.viewModel.displayTime > 0 || timer.viewModel.isActive
             return claimsWing ? fallback : "music-player"
         }
         return fallback
+    }
+
+    /// Fallback: active timer if running, otherwise music.
+    private func activeTimerOrMusic() -> String {
+        if let timerWidget = WidgetRegistry.shared.widget(for: "timer"),
+           let timer = timerWidget.wrapped as? TimerWidget,
+           timerWidget.isEnabled,
+           (timer.viewModel.isActive || timer.viewModel.displayTime > 0) {
+            return "timer"
+        }
+        return "music-player"
     }
 
     /// Hit zones for clickable wing buttons, in screen coordinates.
@@ -242,6 +328,11 @@ final class NotchViewModel {
         updatePanelDimensions()
     }
 
+    /// Re-snap wing width after the music playing state changes.
+    func refreshWingVisibility() {
+        updatePanelDimensions()
+    }
+
     /// Move to the next/previous enabled widget. Wraps around at the ends.
     /// Called by the switcher bar and (eventually) keyboard arrow keys.
     func cycleWidget(direction: Int) {
@@ -262,6 +353,10 @@ final class NotchViewModel {
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
             performTransition(to: .hovering)
+            // Re-check current cursor position so the expand timer starts
+            // immediately if the cursor already reached the notch zone
+            // while the debounce was in flight.
+            GestureHandler.shared.recheckCurrentPosition()
         }
     }
 
@@ -294,30 +389,21 @@ final class NotchViewModel {
         performTransition(to: .expanded)
     }
 
-    /// Pick the widget the panel should open to based on what's actively
-    /// surfacing in the wings. KBO claiming the wing while a game is
-    /// live should also claim the panel; otherwise fall back to music
-    /// when there's a track. Without this, users had to manually click
-    /// the music or baseball tab even though the wing already reflected
-    /// what they were paying attention to.
+    /// Ensure the selected widget is still valid. Only auto-select when
+    /// the current selection is disabled or missing — otherwise respect
+    /// the user's last explicit choice (persisted in Defaults).
     private func autoSelectWidgetForExpand() {
         let registry = WidgetRegistry.shared
 
-        if let kbo = registry.widget(for: "kbo")?.wrapped as? KBOWidget,
-           registry.widget(for: "kbo")?.isEnabled == true,
-           kbo.viewModel.selectedGame?.isLive == true {
-            if currentExpandedWidgetID != "kbo" {
-                currentExpandedWidgetID = "kbo"
-            }
+        // If the persisted widget is still enabled, keep it.
+        if let current = registry.widget(for: currentExpandedWidgetID),
+           current.isEnabled {
             return
         }
 
-        if let music = registry.widget(for: "music-player")?.wrapped as? MusicPlayerWidget,
-           registry.widget(for: "music-player")?.isEnabled == true,
-           music.viewModel.nowPlaying != nil {
-            if currentExpandedWidgetID != "music-player" {
-                currentExpandedWidgetID = "music-player"
-            }
+        // Fallback: pick the first enabled widget.
+        if let first = registry.enabledWidgets.first {
+            currentExpandedWidgetID = first.id
         }
     }
 
@@ -364,26 +450,73 @@ final class NotchViewModel {
         phaseTask?.cancel()
 
         if !wasExpanded && willBeExpanded {
-            // EXPAND: wings flatten/widen first, then panel grows.
-            phaseTask = Task { @MainActor in
-                snapWingsFlat(true)
-                try? await Task.sleep(for: .milliseconds(Int(Self.wingSnapDuration * 1000)))
-                guard !Task.isCancelled, currentState == .expanded else { return }
-                animatePanelHeight()
+            // EXPAND: flatten corners instantly, then animate panel growth.
+            // Corners must be square BEFORE the panel starts growing,
+            // otherwise the rounded gap is visible during the animation.
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                wingsFlat = true
+                wingWidth = targetWingWidth()
+                panelWidth = computePanelWidth()
+            }
+            let anim: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: Self.panelTransitionDuration)
+                : nil
+            withAnimation(anim) {
+                expandedHeight = maxExpandedHeight + additionalExpandedHeight
             }
         } else if wasExpanded && !willBeExpanded {
-            // COLLAPSE: panel shrinks first, then wings round/narrow back.
-            animatePanelHeight()
-            phaseTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
-                guard !Task.isCancelled, currentState != .expanded else { return }
-                snapWingsFlat(false)
+            let willHideWings = !hasWingContent
+            let anim: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: Self.panelTransitionDuration)
+                : nil
+
+            if willHideWings {
+                // No wing content — shrink panel first, then snap wings away.
+                withAnimation(anim) {
+                    expandedHeight = 0
+                }
+                phaseTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
+                    guard !Task.isCancelled else { return }
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) {
+                        wingsFlat = false
+                        wingWidth = targetWingWidth()
+                        panelWidth = computePanelWidth()
+                    }
+                }
+            } else {
+                // Wing content stays — shrink panel + round corners together.
+                withAnimation(anim) {
+                    expandedHeight = 0
+                }
+                // Round corners after panel is gone
+                phaseTask = Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(Int(Self.panelTransitionDuration * 1000)))
+                    guard !Task.isCancelled else { return }
+                    let snapAnim: Animation? = SettingsManager.shared.animationsEnabled
+                        ? .easeInOut(duration: Self.wingSnapDuration)
+                        : nil
+                    withAnimation(snapAnim) {
+                        wingsFlat = false
+                        wingWidth = targetWingWidth()
+                        panelWidth = computePanelWidth()
+                    }
+                }
             }
         } else {
-            // Idle ↔ hovering — no panel involvement, just keep wings
-            // round and let any height that's somehow still up settle.
-            animatePanelHeight()
-            snapWingsFlat(false)
+            // Idle ↔ hovering — just update dimensions, no panel.
+            let anim: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: Self.wingSnapDuration)
+                : nil
+            withAnimation(anim) {
+                wingWidth = targetWingWidth()
+                panelWidth = computePanelWidth()
+                expandedHeight = 0
+            }
         }
 
         EventBus.shared.send(.stateChanged(newState))
@@ -399,7 +532,7 @@ final class NotchViewModel {
         withAnimation(animation) {
             wingsFlat = flat
             wingWidth = targetWingWidth()
-            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+            panelWidth = computePanelWidth()
         }
     }
 
@@ -424,50 +557,65 @@ final class NotchViewModel {
 
     /// External callers (additionalExpandedHeight didSet, widget swap,
     /// screen change) that need to re-run the layout pipeline without
-    /// going through a full state transition. Snaps both height and
-    /// width together — phasing only matters around state edges.
+    /// going through a full state transition.
     func updatePanelDimensions() {
         let signpostState = dimensionsSignposter.beginInterval("updatePanelDimensions")
         defer { dimensionsSignposter.endInterval("updatePanelDimensions", signpostState) }
 
         let prevPanel = panelWidth
         let prevWing = wingWidth
-        let animation: Animation? = SettingsManager.shared.animationsEnabled
-            ? .easeInOut(duration: 0.22)
-            : nil
-        withAnimation(animation) {
-            switch currentState {
-            case .idle, .hovering:
-                expandedHeight = 0
-            case .expanded:
-                expandedHeight = maxExpandedHeight + additionalExpandedHeight
+        let newWing = targetWingWidth()
+        let growing = newWing > wingWidth
+
+        if growing {
+            // Wing is getting wider — snap width instantly so the panel
+            // background fills the new space before SwiftUI renders.
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                wingWidth = newWing
+                panelWidth = computePanelWidth()
             }
-            wingWidth = targetWingWidth()
-            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+            let animation: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: 0.22)
+                : nil
+            withAnimation(animation) {
+                switch currentState {
+                case .idle, .hovering:
+                    expandedHeight = 0
+                case .expanded:
+                    expandedHeight = maxExpandedHeight + additionalExpandedHeight
+                }
+            }
+        } else {
+            // Wing is shrinking or unchanged — animate everything together.
+            let animation: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: 0.22)
+                : nil
+            withAnimation(animation) {
+                switch currentState {
+                case .idle, .hovering:
+                    expandedHeight = 0
+                case .expanded:
+                    expandedHeight = maxExpandedHeight + additionalExpandedHeight
+                }
+                wingWidth = newWing
+                panelWidth = computePanelWidth()
+            }
         }
         dimensionsLog.debug("panel \(prevPanel)→\(self.panelWidth) wing \(prevWing)→\(self.wingWidth) widget=\(self.currentExpandedWidgetID)")
     }
 
     // MARK: - Widget Width Observer
 
-    /// Re-snap wing/panel width when the active widget's `preferredPanelWidth`
-    /// changes mid-state (e.g. KBO opening its inline linescore). Uses
-    /// `withObservationTracking` so any `@Observable` state inside the
-    /// widget's computed `preferredPanelWidth` becomes a dependency.
     private func setupWidgetWidthObserver() {
         withObservationTracking {
-            // WHY: touch the active widget's preferredPanelWidth so observation
-            // captures the underlying @Observable dependency chain (KBO's
-            // viewingLinescore, etc.). Touch both currentExpanded and the
-            // wing-fallback widget so dynamic changes in either propagate.
             let registry = WidgetRegistry.shared
             let wingID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
             _ = registry.widget(for: currentExpandedWidgetID)?.preferredPanelWidth
             _ = registry.widget(for: wingID)?.preferredPanelWidth
         } onChange: { [weak self] in
             Task { @MainActor in
-                // Re-arm first so a width change while we're updating
-                // doesn't slip past the next observer.
                 self?.setupWidgetWidthObserver()
                 self?.updatePanelDimensions()
             }

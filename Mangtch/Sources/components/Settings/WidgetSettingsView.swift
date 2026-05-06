@@ -6,6 +6,7 @@ struct WidgetSettingsView: View {
     @Default(.expandedDragDetection) private var expandedDragDetection
     @Default(.openNotchOnHover) private var openNotchOnHover
     @Default(.minimumHoverDuration) private var minimumHoverDuration
+    @Default(.debugOverlay) private var debugOverlay
 
     var body: some View {
         Form {
@@ -66,6 +67,15 @@ struct WidgetSettingsView: View {
                     }
                     .frame(width: 100)
                     .disabled(!openNotchOnHover)
+                }
+
+                Toggle(isOn: $debugOverlay) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Debug overlay")
+                        Text("Show hover zones and timer on the notch panel.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 

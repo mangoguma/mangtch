@@ -32,6 +32,10 @@ final class FullscreenObserver {
 
         setupObservers()
         startPolling()
+        // Run an immediate check so callers that read
+        // `isFullscreenAppActive` right after init get the real state
+        // instead of the default `false`.
+        check()
     }
 
     // MARK: - Observers
@@ -170,6 +174,24 @@ final class FullscreenObserver {
         let screenWidth = screen.frame.width
         let screenHeight = screen.frame.height
 
+        // macOS 26: fullscreen apps have a backdrop window at layer -1
+        // covering the entire screen. Maximized apps don't. This is
+        // more reliable than menu-bar presence since macOS 26 can show
+        // the menu bar in fullscreen.
+        let hasFullscreenBackdrop = windowList.contains { info in
+            let layer = info[kCGWindowLayer as String] as? Int ?? 0
+            let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t ?? 0
+            guard layer == -1, ownerPID != excludePID else { return false }
+            guard let bounds = info[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
+            let w = bounds["Width"] ?? 0
+            let h = bounds["Height"] ?? 0
+            return w >= screenWidth - 2 && h >= screenHeight - 2
+        }
+
+        if hasFullscreenBackdrop { return true }
+
+        // Traditional fullscreen: a layer-0 window at origin (0,0)
+        // covering the entire screen (including menu bar area).
         for windowInfo in windowList {
             guard let boundsDict = windowInfo[kCGWindowBounds as String] as? [String: CGFloat],
                   let windowLayer = windowInfo[kCGWindowLayer as String] as? Int,
@@ -191,11 +213,9 @@ final class FullscreenObserver {
             let windowWidth = boundsDict["Width"] ?? 0
             let windowHeight = boundsDict["Height"] ?? 0
 
-            // Primary display: origin at (0,0), covers full screen
-            let isOnPrimary = abs(windowX) < 2 && abs(windowY) < 2
-            let coversScreen = windowWidth >= screenWidth && windowHeight >= screenHeight
-
-            if isOnPrimary && coversScreen {
+            if abs(windowX) < 2 && abs(windowY) < 2
+                && windowWidth >= screenWidth - 2
+                && windowHeight >= screenHeight - 2 {
                 return true
             }
         }
