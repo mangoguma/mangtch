@@ -1,5 +1,15 @@
 import Foundation
 
+/// Cached starting-pitcher pair per game. Lifted out of `KBOLinescore` so
+/// the collapsed game row can show starters from a lightweight cache
+/// instead of holding the full inning grid in memory for every game.
+struct KBOStarters: Equatable, Hashable {
+    let away: String?
+    let home: String?
+
+    var hasAny: Bool { away != nil || home != nil }
+}
+
 /// Per-game inning-by-inning detail. Sourced from KBO's official site
 /// (koreabaseball.com/ws/Schedule.asmx/GetScoreBoardScroll), since Naver's
 /// schedule endpoint only returns final scores. The two sources are

@@ -172,6 +172,11 @@ struct KBOExpandedView: View {
                 }
             }) {
                 HStack(spacing: 10) {
+                    let starters = viewModel.startingPitchers[game.gameId]
+                    inlineStarterLabel(name: starters?.away,
+                                       resultPrefix: resultPrefix(game: game, side: .away),
+                                       trailing: false)
+
                     teamSide(name: game.awayTeamName,
                              code: game.awayTeamCode,
                              logoURL: game.awayEmblemURL,
@@ -189,8 +194,14 @@ struct KBOExpandedView: View {
                              isLoser: game.winnerSide == .away,
                              isBatting: attacking == .home)
 
-                    liveStateCell(for: game)
-                        .frame(width: 80)
+                    inlineStarterLabel(name: starters?.home,
+                                       resultPrefix: resultPrefix(game: game, side: .home),
+                                       trailing: true)
+
+                    if game.isLive {
+                        liveStateCell(for: game)
+                            .frame(width: 80)
+                    }
 
                     statusChip(game)
                         .frame(width: 64, alignment: .trailing)
@@ -225,6 +236,88 @@ struct KBOExpandedView: View {
 
     // MARK: - Row Sub-views
 
+    /// Width of each inline-starter slot. Derived from the longest
+    /// cached starter name so 5-char names like "로드리게스" don't crowd
+    /// the badge, but 3-char names don't waste space either. Fixed
+    /// (rather than flex) so the 승/패 badges align vertically across
+    /// rows — names float toward the outer edge while badges stay
+    /// anchored to the inner edge of the slot, giving every row a
+    /// consistent W/L column.
+    @MainActor
+    private var starterSlotWidth: CGFloat {
+        let names = viewModel.startingPitchers.values
+            .flatMap { [$0.away, $0.home] }
+            .compactMap { $0 }
+        let font = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
+        let widest = names
+            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 0
+        // Name + 4pt gap + badge (~12pt for "승/패") + 8pt outer breathing
+        // room so the badge doesn't kiss the score column.
+        return max(70, ceil(widest) + 4 + 12 + 8)
+    }
+
+    /// Inline starting-pitcher label that sits at the outer edges of the
+    /// game row. Just the name plus an optional 승/패 prefix once the
+    /// game ends — no badge / "선발" tag, since row context already
+    /// implies the pitcher slot. The W/L tag is attributed to the
+    /// starter even though the pitcher of record may be a reliever; it
+    /// matches Naver's collapsed-card UX and users mainly want a quick
+    /// "who pitched / who took the L" read.
+    ///
+    /// `trailing=false` for the away side: name flush to the inner edge
+    /// of the slot, badge tucked just inside it (between name and the
+    /// score column). Mirrored on the home side.
+    @ViewBuilder
+    private func inlineStarterLabel(name: String?,
+                                    resultPrefix: String?,
+                                    trailing: Bool) -> some View {
+        let inner = HStack(spacing: 4) {
+            if !trailing {
+                Spacer(minLength: 0)
+                if let name {
+                    Text(name)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize()
+                }
+                if let resultPrefix {
+                    resultBadge(resultPrefix)
+                }
+            } else {
+                if let resultPrefix {
+                    resultBadge(resultPrefix)
+                }
+                if let name {
+                    Text(name)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize()
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        inner.frame(width: starterSlotWidth,
+                    alignment: trailing ? .leading : .trailing)
+    }
+
+    private func resultBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(text == "승" ? Color.blue : Color.secondary)
+    }
+
+    /// "승"/"패" for a finished game's losing/winning side, "선발" for
+    /// pre-game / live as a softer tag, and nil when there's nothing
+    /// useful to mark (cancelled, no winner / draw).
+    private func resultPrefix(game: KBOGame, side: KBOGame.Side) -> String? {
+        guard !game.cancel else { return nil }
+        if game.isFinished, let winner = game.winnerSide {
+            return winner == side ? "승" : "패"
+        }
+        return nil
+    }
+
     @ViewBuilder
     private func teamSide(name: String,
                           code: String,
@@ -243,7 +336,7 @@ struct KBOExpandedView: View {
                 // and primary text, so adding another red would muddy
                 // the hierarchy. Loser dimming still applies independently.
                 .font(.system(size: 11.5, weight: isBatting ? .bold : .semibold))
-                .lineLimit(1)
+                .fixedSize()
                 .foregroundStyle(isLoser ? Color.secondary : Color.primary)
                 .underline(isBatting, color: isLoser ? .secondary : .primary)
             if !isLeading {
@@ -357,11 +450,24 @@ struct KBOExpandedView: View {
             }
             .frame(minHeight: 50)
         } else {
-            Text("기록을 가져오지 못했어요")
+            // Scheduled games have no relay payload yet, so the catch-all
+            // "기록을 가져오지 못했어요" reads like a network error when
+            // really it's just "경기 전이라 아직 기록이 없음". Branch the
+            // copy so users don't think something's broken.
+            Text(preGameOrErrorMessage(for: game))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, minHeight: 50)
         }
+    }
+
+    private func preGameOrErrorMessage(for game: KBOGame) -> String {
+        if game.cancel { return "경기가 취소됐어요" }
+        if game.isScheduled {
+            return "\(game.startTimeText) 경기 시작 전이라 아직 기록이 없어요"
+        }
+        return "기록을 가져오지 못했어요"
     }
 
     private func liveSummaryFallback(game: KBOGame) -> some View {

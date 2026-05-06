@@ -81,6 +81,14 @@ final class KBOViewModel {
     /// schedule cadence (60s).
     private(set) var liveStates: [String: KBOLinescore.LiveState] = [:]
 
+    /// Cached starting pitchers per gameId. Populated by background relay
+    /// fetches kicked from each schedule poll so the collapsed game row
+    /// can show selectable lineup info without expanding. Survives day
+    /// changes (different gameIds) — once a starter is cached for a game
+    /// we never re-fetch it.
+    private(set) var startingPitchers: [String: KBOStarters] = [:]
+    private var pitcherPrefetchInFlight: Set<String> = []
+
     /// Convenience accessor for the right-wing view, which only cares
     /// about the tracked game. Computed off `liveStates` so callers stay
     /// in sync automatically.
@@ -229,6 +237,15 @@ final class KBOViewModel {
             // that's transitioned to "종료" would be misleading.
             let liveIds = Set(fresh.filter { $0.isLive }.map(\.gameId))
             self.liveStates = self.liveStates.filter { liveIds.contains($0.key) }
+            // Kick a one-shot starter prefetch for any game we don't have
+            // cached pitchers for yet. Starters never change once
+            // announced, so this fires at most once per gameId per app
+            // lifetime. Skipped for games that already cached, or for
+            // ones that will be picked up by the live-state fetch path
+            // below (cache is also written from those response handlers).
+            for game in fresh where self.startingPitchers[game.gameId] == nil {
+                self.prefetchStarters(for: game)
+            }
             // Kick a lightweight relay refresh for every live game *except*
             // the tracked one. The tracked game has its own 10s timer that
             // also drives play-queue/TTS; non-tracked games only need the
@@ -419,10 +436,39 @@ final class KBOViewModel {
             // Subscript-with-nil removes the key, which is what we want
             // when Naver clears the at-bat between innings.
             self.liveStates[gameId] = result?.liveState
+            self.cacheStarters(from: result, gameId: gameId)
             if let plays = result?.allPlays, !plays.isEmpty {
                 self.handleNewPlays(plays, gameID: gameId)
             }
         }
+    }
+
+    /// Background fetch whose only job is to populate `startingPitchers`
+    /// for games whose lineups we haven't seen yet (cancelled, scheduled,
+    /// or finished games that never went through fetchLinescoreNow /
+    /// fetchLiveStateNow). Single-flight per gameId.
+    private func prefetchStarters(for game: KBOGame) {
+        let gameId = game.gameId
+        guard !pitcherPrefetchInFlight.contains(gameId) else { return }
+        pitcherPrefetchInFlight.insert(gameId)
+        let season = Self.season(from: game)
+        Task { @MainActor in
+            defer { self.pitcherPrefetchInFlight.remove(gameId) }
+            let result = await KBOService.fetchLinescore(gameId: gameId, season: season)
+            self.cacheStarters(from: result, gameId: gameId)
+        }
+    }
+
+    /// Merge starters from a relay response into the cache. Only writes
+    /// when at least one side is present so a transient empty payload
+    /// (lineup not yet published) doesn't poison a previously-good entry.
+    private func cacheStarters(from line: KBOLinescore?, gameId: String) {
+        guard let line, line.awayStartingPitcher != nil || line.homeStartingPitcher != nil
+        else { return }
+        let next = KBOStarters(away: line.awayStartingPitcher,
+                               home: line.homeStartingPitcher)
+        guard self.startingPitchers[gameId] != next else { return }
+        self.startingPitchers[gameId] = next
     }
 
     /// Slim relay fetch for a non-tracked live game — only updates
@@ -444,6 +490,7 @@ final class KBOViewModel {
                 return
             }
             self.liveStates[gameId] = result?.liveState
+            self.cacheStarters(from: result, gameId: gameId)
         }
     }
 
