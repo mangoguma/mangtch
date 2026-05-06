@@ -42,11 +42,6 @@ final class SettingsManager {
         set { Defaults[.fileShelfExpirationHours] = newValue }
     }
 
-    var panelWidthMultiplier: Double {
-        get { Defaults[.panelWidthMultiplier] }
-        set { Defaults[.panelWidthMultiplier] = newValue }
-    }
-
     var showInMenuBar: Bool {
         get { Defaults[.showInMenuBar] }
         set { Defaults[.showInMenuBar] = newValue }

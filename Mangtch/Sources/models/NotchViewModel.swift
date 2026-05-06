@@ -557,7 +557,6 @@ final class NotchViewModel {
 
     /// External callers (additionalExpandedHeight didSet, widget swap,
     /// screen change) that need to re-run the layout pipeline without
-<<<<<<< HEAD
     /// going through a full state transition.
     func updatePanelDimensions() {
         let signpostState = dimensionsSignposter.beginInterval("updatePanelDimensions")

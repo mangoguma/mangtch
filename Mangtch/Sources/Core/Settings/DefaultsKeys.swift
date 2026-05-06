@@ -11,7 +11,6 @@ extension Defaults.Keys {
     static let enableFileShelf = Key<Bool>("enableFileShelf", default: true)
     static let fileShelfMaxItems = Key<Int>("fileShelfMaxItems", default: 3)
     static let fileShelfExpirationHours = Key<Int>("fileShelfExpirationHours", default: 24)
-    static let panelWidthMultiplier = Key<Double>("panelWidthMultiplier", default: 1.0)
     static let showInMenuBar = Key<Bool>("showInMenuBar", default: true)
     static let automaticallyCheckForUpdates = Key<Bool>("automaticallyCheckForUpdates", default: true)
     static let hasCompletedOnboarding = Key<Bool>("hasCompletedOnboarding", default: false)

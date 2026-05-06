@@ -2,14 +2,13 @@ import SwiftUI
 
 struct TimerCompactView: View {
     let viewModel: TimerViewModel
-    @ObservedObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         HStack(spacing: 8) {
             // Circular progress
             ZStack {
                 Circle()
-                    .stroke(themeManager.currentTheme.hudSliderTrackColor, lineWidth: 2.5)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 2.5)
 
                 Circle()
                     .trim(from: 0, to: viewModel.progress)
@@ -34,13 +33,13 @@ struct TimerCompactView: View {
                     .monospacedDigit()
                     .foregroundStyle(viewModel.state == .finished
                         ? viewModel.stateColor
-                        : themeManager.currentTheme.textPrimary)
+                        : .primary)
                     .contentTransition(.numericText())
                     .animation(.linear(duration: 0.25), value: viewModel.shortFormattedTime)
             } else {
                 Image(systemName: "timer")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(themeManager.currentTheme.textSecondary)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 6)

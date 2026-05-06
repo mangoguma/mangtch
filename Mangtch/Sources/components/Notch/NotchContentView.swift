@@ -59,12 +59,6 @@ struct NotchContentView: View {
             }
         }
         .ignoresSafeArea()
-        // Force dark colour scheme on every view inside the notch panel.
-        // The chrome is solid black, so `.primary` text and SF Symbol
-        // tints must resolve to white regardless of the user's macOS
-        // appearance setting. This single environment override replaces
-        // hand-tinting every Text/Image in the widget tree.
-        .environment(\.colorScheme, .dark)
         .environment(\.notchHostWindow, hostWindow)
     }
 
@@ -81,16 +75,8 @@ struct NotchContentView: View {
             // (no desktop-strip gap between them); only the bottom corners
             // are rounded.
             expandedContent
-                // Force the inner content to lay out within `panelWidth`.
-                // Without this hard frame, a widget whose natural content
-                // exceeds the wing-derived width (e.g. KBO's extra-innings
-                // linescore) draws outside the parent VStack — the
-                // `.background` then paints chrome at the wider natural
-                // width, leaving a visible step where the wings end. Each
-                // widget is responsible for declaring a `preferredPanelWidth`
-                // that fits its current state; if it doesn't, content gets
-                // visibly clipped here (loud failure, not silent chrome step).
                 .frame(width: viewModel.panelWidth, alignment: .top)
+                .environment(\.colorScheme, themeManager.currentTheme is LightTheme ? .light : .dark)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -102,9 +88,6 @@ struct NotchContentView: View {
                 )
                 .frame(height: viewModel.expandedHeight, alignment: .top)
                 .clipped()
-                // Overlap 1pt into the wing row to cover the sub-pixel
-                // anti-aliasing seam between adjacent SwiftUI views.
-                .offset(y: viewModel.expandedHeight > 0 ? -1 : 0)
                 .allowsHitTesting(viewModel.currentState == .expanded)
         }
         .frame(width: viewModel.panelWidth)
@@ -113,13 +96,12 @@ struct NotchContentView: View {
 
     // MARK: - Panel Background
 
-    /// Pure-black panel background. The display's hardware notch is
-    /// pure black, so anything lighter shows a visible seam against the
-    /// cutout. No translucent material — the chrome must not bleed the
-    /// desktop colour through.
+    /// Panel background derived from the active theme.
     @ViewBuilder
     private var panelBackground: some View {
-        Color.black
+        Rectangle()
+            .fill(themeManager.currentTheme.panelTint)
+            .background(themeManager.currentTheme.panelMaterial)
     }
 
     // MARK: - Wings Row
@@ -144,9 +126,10 @@ struct NotchContentView: View {
 
         HStack(spacing: 0) {
             leftWing
+                .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
                        alignment: .trailing)
-                .background(panelBackground)
+                .background(Color.black)
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
@@ -181,10 +164,11 @@ struct NotchContentView: View {
                 .padding(.horizontal, -1)
 
             rightWing
+                .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth,
                        height: viewModel.notchGeometry.notchHeight,
                        alignment: .leading)
-                .background(panelBackground)
+                .background(Color.black)
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,

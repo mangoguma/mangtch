@@ -8,6 +8,10 @@ struct LightTheme: NotchTheme {
         .ultraThinMaterial
     }
 
+    var panelTint: Color {
+        Color.white.opacity(0.7)
+    }
+
     var shadowColor: Color {
         .black
     }
