@@ -289,7 +289,15 @@ struct NotchContentView: View {
            let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
            active.isEnabled,
            hasContentToShow(active) {
+            // Selected widget has live content — show it
             active.makeCompactView()
+                .transition(.opacity)
+        } else if let timerWidget = widgetRegistry.widget(for: "timer"),
+                  let timer = timerWidget.wrapped as? TimerWidget,
+                  timerWidget.isEnabled,
+                  (timer.viewModel.isActive || timer.viewModel.displayTime > 0) {
+            // Active timer takes priority over idle music
+            timerWidget.makeCompactView()
                 .transition(.opacity)
         } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
                   let actualWidget = musicWidget.wrapped as? MusicPlayerWidget,

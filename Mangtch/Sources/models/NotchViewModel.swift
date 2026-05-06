@@ -253,21 +253,32 @@ final class NotchViewModel {
     private func effectiveWingWidgetID(fallback: String) -> String {
         let registry = WidgetRegistry.shared
         guard let active = registry.widget(for: fallback), active.isEnabled else {
-            return "music-player"
+            return activeTimerOrMusic()
         }
         if let kbo = active.wrapped as? KBOWidget {
             let claimsWing = !kbo.viewModel.isShowingToday
                 || kbo.viewModel.selectedGame?.isLive == true
-            return claimsWing ? fallback : "music-player"
+            return claimsWing ? fallback : activeTimerOrMusic()
         }
         if let fs = active.wrapped as? FileShelfWidget {
-            return fs.viewModel.items.isEmpty ? "music-player" : fallback
+            return fs.viewModel.items.isEmpty ? activeTimerOrMusic() : fallback
         }
         if let timer = active.wrapped as? TimerWidget {
             let claimsWing = timer.viewModel.displayTime > 0 || timer.viewModel.isActive
             return claimsWing ? fallback : "music-player"
         }
         return fallback
+    }
+
+    /// Fallback: active timer if running, otherwise music.
+    private func activeTimerOrMusic() -> String {
+        if let timerWidget = WidgetRegistry.shared.widget(for: "timer"),
+           let timer = timerWidget.wrapped as? TimerWidget,
+           timerWidget.isEnabled,
+           (timer.viewModel.isActive || timer.viewModel.displayTime > 0) {
+            return "timer"
+        }
+        return "music-player"
     }
 
     /// Hit zones for clickable wing buttons, in screen coordinates.
