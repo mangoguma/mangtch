@@ -105,13 +105,13 @@ struct KBOLiveStateView: View {
                          onThird: state.onThird)
                 .frame(width: 22, height: 22)
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 countRow(value: state.balls, total: 3, label: "B", filledColor: .green)
                 countRow(value: state.strikes, total: 2, label: "S", filledColor: .yellow)
                 countRow(value: state.outs, total: 2, label: "O", filledColor: .red)
             }
 
-            ZStack {
+            ZStack(alignment: .leading) {
                 VStack(alignment: .leading, spacing: 1) {
                     playerRow(icon: "p.circle.fill",
                               name: state.pitcherName,
@@ -121,7 +121,6 @@ struct KBOLiveStateView: View {
                               order: state.batOrder,
                               tint: batterTeamColor)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(playText == nil ? 1 : 0)
 
                 if let playText {
@@ -130,14 +129,14 @@ struct KBOLiveStateView: View {
                                 speed: 28,
                                 isActive: true)
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 4)
         .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
         // No inner pill — the wing's own dark panel background already
         // provides the contrast surface. An extra rounded rect inside it
         // would visibly disagree with the wing's edge curvature.
@@ -148,6 +147,7 @@ struct KBOLiveStateView: View {
             Text(label)
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.white)
+                .frame(width: 8, alignment: .center)
             countDots(value: value, total: total, filledColor: filledColor)
         }
     }
