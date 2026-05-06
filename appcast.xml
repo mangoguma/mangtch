@@ -6,6 +6,23 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.6.1</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.6.1</h2>
+        <ul>
+          <li>fix: KBO 박스 스코어를 펼쳤을 때 패널이 컨텐츠 높이를 그대로 따라가도록 — 매직 넘버(perRow / expandedExtra / safetyBuffer) 제거하고 SwiftUI PreferenceKey로 실제 렌더 높이 측정. 라인스코어 마지막 줄이 패널 밖으로 잘리던 문제 해결</li>
+          <li>fix: KBO 날짜 chevron(&lt; / &gt; / 오늘) 누르면 펼쳐둔 박스 스코어가 항상 닫히도록 — 다른 날짜 리스트엔 그 게임 ID가 없어서 inline은 비어 있는데 패널만 ~80pt 부풀어 보이던 문제 해결</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 06 May 2026 12:40:00 +0900</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.6.1/Mangtch-0.6.1.zip"
+                 length="3235984"
+                 sparkle:edSignature="Q1Xn/CUioVruUWTy4AaBtaYuFqOZshZwoD7srKfj09gZftYHGn3kARr2uIx3oRn82KgiinbC4UDvVREBLhLoDw=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.6.0</title>
       <description><![CDATA[
         <h2>Mangtch 0.6.0</h2>
