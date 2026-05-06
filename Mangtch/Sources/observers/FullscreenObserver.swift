@@ -174,21 +174,24 @@ final class FullscreenObserver {
         let screenWidth = screen.frame.width
         let screenHeight = screen.frame.height
 
-        // If the system menu bar (Window Server, level 24) is visible on
-        // screen, we're in a normal Space — any screen-covering window is
-        // just maximized, not fullscreen. Only flag fullscreen when the
-        // menu bar is absent (i.e. the current Space IS a fullscreen space).
-        let menuBarVisible = windowList.contains { info in
-            let layer = info[kCGWindowLayer as String] as? Int ?? -1
-            let owner = info[kCGWindowOwnerName as String] as? String ?? ""
-            return layer == 24 && owner == "Window Server"
-        }
-        if menuBarVisible {
-            // Normal Space with menu bar → no true fullscreen here.
-            // Fall through only for the traditional Y=0 check which catches
-            // in-app fullscreen (e.g. YouTube F-key) that covers the menu bar.
+        // macOS 26: fullscreen apps have a backdrop window at layer -1
+        // covering the entire screen. Maximized apps don't. This is
+        // more reliable than menu-bar presence since macOS 26 can show
+        // the menu bar in fullscreen.
+        let hasFullscreenBackdrop = windowList.contains { info in
+            let layer = info[kCGWindowLayer as String] as? Int ?? 0
+            let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t ?? 0
+            guard layer == -1, ownerPID != excludePID else { return false }
+            guard let bounds = info[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
+            let w = bounds["Width"] ?? 0
+            let h = bounds["Height"] ?? 0
+            return w >= screenWidth - 2 && h >= screenHeight - 2
         }
 
+        if hasFullscreenBackdrop { return true }
+
+        // Traditional fullscreen: a layer-0 window at origin (0,0)
+        // covering the entire screen (including menu bar area).
         for windowInfo in windowList {
             guard let boundsDict = windowInfo[kCGWindowBounds as String] as? [String: CGFloat],
                   let windowLayer = windowInfo[kCGWindowLayer as String] as? Int,
@@ -210,25 +213,9 @@ final class FullscreenObserver {
             let windowWidth = boundsDict["Width"] ?? 0
             let windowHeight = boundsDict["Height"] ?? 0
 
-            let coversWidth = windowWidth >= screenWidth - 2
-
-            // Traditional fullscreen: origin (0,0), covers entire screen
-            // including menu bar. This catches in-app fullscreen (YouTube
-            // F-key, etc.) even when the menu bar window is technically
-            // present (it gets covered).
-            let traditionalFS = abs(windowX) < 2 && abs(windowY) < 2
-                && coversWidth && windowHeight >= screenHeight - 2
-
-            // macOS 26 fullscreen Space: menu bar is NOT visible, window
-            // starts at menu-bar edge and fills the remaining height.
-            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
-            let modernFS = !menuBarVisible
-                && abs(windowX) < 2
-                && abs(windowY - menuBarHeight) < 4
-                && coversWidth
-                && windowHeight >= (screenHeight - menuBarHeight - 2)
-
-            if traditionalFS || modernFS {
+            if abs(windowX) < 2 && abs(windowY) < 2
+                && windowWidth >= screenWidth - 2
+                && windowHeight >= screenHeight - 2 {
                 return true
             }
         }
