@@ -188,7 +188,7 @@ struct KBOLiveStateView: View {
                     .fill(isFilled ? filledColor : Color.clear)
                     .overlay(
                         Circle().strokeBorder(
-                            isFilled ? filledColor : Color.white.opacity(0.7),
+                            isFilled ? filledColor : Color.secondary,
                             lineWidth: 0.8
                         )
                     )
@@ -229,7 +229,7 @@ private struct BasesDiamond: View {
             .fill(filled ? Color.yellow : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .strokeBorder(filled ? Color.yellow : Color.white.opacity(0.7), lineWidth: 1)
+                    .strokeBorder(filled ? Color.yellow : Color.secondary, lineWidth: 1)
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))
