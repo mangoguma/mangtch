@@ -35,6 +35,8 @@ extension Defaults.Keys {
     /// When true, a notch panel is mirrored onto every connected display.
     /// `notchScreen` is ignored while this is on.
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
+    /// Last selected timer mode (countdown vs stopwatch).
+    static let timerMode = Key<String>("timerMode", default: "Timer")
     /// Show zone overlays and hover timer on the notch panel for debugging.
     static let debugOverlay = Key<Bool>("debugOverlay", default: false)
 }
