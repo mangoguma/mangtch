@@ -92,6 +92,9 @@ struct NotchContentView: View {
                 )
                 .frame(height: viewModel.expandedHeight, alignment: .top)
                 .clipped()
+                // Overlap 1pt into the wing row to cover the sub-pixel
+                // anti-aliasing seam between adjacent SwiftUI views.
+                .offset(y: viewModel.expandedHeight > 0 ? -1 : 0)
                 .allowsHitTesting(viewModel.currentState == .expanded)
         }
         .frame(width: viewModel.panelWidth)
@@ -151,8 +154,10 @@ struct NotchContentView: View {
             // leaving a desktop-coloured strip showing through.
             // When wings are hidden, round the bottom corners so the
             // bar doesn't look like a harsh rectangle.
+            // Extend 1pt on each side to cover sub-pixel anti-aliasing
+            // seams between the wings and the notch bar.
             Color.black
-                .frame(width: viewModel.notchGeometry.notchWidth,
+                .frame(width: viewModel.notchGeometry.notchWidth + 2,
                        height: viewModel.notchGeometry.notchHeight)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -162,6 +167,7 @@ struct NotchContentView: View {
                         topTrailingRadius: 0
                     )
                 )
+                .padding(.horizontal, -1)
 
             rightWing
                 .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)

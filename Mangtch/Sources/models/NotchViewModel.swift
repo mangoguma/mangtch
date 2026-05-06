@@ -506,26 +506,52 @@ final class NotchViewModel {
 
     /// External callers (additionalExpandedHeight didSet, widget swap,
     /// screen change) that need to re-run the layout pipeline without
-    /// going through a full state transition. Snaps both height and
-    /// width together — phasing only matters around state edges.
+<<<<<<< HEAD
+    /// going through a full state transition.
     func updatePanelDimensions() {
         let signpostState = dimensionsSignposter.beginInterval("updatePanelDimensions")
         defer { dimensionsSignposter.endInterval("updatePanelDimensions", signpostState) }
 
         let prevPanel = panelWidth
         let prevWing = wingWidth
-        let animation: Animation? = SettingsManager.shared.animationsEnabled
-            ? .easeInOut(duration: 0.22)
-            : nil
-        withAnimation(animation) {
-            switch currentState {
-            case .idle, .hovering:
-                expandedHeight = 0
-            case .expanded:
-                expandedHeight = maxExpandedHeight + additionalExpandedHeight
+        let newWing = targetWingWidth()
+        let growing = newWing > wingWidth
+
+        if growing {
+            // Wing is getting wider — snap width instantly so the panel
+            // background fills the new space before SwiftUI renders.
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) {
+                wingWidth = newWing
+                panelWidth = computePanelWidth()
             }
-            wingWidth = targetWingWidth()
-            panelWidth = notchGeometry.notchWidth + (wingWidth * 2)
+            let animation: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: 0.22)
+                : nil
+            withAnimation(animation) {
+                switch currentState {
+                case .idle, .hovering:
+                    expandedHeight = 0
+                case .expanded:
+                    expandedHeight = maxExpandedHeight + additionalExpandedHeight
+                }
+            }
+        } else {
+            // Wing is shrinking or unchanged — animate everything together.
+            let animation: Animation? = SettingsManager.shared.animationsEnabled
+                ? .easeInOut(duration: 0.22)
+                : nil
+            withAnimation(animation) {
+                switch currentState {
+                case .idle, .hovering:
+                    expandedHeight = 0
+                case .expanded:
+                    expandedHeight = maxExpandedHeight + additionalExpandedHeight
+                }
+                wingWidth = newWing
+                panelWidth = computePanelWidth()
+            }
         }
         dimensionsLog.debug("panel \(prevPanel)→\(self.panelWidth) wing \(prevWing)→\(self.wingWidth) widget=\(self.currentExpandedWidgetID)")
     }
