@@ -83,7 +83,11 @@ final class GestureHandler {
             handleMouseMoved(at: NSEvent.mouseLocation)
 
         case .leftMouseDown:
-            handleLocalClick()
+            // .nonactivatingPanel routing means a click landing inside
+            // our window can fire as either a global event (when the
+            // panel isn't key — typical) or a local one. Dispatch via
+            // the same path so wing-button clicks survive either route.
+            handleGlobalClick(at: NSEvent.mouseLocation)
 
         case .keyDown:
             handleKeyDown(event)
@@ -132,11 +136,26 @@ final class GestureHandler {
             height: geo.notchHeight
         )
 
-        // Wider hover detection zone around the notch
+        // Wider hover detection zone around the notch — the area that
+        // keeps the panel in the `.hovering` state (so wings can show
+        // their hover-controls). Includes both wings.
         let hoverZone = NSRect(
             x: screen.frame.midX - (geo.notchWidth / 2 + viewModel.wingWidth),
             y: screen.frame.maxY - geo.notchHeight - 5,
             width: geo.notchWidth + viewModel.wingWidth * 2,
+            height: geo.notchHeight + 5
+        )
+
+        // Auto-expand dwell trigger — notch body only. Hovering a wing
+        // must NOT auto-open the panel: the user is interacting with
+        // wing controls (music transport, KBO toggles), and a dwell-
+        // expand would steal focus before they can click anything (wing
+        // click dispatch only runs in `.hovering` state — see
+        // handleGlobalClick).
+        let expandZone = NSRect(
+            x: screen.frame.midX - geo.notchWidth / 2,
+            y: screen.frame.maxY - geo.notchHeight - 5,
+            width: geo.notchWidth,
             height: geo.notchHeight + 5
         )
 
@@ -175,9 +194,11 @@ final class GestureHandler {
             }
 
         case .hovering:
-            // Expand when the cursor dwells anywhere on the wings/notch area.
+            // Auto-expand only while the cursor dwells on the notch body
+            // itself — never on a wing. Wing hover stays in `.hovering`
+            // so controls reveal and clicks dispatch via wingHitZones.
             let key = ObjectIdentifier(viewModel)
-            if hoverZone.contains(point) {
+            if expandZone.contains(point) {
                 if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
                     let duration = Defaults[.minimumHoverDuration]
                     let startTime = CFAbsoluteTimeGetCurrent()
@@ -200,11 +221,14 @@ final class GestureHandler {
                     }
                 }
             } else {
+                // Cursor moved off notch body (onto a wing or out
+                // entirely) — drop any pending dwell. Wing hover keeps
+                // the state as `.hovering` so controls stay live.
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
                 viewModel.debugHoverElapsed = 0
             }
-            // Collapse back to idle when mouse leaves the hover zone
+            // Collapse back to idle when mouse leaves the wider hover zone
             if !hoverZone.contains(point) {
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
