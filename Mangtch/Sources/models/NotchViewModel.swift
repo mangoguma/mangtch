@@ -67,6 +67,16 @@ final class NotchViewModel {
     enum WingHover { case none, left, right }
     var hoveredWing: WingHover = .none
 
+    /// Measured natural width of wing compact content. Updated by
+    /// NotchContentView's hidden measurement overlay. Used to size
+    /// wings to fit their content in idle/hovering state.
+    var measuredCompactWidth: CGFloat = 0 {
+        didSet {
+            guard oldValue != measuredCompactWidth, currentState != .expanded else { return }
+            updatePanelDimensions()
+        }
+    }
+
     // MARK: - Debug
     var debugHoverElapsed: Double = 0
     var debugHoverDuration: Double = 0
@@ -139,16 +149,29 @@ final class NotchViewModel {
         return false
     }
 
-    /// What `wingWidth` should be right now. Both compact and panel modes
-    /// pull from a single source so a hover-to-expand never causes a
-    /// width snap. A non-nil `previewWingWidth` temporarily overrides
-    /// the resting width but is clamped so it can never shrink below
-    /// the panel-derived resting width or grow past `maxWingWidth`.
+    /// What `wingWidth` should be right now.
+    /// - Expanded: panel-derived width (from widget's preferredPanelWidth)
+    /// - Idle/hovering: measured compact content width (auto-fit)
+    /// - Track-change preview: temporarily boosted to title width
     private func targetWingWidth() -> CGFloat {
         if !hasWingContent { return 0 }
-        let resting = panelModeWingWidth
-        guard let preview = previewWingWidth else { return resting }
-        return min(max(preview, resting), self.maxWingWidth)
+
+        if currentState == .expanded {
+            // At least as wide as the compact content so wings never
+            // shrink on expand.
+            let compact = measuredCompactWidth + 4
+            let resting = max(panelModeWingWidth, compact)
+            guard let preview = previewWingWidth else { return min(resting, self.maxWingWidth) }
+            return min(max(preview, resting), self.maxWingWidth)
+        }
+
+        // Idle/hovering: use measured content width + small padding
+        let measured = measuredCompactWidth + 4
+        let clamped = min(max(measured, 50), self.maxWingWidth)
+
+        // Track-change preview can still boost
+        guard let preview = previewWingWidth else { return clamped }
+        return min(max(preview, clamped), self.maxWingWidth)
     }
 
     /// Re-run `targetWingWidth()` and propagate to `wingWidth`/`panelWidth`.

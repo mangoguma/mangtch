@@ -25,7 +25,7 @@ struct TimerCompactView: View {
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(viewModel.stateColor)
             }
-            .frame(width: 22, height: 22)
+            .frame(width: 18, height: 18)
 
             // Time display
             if viewModel.isActive || viewModel.state == .finished {

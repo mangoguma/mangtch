@@ -1,6 +1,16 @@
 import SwiftUI
 import Defaults
 
+/// Reports the natural width of wing content for auto-sizing.
+/// Takes the max of all reported values so symmetric wings use
+/// the wider content's width.
+private struct MeasuredWingWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct NotchContentView: View {
     /// The per-window view model. Each `NotchWindow` constructs its own
     /// content view with its own VM so multi-display fan-out gives every
@@ -134,7 +144,8 @@ struct NotchContentView: View {
 
         HStack(spacing: 0) {
             leftWing
-                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
+                       alignment: .trailing)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -170,7 +181,8 @@ struct NotchContentView: View {
                 .padding(.horizontal, -1)
 
             rightWing
-                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight)
+                .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
+                       alignment: .leading)
                 .background(panelBackground)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -183,12 +195,30 @@ struct NotchContentView: View {
                 .clipped()
         }
         .onPreferenceChange(WingHitZonesKey.self) { zones in
-            // De-dupe by button id (last writer wins) — SwiftUI may emit
-            // multiple values for the same view across hover transitions
-            // (e.g. controls at .opacity(0)).
             var seen: [WingButton: WingHitZone] = [:]
             for z in zones { seen[z.button] = z }
             viewModel.wingHitZones = Array(seen.values)
+        }
+        // Hidden measurement pass — render wing content at natural size
+        // off-screen to get ideal widths without feedback loops.
+        .background(
+            HStack(spacing: 0) {
+                leftWing
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: MeasuredWingWidthKey.self, value: geo.size.width)
+                    })
+                rightWing
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: MeasuredWingWidthKey.self, value: geo.size.width)
+                    })
+            }
+            .frame(height: 0)
+            .hidden()
+        )
+        .onPreferenceChange(MeasuredWingWidthKey.self) { width in
+            viewModel.measuredCompactWidth = width
         }
     }
 
