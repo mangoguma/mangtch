@@ -6,12 +6,69 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.7.0</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.7.0</h2>
+        <h3>macOS 26 (Tahoe) 호환</h3>
+        <ul>
+          <li>fix: window level + fullscreen 감지를 layer-1 backdrop 기반으로 재작업 — Tahoe에서 메뉴바 detection이 더 이상 신뢰 불가</li>
+        </ul>
+        <h3>Wings &amp; Notch 인터랙션</h3>
+        <ul>
+          <li>feat: hovering 상태에서 클릭하면 즉시 expand</li>
+          <li>refactor: hover-expand 타이머가 wing 전체 영역을 커버 (click-to-expand 제거)</li>
+          <li>refactor: expand/collapse 애니메이션 2-phase 시퀀스 통합 — 코너 라운딩이 한 호흡으로 풀림</li>
+          <li>feat: wing 너비를 컴팩트 컨텐츠 사이즈에 맞게 자동 피팅</li>
+          <li>feat: 보여줄 컨텐츠가 없으면 wing 숨김 (좌·우 대칭, right-wing 특수 케이스 제거)</li>
+          <li>feat: 빈 right wing 숨김 + 사용자가 선택한 위젯 존중</li>
+          <li>fix: 트랙이 없을 때 right wing의 "No music" 폴백 노출 안 함</li>
+          <li>fix: 선택된 위젯에 콘텐츠가 없으면 active 타이머로 폴백</li>
+          <li>fix: notch sub-pixel seam 제거 + wing이 늘어날 때 너비 snap</li>
+          <li>fix: 디스플레이 토폴로지 변경 시 NotchViewModel screen 재바인딩 (외부 모니터 hot-plug 시 패널이 엉뚱한 화면에 남던 문제)</li>
+        </ul>
+        <h3>Theme</h3>
+        <ul>
+          <li>feat: 라이트/다크 테마 정식 지원 — wing/패널 톤(라이트=translucent, 다크=opaque)도 같이 정리, panelWidthMultiplier 매직 상수 제거</li>
+        </ul>
+        <h3>Settings</h3>
+        <ul>
+          <li>feat: 앱 재실행 시 Settings 자동 오픈, 타이틀 바 chrome은 표준 유지</li>
+          <li>fix: @Default wrapper로 설정 저장 신뢰성 확보</li>
+          <li>chore: 사용 안 하는 hoverSensitivity 옵션 제거</li>
+        </ul>
+        <h3>Timer</h3>
+        <ul>
+          <li>feat: 타이머/스톱워치 모드를 세션 간 영속화</li>
+        </ul>
+        <h3>KBO</h3>
+        <ul>
+          <li>feat: 접힌 게임 행에 선발 투수 인라인 + W/L 배지</li>
+          <li>feat: 진행 중 경기 행에서 인라인 선발 투수 자리를 라이브 다이아몬드로 교체</li>
+        </ul>
+        <h3>Debug</h3>
+        <ul>
+          <li>feat: zone overlay와 hover 타이머 토글 (디버그 빌드 진단용)</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 06 May 2026 18:30:00 +0900</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.7.0/Mangtch-0.7.0.zip"
+                 length="3254096"
+                 sparkle:edSignature="e6cgjF645u1lH3+vJJJrwQMve3ul6vQeaJ1LHktyNJLzjHCywowVEYoIG+EMry1iIaawiiK+UOZSiu+UMyDgBQ=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.6.1</title>
       <description><![CDATA[
         <h2>Mangtch 0.6.1</h2>
         <ul>
+          <li>feat: KBO 인라인 라인스코어 양옆에 선발 투수(이름 + ERA) 표기 — 경기 시작 전에도 카드 한 장으로 매치업 파악</li>
           <li>fix: KBO 박스 스코어를 펼쳤을 때 패널이 컨텐츠 높이를 그대로 따라가도록 — 매직 넘버(perRow / expandedExtra / safetyBuffer) 제거하고 SwiftUI PreferenceKey로 실제 렌더 높이 측정. 라인스코어 마지막 줄이 패널 밖으로 잘리던 문제 해결</li>
           <li>fix: KBO 날짜 chevron(&lt; / &gt; / 오늘) 누르면 펼쳐둔 박스 스코어가 항상 닫히도록 — 다른 날짜 리스트엔 그 게임 ID가 없어서 inline은 비어 있는데 패널만 ~80pt 부풀어 보이던 문제 해결</li>
+          <li>fix: KBO 텍스트 중계 TTS 시작 타이밍을 ticker와 동기화 (AVSpeechSynthesizer)</li>
+          <li>refactor: 패널 chrome 너비를 위젯 측정값이 끌고 가도록 — content가 줄어도 wing이 같이 따라옴</li>
+          <li>fix: 디스플레이 연결/해제 시 NotchViewModel의 attachedScreen 재바인딩 — 외부 모니터 뽑았다 꽂으면 패널이 엉뚱한 화면에 남던 문제 해결</li>
         </ul>
       ]]></description>
       <pubDate>Tue, 06 May 2026 12:40:00 +0900</pubDate>

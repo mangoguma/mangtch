@@ -25,7 +25,7 @@
 - **🎤 Synced Lyrics** — Time-synced lyrics fetched from LRCLIB scroll inline with the track. Falls back to plain lyrics, or hides cleanly when none exist.
 - **📁 File Shelf** — Drag any file from Finder toward the notch and the panel auto-expands onto the shelf so you can drop it. Files stick around as a clipboard you can drag back out into other apps.
 - **⏱️ Timer & Stopwatch** — Countdown timer and stopwatch with a circular progress ring; the read keeps updating in the panel.
-- **⚾ KBO Schedule** — Today's Korean baseball games at a glance: live games show a pulsing badge, finished games dim the loser, scheduled games show first-pitch time. Pin a live game to the left wing and the score updates in place. Step day-by-day with chevrons or jump out to Naver Sports.
+- **⚾ KBO Schedule** — Today's Korean baseball games at a glance: live games show a pulsing badge with a live base-diamond, finished games dim the loser and tag W/L pitchers, scheduled games flank the linescore with starting pitchers (name + ERA) and first-pitch time. Pin a live game to the left wing and the score updates in place. Step day-by-day with chevrons or jump out to Naver Sports.
 - **🪟 Panel-Aware Widget Switcher** — A tab row inside the expanded panel flips between widgets; the left wing follows whatever widget you're looking at while the right wing stays anchored to music. Wing previews fit content automatically.
 - **🖐️ Trackpad Gestures** — Two-finger pan/scroll over the notch expands or collapses the panel. Drag a file toward the notch and the FileShelf auto-surfaces.
 - **🎨 Album-Art Theming** — Dynamic colors extracted from the current track tint the panel material.
