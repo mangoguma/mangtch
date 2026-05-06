@@ -205,10 +205,10 @@ final class NotchViewModel {
         panelWidth = computePanelWidth()
     }
 
-    /// Compute total panel width accounting for right wing visibility.
+    /// Compute total panel width. Always symmetric (both wings) so the
+    /// window stays centered on the hardware notch.
     private func computePanelWidth() -> CGFloat {
-        let rightW = hasRightWingContent ? wingWidth : 0
-        return notchGeometry.notchWidth + wingWidth + rightW
+        return notchGeometry.notchWidth + wingWidth * 2
     }
 
     /// True when wings should render in their flat, panel-continuous

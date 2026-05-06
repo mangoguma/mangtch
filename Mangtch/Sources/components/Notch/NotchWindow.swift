@@ -165,7 +165,6 @@ final class NotchWindow: NSPanel {
         // hides any easing-curve mismatch between the two timing systems.
         let targetWidth: CGFloat = viewModel.panelWidth + 50
 
-        // Always center since both wings are always visible
         let panelX = screen.frame.midX - targetWidth / 2
 
         // Top-align in both modes. In notch mode the wings tuck under

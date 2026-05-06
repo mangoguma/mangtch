@@ -174,14 +174,14 @@ struct NotchContentView: View {
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
                         bottomLeadingRadius: viewModel.wingWidth > 0 ? 0 : viewModel.panelCornerRadius,
-                        bottomTrailingRadius: (viewModel.hasRightWingContent && viewModel.wingWidth > 0) ? 0 : viewModel.panelCornerRadius,
+                        bottomTrailingRadius: viewModel.wingWidth > 0 ? 0 : viewModel.panelCornerRadius,
                         topTrailingRadius: 0
                     )
                 )
                 .padding(.horizontal, -1)
 
             rightWing
-                .frame(width: viewModel.hasRightWingContent ? viewModel.wingWidth : 0,
+                .frame(width: viewModel.wingWidth,
                        height: viewModel.notchGeometry.notchHeight,
                        alignment: .leading)
                 .background(panelBackground)
