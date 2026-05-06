@@ -254,10 +254,16 @@ final class KBOViewModel {
     /// the resulting fetch lands — see `pendingDate`.
     func shiftDay(by days: Int) {
         guard let new = Calendar.korea.date(byAdding: .day, value: days, to: pendingDate) else { return }
+        // Always start a fresh day with the list collapsed — a row that
+        // was open on the previous day's list points at a game that
+        // isn't in the new fetch, and leaving it "open" keeps the panel
+        // tall with no visible inline detail.
+        collapse()
         pendingDate = new
     }
 
     func resetToToday() {
+        collapse()
         pendingDate = KBOService.currentKBODate()
     }
 
@@ -355,33 +361,28 @@ final class KBOViewModel {
         // to avoid a one-frame snap-then-grow during the collapse animation.
     }
 
-    /// Compute the panel height KBO needs based on the number of games
-    /// and whether one of them is expanded inline, then ask NotchViewModel
-    /// to grow (or shrink) to match. Driven from .onAppear / .onChange
-    /// in KBOExpandedView, since SwiftUI's GeometryReader inside a
-    /// .frame-constrained ancestor reports the constrained size, not the
-    /// natural one — making intrinsic measurement unworkable here.
-    func recomputePanelHeight() {
-        // Empirical row metrics. Compact row = 22pt logo + 14pt padding.
-        // Expanded extra = 3 grid rows (20pt) + divider + 14pt padding.
-        let perRow: CGFloat = 36
-        let rowSpacing: CGFloat = 4
-        let headerSection: CGFloat = 36   // KBO label row (30) + spacing below (6)
-        let outerPadding: CGFloat = 16    // top + bottom of root VStack
-        let expandedExtra: CGFloat = 80   // inline grid + divider + padding
-        let safetyBuffer: CGFloat = 12    // SwiftUI font rendering / spacing slack
+    /// Natural content height when no row is expanded. Captured from the
+    /// first preference report after games load, so the panel chrome's
+    /// height (tab bar + outer paddings) stays implicit — we just track
+    /// how much the content has *grown beyond* this baseline.
+    private var compactContentHeight: CGFloat = 0
 
-        let count = max(games.count, 1)
-        let rowsTotal = CGFloat(count) * perRow + CGFloat(count - 1) * rowSpacing
-        let extra = (viewingGameID != nil) ? expandedExtra : 0
-
-        let needed = headerSection + rowsTotal + extra + outerPadding + safetyBuffer
-        // Broadcast to every panel so multi-display setups grow in sync.
-        // Only ever grow the panel — keep maxExpandedHeight as the floor
-        // so other widgets aren't squeezed if KBO would otherwise shrink it.
+    /// Drive the panel height from the actual measured content size
+    /// reported by KBOExpandedView's `.background` GeometryReader. We
+    /// compare against the captured compact baseline instead of
+    /// `maxExpandedHeight` directly — `maxExpandedHeight` includes the
+    /// shared panel chrome (tab bar etc.), which is *not* in our content
+    /// measurement, so subtracting it would chop ~24pt off every grow.
+    func contentHeightChanged(to measured: CGFloat) {
+        guard measured > 0 else { return }
+        // Re-baseline whenever no row is open. Catches games-list changes
+        // (date navigation, fetches) so the baseline tracks reality.
+        if viewingGameID == nil {
+            compactContentHeight = measured
+        }
+        let delta = max(0, measured - compactContentHeight)
         for vm in NotchWindowManager.shared.allViewModels {
-            let additional = needed - vm.maxExpandedHeight
-            vm.additionalExpandedHeight = max(0, additional)
+            vm.additionalExpandedHeight = delta
         }
     }
 

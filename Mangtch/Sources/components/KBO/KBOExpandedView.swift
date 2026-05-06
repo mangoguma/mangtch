@@ -37,15 +37,36 @@ struct KBOExpandedView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+        // Force ideal vertical size, ignoring the panel chrome's
+        // `.frame(height: expandedHeight)` clamp. Without this the
+        // background GeometryReader below would just echo the current
+        // panel height back at us — the ViewModel could never grow the
+        // panel beyond what it already is. With `.fixedSize` the layout
+        // pass reports the *natural* height and the panel chases it.
+        .fixedSize(horizontal: false, vertical: true)
+        // Measure the natural content height (background GeometryReader
+        // sees the view's actual lay-out) and let the ViewModel size the
+        // panel to match. No per-row magic numbers — fonts/padding can
+        // change freely and the panel follows.
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: KBOContentHeightKey.self,
+                    value: proxy.size.height
+                )
+            }
+        }
+        .onPreferenceChange(KBOContentHeightKey.self) { height in
+            Task { @MainActor in
+                viewModel.contentHeightChanged(to: height)
+            }
+        }
         .onAppear {
             // Always re-anchor to today when the widget reopens, so a
             // user who browsed back through the days isn't stuck on an
             // old date the next time they expand the panel.
             viewModel.resetToToday()
-            viewModel.recomputePanelHeight()
         }
-        .onChange(of: viewModel.games.count) { _, _ in viewModel.recomputePanelHeight() }
-        .onChange(of: viewModel.viewingGameID) { _, _ in viewModel.recomputePanelHeight() }
     }
 
     // MARK: - Header
@@ -479,6 +500,17 @@ struct KBOExpandedView: View {
             }
         }
         .padding(.horizontal, 6)
+    }
+}
+
+/// Reports the natural rendered height of KBOExpandedView so the
+/// ViewModel can size the panel to fit. Max is the right reduce — only
+/// the deepest reporting subtree wins if multiple .background readers
+/// ever stack.
+private struct KBOContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
