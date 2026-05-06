@@ -120,7 +120,17 @@ final class MusicPlayerViewModel {
 
     private func updateNowPlaying(_ info: MediaInfo) {
         let previousTrack = nowPlaying?.title
+        let wasEmpty = nowPlaying == nil || (nowPlaying?.title.isEmpty ?? true)
         nowPlaying = info
+        let isNowEmpty = info.title.isEmpty
+
+        // Wing visibility changed — refresh panel dimensions so wings
+        // appear/disappear when music starts/stops.
+        if wasEmpty != isNowEmpty {
+            for vm in NotchWindowManager.shared.allViewModels {
+                vm.refreshWingVisibility()
+            }
+        }
         lastElapsed = info.elapsedTime
         lastFetchTime = Date()
         updateProgress()

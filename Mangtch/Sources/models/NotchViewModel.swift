@@ -118,12 +118,35 @@ final class NotchViewModel {
         }
     }
 
+    /// True when at least one widget has content worth surfacing in the
+    /// wings. When false the wings collapse to zero width so the notch
+    /// bar blends with the hardware bezel.
+    var hasWingContent: Bool {
+        // Expanded/hovering — always show wings so the panel chrome is
+        // consistent while the user interacts.
+        if currentState != .idle { return true }
+
+        // Any non-music widget claiming the wing?
+        let widgetID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
+        if widgetID != "music-player" { return true }
+
+        // Music widget: show wings only when a track is loaded.
+        if let musicWidget = WidgetRegistry.shared.widget(for: "music-player"),
+           let music = musicWidget.wrapped as? MusicPlayerWidget,
+           musicWidget.isEnabled {
+            return music.viewModel.nowPlaying != nil
+                && !(music.viewModel.nowPlaying?.title.isEmpty ?? true)
+        }
+        return false
+    }
+
     /// What `wingWidth` should be right now. Both compact and panel modes
     /// pull from a single source so a hover-to-expand never causes a
     /// width snap. A non-nil `previewWingWidth` temporarily overrides
     /// the resting width but is clamped so it can never shrink below
     /// the panel-derived resting width or grow past `maxWingWidth`.
     private func targetWingWidth() -> CGFloat {
+        if !hasWingContent { return 0 }
         let resting = panelModeWingWidth
         guard let preview = previewWingWidth else { return resting }
         return min(max(preview, resting), self.maxWingWidth)
@@ -243,6 +266,11 @@ final class NotchViewModel {
     /// VMs (one per display) don't all read primary-screen dimensions.
     func refreshGeometry() {
         notchGeometry = NotchGeometry.detect(for: screen)
+        updatePanelDimensions()
+    }
+
+    /// Re-snap wing width after the music playing state changes.
+    func refreshWingVisibility() {
         updatePanelDimensions()
     }
 
