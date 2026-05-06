@@ -57,8 +57,14 @@ final class NotchWindowManager {
         }
 
         // Refresh frames on all surviving windows in case the geometry
-        // shifted (resolution change without disconnect).
-        for window in windows.values {
+        // shifted (resolution change without disconnect). Rebind the
+        // NSScreen reference first — AppKit replaces NSScreen instances
+        // on topology changes, so the cached `attachedScreen` may report
+        // a stale `frame` that no longer matches this display.
+        for (uuid, window) in windows {
+            if let fresh = targetByUUID[uuid] {
+                window.rebind(to: fresh)
+            }
             window.reposition()
         }
 

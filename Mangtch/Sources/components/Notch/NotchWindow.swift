@@ -16,7 +16,19 @@ final class NotchWindow: NSPanel {
     /// through here instead of the global resolver so a panel that owns
     /// an external display keeps using *its* coordinates even if the
     /// user changes the primary in Settings.
-    let attachedScreen: NSScreen
+    ///
+    /// Mutable because `NSScreen.screens` replaces instances on display
+    /// topology changes — without refreshing this reference, a surviving
+    /// panel keeps reading the *old* `frame` and ends up drawn on the
+    /// wrong monitor (two panels stacking on one display in 3-monitor
+    /// setups). `NotchWindowManager.sync()` rebinds this to the fresh
+    /// NSScreen matching our UUID.
+    private(set) var attachedScreen: NSScreen
+
+    @MainActor
+    func rebind(to screen: NSScreen) {
+        self.attachedScreen = screen
+    }
 
     private var cancellables = Set<AnyCancellable>()
     private var panelWidthObservation: Any?
