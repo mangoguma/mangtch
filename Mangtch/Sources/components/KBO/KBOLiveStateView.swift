@@ -127,7 +127,8 @@ struct KBOLiveStateView: View {
                     MarqueeText(playText,
                                 font: .system(size: 10, weight: .medium),
                                 speed: 28,
-                                isActive: true)
+                                isActive: true,
+                                oneShot: true)
                         .foregroundStyle(.white)
                         .transition(.opacity)
                 }
@@ -193,6 +194,8 @@ struct KBOLiveStateView: View {
                         )
                     )
                     .frame(width: 6, height: 6)
+                    .scaleEffect(isFilled ? 1.0 : 0.85)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isFilled)
             }
         }
     }
@@ -233,5 +236,7 @@ private struct BasesDiamond: View {
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))
+            .scaleEffect(filled ? 1.15 : 1.0)
+            .animation(.spring(response: 0.35, dampingFraction: 0.5), value: filled)
     }
 }

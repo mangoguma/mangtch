@@ -41,7 +41,7 @@ struct KBOGame: Decodable, Identifiable, Equatable, Hashable {
     }
 
     var isFinished: Bool {
-        statusCode == "RESULT"
+        statusCode == "RESULT" || statusCode == "ENDED"
     }
 
     var isScheduled: Bool {

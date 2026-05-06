@@ -72,12 +72,16 @@ struct KBOCompactView: View {
                 Text("\(live?.away ?? game.awayTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.3), value: live?.away ?? game.awayTeamScore)
                 Text(":")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.tertiary)
                 Text("\(live?.home ?? game.homeTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.3), value: live?.home ?? game.homeTeamScore)
                 teamName(game.homeTeamName, isBatting: homeBatting)
             }
         }

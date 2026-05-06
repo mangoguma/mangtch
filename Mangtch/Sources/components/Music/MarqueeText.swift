@@ -5,17 +5,21 @@ struct MarqueeText: View {
     let font: Font
     let speed: Double // points per second
     let isActive: Bool
+    /// When true, scrolls just enough to reveal the tail then stops.
+    /// When false (default), loops infinitely.
+    let oneShot: Bool
 
     @State private var textWidth: CGFloat = 0
     @State private var containerWidth: CGFloat = 0
     @State private var offset: CGFloat = 0
     @State private var animating = false
 
-    init(_ text: String, font: Font = .body, speed: Double = 21, isActive: Bool = true) {
+    init(_ text: String, font: Font = .body, speed: Double = 21, isActive: Bool = true, oneShot: Bool = false) {
         self.text = text
         self.font = font
         self.speed = speed
         self.isActive = isActive
+        self.oneShot = oneShot
     }
 
     private var needsScroll: Bool {
@@ -34,9 +38,9 @@ struct MarqueeText: View {
                 let _ = updateContainerWidth(geo.size.width)
 
                 if needsScroll {
-                    HStack(spacing: 40) {
+                    HStack(spacing: oneShot ? 0 : 40) {
                         textView
-                        textView
+                        if !oneShot { textView }
                     }
                     .offset(x: offset)
                     .onAppear { startAnimation() }
@@ -96,21 +100,32 @@ struct MarqueeText: View {
         offset = 0
         animating = true
 
-        // Distance to scroll: one full text width + gap
-        let scrollDistance = textWidth + 40
-        let duration = scrollDistance / speed
-
-        // Pause at start, then scroll
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            withAnimation(.linear(duration: duration)) {
-                offset = -scrollDistance
+        if oneShot {
+            // Scroll just enough to reveal the tail, then stop.
+            let scrollDistance = textWidth - containerWidth
+            let duration = scrollDistance / speed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation(.linear(duration: duration)) {
+                    offset = -scrollDistance
+                }
+                // Stay at the end — no reset.
+                DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                    animating = false
+                }
             }
-
-            // Reset and repeat
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration + 1.0) {
-                offset = 0
-                animating = false
-                startAnimation()
+        } else {
+            // Loop: scroll one full text width + gap, then repeat.
+            let scrollDistance = textWidth + 40
+            let duration = scrollDistance / speed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                withAnimation(.linear(duration: duration)) {
+                    offset = -scrollDistance
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + duration + 1.0) {
+                    offset = 0
+                    animating = false
+                    startAnimation()
+                }
             }
         }
     }

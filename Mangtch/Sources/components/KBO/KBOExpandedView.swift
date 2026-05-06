@@ -403,6 +403,8 @@ struct KBOExpandedView: View {
             .font(.system(size: 16, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(isLoser ? .secondary : .primary)
+            .contentTransition(.numericText())
+            .animation(.easeInOut(duration: 0.3), value: value)
     }
 
     @ViewBuilder
