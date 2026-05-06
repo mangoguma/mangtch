@@ -16,20 +16,19 @@ final class KBOWidget: NotchWidget {
     /// `startingPitchers` are both `@Observable`, NotchViewModel re-snaps
     /// wing/panel via `setupWidgetWidthObserver` whenever they change.
     var preferredPanelWidth: CGFloat? {
-        let inlineSlot = Self.inlineStarterSlotWidth(viewModel.startingPitchers)
-        // Closed-row layout: 2x starter slot + score(64) + 2x team flex
-        // (logo 22 + name ~58 + spacing) + livecell(80) + statusChip(64)
-        // + outer paddings/spacings. We assume team-side natural width
-        // up to ~80pt covers every Korean team name comfortably.
+        // Row-edge slot hosts either the inline starter (non-live) or the
+        // live-state diamond/BSO cell (live). Width is the max of the
+        // widest cached pitcher-name slot and the 80pt the live cell
+        // wants, so swapping content between rows doesn't reflow.
+        let starterSlot = Self.inlineStarterSlotWidth(viewModel.startingPitchers)
+        let rowSlot = max(80, starterSlot)
+        // Closed-row layout: 2x slot + score(64) + 2x team flex (logo 22
+        // + name ~58 + spacing) + statusChip(64) + outer paddings.
+        // Team-side natural width up to ~80pt covers every Korean team
+        // name comfortably.
         let teamSide: CGFloat = 80
-        // The 80pt live-state slot only renders for live games; otherwise
-        // the row drops it entirely so non-live days don't reserve dead
-        // air between the home starter and the "종료" chip.
-        let anyLive = viewModel.games.contains(where: { $0.isLive })
-        let liveCellSlot: CGFloat = anyLive ? 80 : 0
-        let liveGaps: Int = anyLive ? 6 : 5
-        let closed = inlineSlot * 2 + 64 + teamSide * 2 + liveCellSlot + 64
-            + 10 * CGFloat(liveGaps)
+        let closed = rowSlot * 2 + 64 + teamSide * 2 + 64
+            + 10 * 5        // HStack(spacing: 10) between 6 children = 5 gaps
             + 28            // .padding(.horizontal, 14)
         guard let line = viewModel.viewingLinescore else { return closed }
 

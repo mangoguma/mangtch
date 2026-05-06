@@ -173,9 +173,23 @@ struct KBOExpandedView: View {
             }) {
                 HStack(spacing: 10) {
                     let starters = viewModel.startingPitchers[game.gameId]
-                    inlineStarterLabel(name: starters?.away,
-                                       resultPrefix: resultPrefix(game: game, side: .away),
-                                       trailing: false)
+                    let slotW = rowSlotWidth
+
+                    // Left slot: away starter on non-live rows, blank on
+                    // live rows (the diamond/count goes on the right slot
+                    // so the live read sits next to the home team — same
+                    // side Naver puts it on their relay strip).
+                    Group {
+                        if game.isLive {
+                            Color.clear
+                        } else {
+                            inlineStarterLabel(name: starters?.away,
+                                               resultPrefix: resultPrefix(game: game, side: .away),
+                                               trailing: false,
+                                               slotWidth: slotW)
+                        }
+                    }
+                    .frame(width: slotW)
 
                     teamSide(name: game.awayTeamName,
                              code: game.awayTeamCode,
@@ -194,14 +208,21 @@ struct KBOExpandedView: View {
                              isLoser: game.winnerSide == .away,
                              isBatting: attacking == .home)
 
-                    inlineStarterLabel(name: starters?.home,
-                                       resultPrefix: resultPrefix(game: game, side: .home),
-                                       trailing: true)
-
-                    if game.isLive {
-                        liveStateCell(for: game)
-                            .frame(width: 80)
+                    // Right slot: live read replaces home starter when
+                    // the game is in progress — bases/count is the
+                    // single most useful glance for a live game, more so
+                    // than a starter who may already be out of the game.
+                    Group {
+                        if game.isLive {
+                            liveStateCell(for: game)
+                        } else {
+                            inlineStarterLabel(name: starters?.home,
+                                               resultPrefix: resultPrefix(game: game, side: .home),
+                                               trailing: true,
+                                               slotWidth: slotW)
+                        }
                     }
+                    .frame(width: slotW)
 
                     statusChip(game)
                         .frame(width: 64, alignment: .trailing)
@@ -236,15 +257,15 @@ struct KBOExpandedView: View {
 
     // MARK: - Row Sub-views
 
-    /// Width of each inline-starter slot. Derived from the longest
-    /// cached starter name so 5-char names like "로드리게스" don't crowd
-    /// the badge, but 3-char names don't waste space either. Fixed
-    /// (rather than flex) so the 승/패 badges align vertically across
-    /// rows — names float toward the outer edge while badges stay
-    /// anchored to the inner edge of the slot, giving every row a
-    /// consistent W/L column.
+    /// Width of each row-edge slot. Derived from the longest cached
+    /// starter name so 5-char names like "로드리게스" don't crowd the
+    /// badge, but bumped up to fit the 80pt live-state cell on rows
+    /// where the slot hosts the diamond/BSO instead. Fixed (rather than
+    /// flex) so the 승/패 badges align vertically across rows — names
+    /// float toward the outer edge while badges stay anchored to the
+    /// inner edge of the slot, giving every row a consistent W/L column.
     @MainActor
-    private var starterSlotWidth: CGFloat {
+    private var rowSlotWidth: CGFloat {
         let names = viewModel.startingPitchers.values
             .flatMap { [$0.away, $0.home] }
             .compactMap { $0 }
@@ -254,7 +275,9 @@ struct KBOExpandedView: View {
             .max() ?? 0
         // Name + 4pt gap + badge (~12pt for "승/패") + 8pt outer breathing
         // room so the badge doesn't kiss the score column.
-        return max(70, ceil(widest) + 4 + 12 + 8)
+        let starterNeeded = ceil(widest) + 4 + 12 + 8
+        // 80pt is the natural width of KBOLiveStateView in compact mode.
+        return max(80, starterNeeded)
     }
 
     /// Inline starting-pitcher label that sits at the outer edges of the
@@ -271,7 +294,8 @@ struct KBOExpandedView: View {
     @ViewBuilder
     private func inlineStarterLabel(name: String?,
                                     resultPrefix: String?,
-                                    trailing: Bool) -> some View {
+                                    trailing: Bool,
+                                    slotWidth: CGFloat) -> some View {
         let inner = HStack(spacing: 4) {
             if !trailing {
                 Spacer(minLength: 0)
@@ -297,7 +321,7 @@ struct KBOExpandedView: View {
                 Spacer(minLength: 0)
             }
         }
-        inner.frame(width: starterSlotWidth,
+        inner.frame(width: slotWidth,
                     alignment: trailing ? .leading : .trailing)
     }
 
