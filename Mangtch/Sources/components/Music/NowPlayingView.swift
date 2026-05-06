@@ -37,7 +37,11 @@ struct CompactArtworkView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .center)
+        // Outer alignment: the left wing is on the user's left, so its
+        // content sits at the leading edge — away from the notch — so
+        // the panel doesn't look like everything is huddled around the
+        // hardware cutout when expanded.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.18), value: isHovering)
     }
 
@@ -110,19 +114,22 @@ struct CompactInfoView: View {
         // whatever it's given; MarqueeText scrolls when the title is
         // wider than the wing — no intrinsic-width tricks here, those
         // fought the parent frame and produced clipped/jumpy chrome.
+        // Right wing is on the user's right — outer alignment is
+        // trailing so the title/artist sit at the screen edge rather
+        // than crowded against the notch when expanded.
         HStack(spacing: 6) {
             if let info = viewModel.nowPlaying, !info.title.isEmpty {
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .trailing, spacing: 1) {
                     MarqueeText(info.title, font: .system(size: 11, weight: .semibold), isActive: viewModel.isPlaying)
                     MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             } else {
                 Text("No music")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .padding(.horizontal, 8)

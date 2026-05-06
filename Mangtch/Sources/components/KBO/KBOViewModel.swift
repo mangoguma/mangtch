@@ -167,11 +167,13 @@ final class KBOViewModel {
         // panel would still see yesterday next time. SwiftUI's .onAppear
         // doesn't help here because the expanded view stays in the
         // hierarchy at height=0 and never re-appears.
+        // Use rewindDateOnly: keep the expanded row + pinned game intact
+        // so the user's live broadcast selection survives close/reopen.
         EventBus.shared.stateChanges
             .filter { $0 == .expanded }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.resetToToday()
+                self?.rewindDateOnly()
             }
             .store(in: &cancellables)
     }
@@ -271,16 +273,27 @@ final class KBOViewModel {
     /// the resulting fetch lands — see `pendingDate`.
     func shiftDay(by days: Int) {
         guard let new = Calendar.korea.date(byAdding: .day, value: days, to: pendingDate) else { return }
-        // Always start a fresh day with the list collapsed — a row that
-        // was open on the previous day's list points at a game that
-        // isn't in the new fetch, and leaving it "open" keeps the panel
-        // tall with no visible inline detail.
-        collapse()
+        // Collapse only the inline expanded row (which points at a game
+        // from the previous day's list and would leave the panel tall
+        // with no visible detail). The wing pin (`selectedGameID`) is
+        // preserved so a live broadcast the user is following stays put
+        // while they browse other days.
+        collapseInline()
         pendingDate = new
     }
 
     func resetToToday() {
         collapse()
+        pendingDate = KBOService.currentKBODate()
+    }
+
+    /// Re-anchor the date to today without disturbing the user's expanded
+    /// row, pinned game, or loaded linescore. Used on panel reopen so a
+    /// live broadcast the user was watching stays open across close/open.
+    /// If the date actually changes, `pendingDate.didSet` triggers a
+    /// fetch; a stale `viewingGameID` whose game isn't in the new day's
+    /// list will simply render nothing until the user picks another row.
+    func rewindDateOnly() {
         pendingDate = KBOService.currentKBODate()
     }
 
@@ -368,14 +381,22 @@ final class KBOViewModel {
     }
 
     func collapse() {
-        viewingGameID = nil
-        viewingLinescore = nil
-        linescoreTask?.cancel()
-        linescoreTask = nil
+        collapseInline()
         selectedGameID = nil
         // KBOExpandedView's preference change will redrive the height
         // to match the now-shorter content; we don't reset eagerly here
         // to avoid a one-frame snap-then-grow during the collapse animation.
+    }
+
+    /// Collapse just the inline row expansion, leaving the wing pin
+    /// (`selectedGameID`) intact. Used by date navigation so a user
+    /// browsing other days doesn't lose the live broadcast they had
+    /// pinned to the wing.
+    func collapseInline() {
+        viewingGameID = nil
+        viewingLinescore = nil
+        linescoreTask?.cancel()
+        linescoreTask = nil
     }
 
     /// Natural content height when no row is expanded. Captured from the

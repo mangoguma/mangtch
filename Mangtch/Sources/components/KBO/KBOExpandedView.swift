@@ -62,10 +62,10 @@ struct KBOExpandedView: View {
             }
         }
         .onAppear {
-            // Always re-anchor to today when the widget reopens, so a
-            // user who browsed back through the days isn't stuck on an
-            // old date the next time they expand the panel.
-            viewModel.resetToToday()
+            // Re-anchor the date to today on reopen, but keep any
+            // expanded row / pinned game intact so the live broadcast
+            // the user was watching survives close/reopen.
+            viewModel.rewindDateOnly()
         }
     }
 

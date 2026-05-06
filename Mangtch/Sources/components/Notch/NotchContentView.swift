@@ -64,6 +64,12 @@ struct NotchContentView: View {
 
     // MARK: - Panel Content
 
+    /// Outer-side inset for the boring-notch concave-top profile. Wings
+    /// clip with this radius at their top-outer corner, and the
+    /// expanded panel clips its visible chrome `outerInset` pixels
+    /// inside its frame on each side so wing + panel side edges line up.
+    private var wingTopOuterRadius: CGFloat { viewModel.wingWidth > 0 ? 8 : 0 }
+
     @ViewBuilder
     private func panelContent(in geo: GeometryProxy) -> some View {
         VStack(spacing: 0) {
@@ -73,17 +79,17 @@ struct NotchContentView: View {
             // Expanded content — always rendered, height-animated + clipped.
             // Top corners are square so the panel meets the wings flush
             // (no desktop-strip gap between them); only the bottom corners
-            // are rounded.
+            // are rounded. Outer inset matches the wings' boring-notch
+            // top concave so the wing's outer side edge continues
+            // straight down through the expanded panel.
             expandedContent
                 .frame(width: viewModel.panelWidth, alignment: .top)
                 .environment(\.colorScheme, themeManager.currentTheme is LightTheme ? .light : .dark)
                 .background(panelBackground)
                 .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: viewModel.panelCornerRadius,
-                        bottomTrailingRadius: viewModel.panelCornerRadius,
-                        topTrailingRadius: 0
+                    ExpandedPanelShape(
+                        outerInset: wingTopOuterRadius,
+                        bottomRadius: viewModel.panelCornerRadius
                     )
                 )
                 .frame(height: viewModel.expandedHeight, alignment: .top)
@@ -123,19 +129,27 @@ struct NotchContentView: View {
         // back). NotchViewModel sequences `wingsFlat` separately from
         // `expandedHeight` to make that happen.
         let wingBottomRadius: CGFloat = viewModel.wingsFlat ? 0 : viewModel.panelCornerRadius
+        // Boring-notch signature: concave inset at the *outer* top
+        // corner of each wing. Shared with the expanded panel chrome
+        // so its outer-side runs at the same x as the wing's outer side.
+        let wingTopOuterRadius = self.wingTopOuterRadius
 
         HStack(spacing: 0) {
             leftWing
+                // Inset content from the wing's outer edge by the
+                // boring-notch concave radius so glyphs/icons that hug
+                // the outer edge don't get clipped by the curve at the
+                // top corner.
+                .padding(.leading, wingTopOuterRadius)
                 .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
-                       alignment: .trailing)
+                       alignment: .leading)
                 .background(Color.black)
                 .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: wingBottomRadius,
-                        bottomTrailingRadius: 0,
-                        topTrailingRadius: 0
+                    WingShape(
+                        side: .left,
+                        bottomOuterRadius: wingBottomRadius,
+                        topOuterRadius: wingTopOuterRadius
                     )
                 )
                 .clipped()
@@ -164,17 +178,17 @@ struct NotchContentView: View {
                 .padding(.horizontal, -1)
 
             rightWing
+                .padding(.trailing, wingTopOuterRadius)
                 .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth,
                        height: viewModel.notchGeometry.notchHeight,
-                       alignment: .leading)
+                       alignment: .trailing)
                 .background(Color.black)
                 .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: 0,
-                        bottomTrailingRadius: wingBottomRadius,
-                        topTrailingRadius: 0
+                    WingShape(
+                        side: .right,
+                        bottomOuterRadius: wingBottomRadius,
+                        topOuterRadius: wingTopOuterRadius
                     )
                 )
                 .clipped()
