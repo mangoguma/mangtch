@@ -95,6 +95,7 @@ struct KBOCompactView: View {
         Text(name)
             .font(.system(size: 10, weight: isBatting ? .bold : .medium))
             .foregroundStyle(.secondary)
+            .fixedSize()
             .underline(isBatting, color: .secondary)
             .lineLimit(1)
     }

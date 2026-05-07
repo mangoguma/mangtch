@@ -106,6 +106,11 @@ final class KBOViewModel {
     /// `playQueue`. Reset to 0 whenever the tracked game changes so the
     /// next observation re-baselines.
     private var lastSeenSeqno: Int = 0
+    /// Track current inning + half to detect inning transitions.
+    /// When these change, fetch the previous half-inning to recover
+    /// any plays (especially the last out) that the API dropped.
+    private var lastSeenInning: Int = 0
+    private var lastSeenHomeOrAway: String = ""
     /// FIFO of plays waiting to be tickered out, oldest first. The queue
     /// runner pops one every `playDisplayInterval` seconds so the user
     /// sees each commentary line in order instead of jumping straight to
@@ -468,8 +473,44 @@ final class KBOViewModel {
             if let r = result, let at = r.awayTotals, let ht = r.homeTotals {
                 self.liveScores[gameId] = (away: at.runs, home: ht.runs)
             }
-            if let plays = result?.allPlays, !plays.isEmpty {
-                self.handleNewPlays(plays, gameID: gameId)
+            if let r = result {
+                // Detect inning transition and backfill missed plays
+                // from the previous half-inning.
+                let newInn = r.currentInning
+                let newHoA = r.currentHomeOrAway
+                if self.lastSeenInning > 0,
+                   (newInn != self.lastSeenInning || newHoA != self.lastSeenHomeOrAway) {
+                    // Inning changed — fetch previous half to catch the last out
+                    let prevInn = self.lastSeenInning
+                    let prevHoA = self.lastSeenHomeOrAway
+                    Task { @MainActor in
+                        let missed = await KBOService.fetchRelay(
+                            gameId: gameId, inning: prevInn, homeOrAway: prevHoA)
+                        let newPlays = missed.filter { $0.seqno > self.lastSeenSeqno }
+                        if !newPlays.isEmpty {
+                            self.handleNewPlays(newPlays, gameID: gameId)
+                        }
+                    }
+
+                    // Reset BSO/bases for the new half-inning. The API
+                    // may not have populated the new state yet, so force
+                    // a clean slate so stale runners/counts don't linger.
+                    let resetState = KBOLinescore.LiveState(
+                        balls: 0, strikes: 0, outs: 0,
+                        onFirst: false, onSecond: false, onThird: false,
+                        batterName: r.liveState?.batterName,
+                        batOrder: r.liveState?.batOrder,
+                        pitcherName: r.liveState?.pitcherName,
+                        attackingSide: newHoA == "1" ? .home : .away
+                    )
+                    self.liveStates[gameId] = resetState
+                }
+                self.lastSeenInning = newInn
+                self.lastSeenHomeOrAway = newHoA
+
+                if !r.allPlays.isEmpty {
+                    self.handleNewPlays(r.allPlays, gameID: gameId)
+                }
             }
         }
     }
@@ -560,9 +601,12 @@ final class KBOViewModel {
             // user pinned would be jarring.
             if let last = plays.last {
                 lastSeenSeqno = last.seqno
-                if tickerEnabled {
-                    latestPlayText = last.text
-                    startQueueRunnerIfNeeded()  // schedules the eventual clear
+                // Only show the baseline play if it's worth displaying
+                // (skip per-pitch chatter like "2구 스트라이크").
+                let displayLast = plays.last(where: { $0.importance >= .medium })
+                if tickerEnabled, let show = displayLast {
+                    latestPlayText = show.text
+                    startQueueRunnerIfNeeded()
                 }
             }
             return
@@ -633,6 +677,8 @@ final class KBOViewModel {
         queueRunnerTask = nil
         playQueue.removeAll()
         latestPlayText = nil
+        lastSeenInning = 0
+        lastSeenHomeOrAway = ""
     }
 
     /// In-process synthesizer so utterance start latency matches the

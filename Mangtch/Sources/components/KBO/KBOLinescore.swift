@@ -64,6 +64,11 @@ struct KBOLinescore: Equatable {
     /// of skipping straight to the most recent line.
     let allPlays: [Play]
 
+    /// Current inning number and half ("0"=top/away, "1"=bottom/home).
+    /// Used to detect inning transitions and backfill missed plays.
+    let currentInning: Int
+    let currentHomeOrAway: String  // "0" or "1"
+
     /// At-bat snapshot: count, outs, runners on base. nil for non-live or
     /// pre-game states where currentGameState is empty.
     let liveState: LiveState?
@@ -116,7 +121,8 @@ struct KBOLinescore: Equatable {
                 switch naverType {
                 case 24: return .critical
                 case 13, 14, 23: return .high
-                case 0, 2, 7, 8: return .medium
+                case 2, 7: return .medium
+                case 0, 8: return .low  // inning header + batter intro — noise
                 case 1: return .low
                 // Unknown types default to medium so we still surface them
                 // rather than silently dropping plays Naver added later.
@@ -161,6 +167,8 @@ extension KBOLinescore {
             let result: Result?
         }
         struct TextRelay: Decodable {
+            let inn: Int?
+            let homeOrAway: String?  // "0"=top/away, "1"=bottom/home
             let inningScore: InningScore?
             let currentGameState: CurrentGameState?
         }
@@ -185,6 +193,8 @@ extension KBOLinescore {
         // Header fields aren't in the relay payload — leave empty so the
         // view falls back to whatever the schedule API already showed
         // (game.statusInfo, etc.) without crashing.
+        self.currentInning = trd.inn ?? 0
+        self.currentHomeOrAway = trd.homeOrAway ?? "0"
         self.stadium = ""
         self.crowd = ""
         self.startTime = ""
@@ -344,7 +354,7 @@ extension KBOLinescore {
     /// diff against a stored last-seen seqno to discover only the new
     /// plays since the previous poll. type 99 ("=====" inning dividers)
     /// is filtered out — it's display noise, not a play.
-    private static func collectPlays(in raw: Data) -> [Play] {
+    static func collectPlays(in raw: Data) -> [Play] {
         struct Outer: Decodable {
             struct Result: Decodable { let textRelayData: Inner? }
             let result: Result?
@@ -381,12 +391,19 @@ extension KBOLinescore {
                       !text.isEmpty,
                       opt.type != 99
                 else { continue }
+                var imp = Play.Importance.from(naverType: opt.type)
+                // Promote fouls to medium so they show in the ticker —
+                // at 2 strikes, BSO doesn't change and the user gets
+                // zero feedback otherwise.
+                if imp == .low, opt.type == 1, text.contains("파울") {
+                    imp = .medium
+                }
                 collected.append(Play(
                     seqno: seqno,
                     inning: inning,
                     text: text,
                     attackingSide: side,
-                    importance: Play.Importance.from(naverType: opt.type)
+                    importance: imp
                 ))
             }
         }

@@ -158,10 +158,6 @@ struct KBOLiveStateView: View {
     /// pitcher batting order is meaningless. Falls back to "—" when the
     /// lineup lookup didn't resolve a name.
     private func playerRow(icon: String, name: String?, order: Int? = nil, tint: Color? = nil) -> some View {
-        // Palette rendering paints the disc in the team colour while the
-        // letter glyph stays white — the conventional "club badge" look.
-        // Falls back to a flat white symbol when no tint resolved (e.g.
-        // attackingSide unknown), preserving the prior appearance.
         HStack(spacing: 3) {
             Image(systemName: icon)
                 .font(.system(size: 9, weight: .bold))
@@ -171,11 +167,15 @@ struct KBOLiveStateView: View {
                 Text("\(order)")
                     .font(.system(size: 8, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.7))
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.25), value: order)
             }
             Text(name ?? "—")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: true, vertical: false)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.25), value: name)
         }
     }
 
@@ -195,8 +195,7 @@ struct KBOLiveStateView: View {
                         )
                     )
                     .frame(width: 6, height: 6)
-                    .scaleEffect(isFilled ? 1.0 : 0.85)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isFilled)
+                    .animation(.easeInOut(duration: 0.3), value: isFilled)
             }
         }
     }
@@ -237,7 +236,6 @@ private struct BasesDiamond: View {
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))
-            .scaleEffect(filled ? 1.15 : 1.0)
-            .animation(.spring(response: 0.35, dampingFraction: 0.5), value: filled)
+            .animation(.easeInOut(duration: 0.3), value: filled)
     }
 }
