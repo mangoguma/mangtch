@@ -12,13 +12,13 @@ import SwiftUI
 let downloadSneakSize: CGSize = .init(width: 65, height: 1)
 let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
-let shadowPadding: CGFloat = 20
-let openNotchSize: CGSize = .init(width: 640, height: 190)
+let shadowPadding: CGFloat = LayoutTokens.shadowPadding
+let openNotchSize: CGSize = .init(width: LayoutTokens.openCanvasWidth, height: LayoutTokens.openCanvasHeight)
 /// Chrome above the widget content area inside the expanded panel —
 /// `Divider` (1pt) + `WidgetSwitcherBar` (22pt button + 3pt vertical
 /// padding × 2 = 28pt). Read by both `BoringViewModel.panelHeight` and
 /// `windowFrame(for:)` so the NSPanel window grows with the chrome.
-let expandedChromeTopHeight: CGFloat = 29
+let expandedChromeTopHeight: CGFloat = LayoutTokens.chromeTopHeight
 
 /// Window size assuming a zero-height notch strip (notched-display
 /// fallback). Concrete window creation should use `windowFrame(for:)`

@@ -27,10 +27,10 @@ struct ContentView: View {
     var hostWindow: NSWindow? = nil
 
     // MARK: - Panel corner radius (matches boring.notch defaults)
-    private let panelCornerRadius: CGFloat = 14
+    private let panelCornerRadius: CGFloat = LayoutTokens.panelCornerRadius
 
     // MARK: - Outer boring-notch concave radius
-    private var wingTopOuterRadius: CGFloat { vm.wingWidth > 0 ? 8 : 0 }
+    private var wingTopOuterRadius: CGFloat { vm.wingWidth > 0 ? LayoutTokens.wingTopOuterRadius : 0 }
 
     var body: some View {
         GeometryReader { _ in
@@ -201,7 +201,7 @@ struct ContentView: View {
     private var expandedContent: some View {
         VStack(spacing: 0) {
             Divider()
-                .padding(.horizontal, 20)
+                .padding(.horizontal, LayoutTokens.dividerHorizontalInset)
 
             WidgetSwitcherBar(
                 widgets: widgetRegistry.enabledWidgets,
@@ -234,8 +234,8 @@ struct ContentView: View {
             // does the same (`ContentView.swift:102` in the upstream repo).
             // Without this the widget view extends to `panelWidth` and gets
             // clipped by `ExpandedPanelShape`'s outer inset + bottom radius.
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+            .padding(.horizontal, LayoutTokens.panelHorizontalInset)
+            .padding(.bottom, LayoutTokens.panelBottomInset)
         }
     }
 

@@ -47,14 +47,14 @@ class BoringViewModel: NSObject, ObservableObject {
     /// Visual floor — wings need enough chrome on either side of the
     /// hardware notch to read as a connected panel rather than two
     /// disconnected pills with bare desktop showing through the gap.
-    static let minWingWidth: CGFloat = 130
+    static let minWingWidth: CGFloat = LayoutTokens.minWingWidth
     /// Default panel width when no widget declares one.
     static let defaultPanelWidth: CGFloat = 480
     /// Default panel height when no widget declares one.
     static let defaultPanelHeight: CGFloat = 260
     /// Absolute safety ceiling — keeps a runaway widget from pushing
     /// the panel off-screen on small displays.
-    static let absoluteMaxWingWidth: CGFloat = 480
+    static let absoluteMaxWingWidth: CGFloat = LayoutTokens.absoluteMaxWingWidth
 
     /// Wing width.
     ///

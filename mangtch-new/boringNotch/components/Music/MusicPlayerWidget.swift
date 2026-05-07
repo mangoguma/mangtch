@@ -92,7 +92,7 @@ struct MusicCompactInfo: View {
     @ObservedObject private var music = MusicManager.shared
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: LayoutTokens.compactRowSpacing) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(music.songTitle)
                     .font(.system(size: 11, weight: .semibold))
@@ -104,7 +104,7 @@ struct MusicCompactInfo: View {
                     .lineLimit(1)
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: LayoutTokens.compactTransportSpacing) {
                 controlButton(icon: "backward.fill")
                     .wingHitZone(.musicPrev)
                 controlButton(icon: music.isPlaying ? "pause.fill" : "play.fill")
@@ -113,14 +113,14 @@ struct MusicCompactInfo: View {
                     .wingHitZone(.musicNext)
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, LayoutTokens.compactHorizontalPadding)
     }
 
     private func controlButton(icon: String) -> some View {
         Image(systemName: icon)
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.primary)
-            .frame(width: 22, height: 22)
+            .frame(width: LayoutTokens.compactControlSize, height: LayoutTokens.compactControlSize)
     }
 }
 
@@ -141,7 +141,7 @@ struct MusicExpandedView: View {
     @Namespace private var albumArtNamespace
 
     var body: some View {
-        HStack(alignment: .top, spacing: 15) {
+        HStack(alignment: .top, spacing: LayoutTokens.musicLyricsGutter) {
             MusicPlayerView(albumArtNamespace: albumArtNamespace)
             LyricsPanel()
                 .frame(width: 215)
@@ -150,7 +150,7 @@ struct MusicExpandedView: View {
         // (NotchHomeView.swift:21 `padding(.all, 5)`). Without this the
         // LyricsPanel's visible box extends 5pt closer to the right chrome
         // than album art does to the left, producing asymmetric margins.
-        .padding(.trailing, 5)
+        .padding(.trailing, LayoutTokens.visualBalanceInset)
     }
 }
 
