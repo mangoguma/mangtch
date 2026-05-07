@@ -102,6 +102,12 @@ struct ContentView: View {
         }
         .frame(width: m.panelWidth)
         .frame(maxWidth: .infinity, alignment: .center)
+        // Animate the outer panel width with the same curve the inner
+        // wings use (`.frame(width: m.wingWidth) .animation(...)`). Without
+        // this the outer frame snaps while wings ease — the HStack briefly
+        // overflows or under-fills its container and the wings look like
+        // they're "filling from the outside" instead of widening evenly.
+        .animation(.easeInOut(duration: 0.22), value: m.panelWidth)
     }
 
     // MARK: - Wings Row
@@ -129,7 +135,6 @@ struct ContentView: View {
                     )
                 )
                 .clipped()
-                .animation(.easeInOut(duration: 0.22), value: m.wingWidth)
 
             // Notch bar (covers the hardware notch gap)
             Color.black
@@ -160,7 +165,6 @@ struct ContentView: View {
                     )
                 )
                 .clipped()
-                .animation(.easeInOut(duration: 0.22), value: m.wingWidth)
         }
         // Collect wing hit zones reported by child views.
         .onPreferenceChange(WingHitZonesKey.self) { zones in
@@ -172,14 +176,30 @@ struct ContentView: View {
 
     // MARK: - Wing Contents
 
-    /// Left wing: compact view of the currently-selected expanded widget.
+    /// Left wing: defaults to the Music album-art slot. Other widgets only
+    /// take over when they have live state worth surfacing — switching the
+    /// expanded panel to KBO/Timer alone does not swap the wing, which
+    /// avoids the structural-AnyView flicker (each widget's `makeCompactView`
+    /// returns an unrelated view tree, so SwiftUI can only crossfade or
+    /// snap; the takeover gate keeps both rare).
     @ViewBuilder
     private var leftWingContent: some View {
-        if let widget = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
-           widget.isEnabled {
-            widget.makeCompactView()
-        } else if let first = widgetRegistry.enabledWidgets.first {
-            first.makeCompactView()
+        if vm.currentExpandedWidgetID != "music-player",
+           let active = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
+           active.isEnabled,
+           hasWingContent(active) {
+            active.makeCompactView()
+                .transition(.opacity)
+        } else if let timerWidget = widgetRegistry.widget(for: "timer"),
+                  let timer = timerWidget.wrapped as? TimerWidget,
+                  timerWidget.isEnabled,
+                  (timer.viewModel.isActive || timer.viewModel.displayTime > 0) {
+            timerWidget.makeCompactView()
+                .transition(.opacity)
+        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
+                  musicWidget.isEnabled {
+            musicWidget.makeCompactView()
+                .transition(.opacity)
         } else {
             Color.clear.frame(width: 1)
         }
@@ -193,9 +213,30 @@ struct ContentView: View {
            let kboWidget = widgetRegistry.widget(for: "kbo")?.wrapped as? KBOWidget,
            kboWidget.viewModel.selectedGame?.isLive == true {
             KBORightWingContainer(viewModel: kboWidget.viewModel)
+                .transition(.opacity)
         } else {
             MusicCompactInfo()
+                .transition(.opacity)
         }
+    }
+
+    /// True when a widget has live state worth claiming the wing for.
+    /// Returning false keeps the wing on its Music default — the inverse
+    /// of "active widget = wing widget" prevents wing identity from
+    /// thrashing every time the expanded panel toggles.
+    private func hasWingContent(_ widget: AnyNotchWidget) -> Bool {
+        if let timer = widget.wrapped as? TimerWidget {
+            return timer.viewModel.isActive || timer.viewModel.displayTime > 0
+        }
+        if let kbo = widget.wrapped as? KBOWidget {
+            // Hold the wing while the user is browsing a non-today date —
+            // they're clearly in the KBO context and flipping wings to
+            // music under a KBO panel is jarring. Otherwise only claim
+            // for a pinned live game.
+            if !kbo.viewModel.isShowingToday { return true }
+            return kbo.viewModel.selectedGame?.isLive == true
+        }
+        return true
     }
 
     // MARK: - Expanded Content
