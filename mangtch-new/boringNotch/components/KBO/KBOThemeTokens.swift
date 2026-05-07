@@ -22,4 +22,13 @@ enum KBOThemeTokens {
     /// Right-wing compact hover background, expanded compact mode picker
     /// fill — driven by the system accent so users' taste carries through.
     static let accentSurface = Color.accentColor
+
+    /// Baseline luminance laid under each KBO row when the panel is in
+    /// the jet-black dark variant. Existing row tints (`primary.opacity(.04..)`)
+    /// were tuned for the upstream Mangtch DarkTheme panel
+    /// (`Color(white: 0.12)`); on a pitch-black panel the same tints
+    /// composite to too-dim values and rows lose their card-like read.
+    /// This baseline simulates that 12% panel underlay only behind the
+    /// rows, so the panel chrome stays merged with the menu bar.
+    static let rowBaselineTint = Color.white.opacity(0.06)
 }

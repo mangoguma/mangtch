@@ -1080,8 +1080,24 @@ struct Appearance: View {
     @State private var name: String = ""
     @State private var url: String = ""
     @State private var speed: CGFloat = 1.0
+    @Default(.panelAppearance) var panelAppearance
+
     var body: some View {
         Form {
+            Section {
+                Picker("Panel theme", selection: $panelAppearance) {
+                    ForEach(PanelAppearance.allCases) { option in
+                        Text(option.rawValue).tag(option)
+                    }
+                }
+            } header: {
+                Text("Panel")
+            } footer: {
+                Text("Light: slightly lifted dark gray. Dark: pitch black to merge with the menu bar. Text stays light in both.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Toggle("Always show tabs", isOn: $coordinator.alwaysShowTabs)
                 Defaults.Toggle(key: .settingsIconInNotch) {

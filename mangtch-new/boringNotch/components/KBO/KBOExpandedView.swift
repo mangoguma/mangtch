@@ -5,6 +5,7 @@ import AppKit
 /// is today; users can step backward/forward via header chevrons.
 struct KBOExpandedView: View {
     let viewModel: KBOViewModel
+    @EnvironmentObject private var vm: BoringViewModel
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -269,6 +270,15 @@ struct KBOExpandedView: View {
         .background {
             RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
                 .fill(rowFill(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive))
+                .background {
+                    // Lift rows off the jet-black panel in dark mode so
+                    // the existing tints (tuned for a `white: 0.12` panel
+                    // upstream) don't composite to near-invisibility.
+                    if vm.systemIsDark {
+                        RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
+                            .fill(KBOThemeTokens.rowBaselineTint)
+                    }
+                }
         }
         .overlay {
             RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)

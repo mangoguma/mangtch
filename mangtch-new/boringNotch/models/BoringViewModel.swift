@@ -82,6 +82,29 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var isCameraExpanded: Bool = false
     @Published var isRequestingAuthorization: Bool = false
 
+    // MARK: - System appearance
+    //
+    // Tracks the system Light/Dark mode independently of SwiftUI's
+    // forced `.preferredColorScheme(.dark)` on the panel — the panel's
+    // text always renders dark-themed (white on dark), but the panel
+    // *background shade* shifts (lighter dark in Light mode, pitch black
+    // in Dark mode). Read by `ContentView` to pick `ThemeTokens.panel/wing`
+    // variants.
+    @Published var systemIsDark: Bool = BoringViewModel.resolveAppearance()
+
+    /// Resolves the effective panel-shade boolean: user's `panelAppearance`
+    /// override wins over the live system Light/Dark mode.
+    private static func resolveAppearance() -> Bool {
+        switch Defaults[.panelAppearance] {
+        case .light: return false
+        case .dark: return true
+        case .system:
+            let match = NSApp.effectiveAppearance
+                .bestMatch(from: [.darkAqua, .vibrantDark, .aqua, .vibrantLight])
+            return match == .darkAqua || match == .vibrantDark
+        }
+    }
+
     deinit {
         destroy()
     }
@@ -109,6 +132,36 @@ class BoringViewModel: NSObject, ObservableObject {
 
         setupDetectorObserver()
         setupMetricsTracking()
+        setupAppearanceObserver()
+    }
+
+    private func setupAppearanceObserver() {
+        // AppleInterfaceThemeChangedNotification is the documented system
+        // hook for "user toggled Light/Dark in System Settings". Goes
+        // through DistributedNotificationCenter (cross-process), unlike
+        // the default centre.
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(appearanceDidChange),
+            name: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil
+        )
+        // User-facing override (`panelAppearance` in Settings) flips the
+        // resolved shade independently of the system mode.
+        Defaults.publisher(.panelAppearance)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.systemIsDark = BoringViewModel.resolveAppearance()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    @objc private func appearanceDidChange() {
+        let isDark = BoringViewModel.resolveAppearance()
+        Task { @MainActor [weak self] in
+            self?.systemIsDark = isDark
+        }
     }
 
     /// Wire the @Published triggers that influence `metrics`. Each emission

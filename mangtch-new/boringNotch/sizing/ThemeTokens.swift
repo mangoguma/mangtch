@@ -5,10 +5,31 @@ import SwiftUI
 /// step 7c.
 enum ThemeTokens {
     // MARK: Panel surface
-    /// Expanded panel background. Was `Color(white: 0.14)`.
-    static let panelBackground = Color(white: 0.14)
-    /// Wing fill (left/right wings + notch bar covering the hardware notch).
-    static let wingFill = Color.black
+    //
+    // Two variants: in **light** system appearance the panel sits slightly
+    // raised off pure black so the chrome reads as a soft dark surface
+    // against the bright menubar; in **dark** system appearance the panel
+    // is pitch black so it blends into the OLED-black menubar. Content
+    // text stays white in both modes (`.preferredColorScheme(.dark)` on
+    // `ContentView`), so the panel is always a dark "color scheme" — only
+    // the *shade* changes with system appearance.
+    static let panelBackgroundLight = Color(white: 0.22)
+    /// Pitch black so the panel merges with the OLED-black menu bar.
+    /// Row-tint compositing on this background is handled at the row
+    /// level (see `KBORowTokens.rowBaselineTint`), not here.
+    static let panelBackgroundDark = Color.black
+    static let wingFillLight = Color(white: 0.08)
+    /// Wings stay jet black so they merge with the OLED-black menu bar.
+    /// Wing surfaces don't carry row tints, so the composition issue that
+    /// drives `panelBackgroundDark` away from pure black doesn't apply.
+    static let wingFillDark = Color.black
+    /// Convenience selector for views that already know the system mode.
+    static func panelBackground(systemDark: Bool) -> Color {
+        systemDark ? panelBackgroundDark : panelBackgroundLight
+    }
+    static func wingFill(systemDark: Bool) -> Color {
+        systemDark ? wingFillDark : wingFillLight
+    }
 
     // MARK: Text
     static let textPrimary = Color.primary

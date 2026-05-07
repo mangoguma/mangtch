@@ -68,7 +68,24 @@ enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable 
     var id: String { self.rawValue }
 }
 
+/// User override for panel chrome shading. `.system` follows macOS
+/// Light/Dark; `.light` and `.dark` pin the panel regardless. Text always
+/// renders dark-themed (white on dark) — only the panel background shade
+/// changes (see `ThemeTokens.panelBackground(systemDark:)`).
+enum PanelAppearance: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case system = "Follow system"
+    case light = "Light"
+    case dark = "Dark"
+
+    var id: String { rawValue }
+}
+
 extension Defaults.Keys {
+    // MARK: Appearance
+    static let panelAppearance = Key<PanelAppearance>(
+        "panelAppearance", default: .system
+    )
+
     // MARK: General
     static let menubarIcon = Key<Bool>("menubarIcon", default: true)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)

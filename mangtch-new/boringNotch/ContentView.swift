@@ -51,6 +51,12 @@ struct ContentView: View {
         .environment(\.notchHostWindow, hostWindow)
         .background(dragDetector)
         .preferredColorScheme(.dark)
+        // 7d: clamp Dynamic Type so a user with xLarge accessibility
+        // settings doesn't break the notch's pixel-tuned compact wing.
+        // Pixel fonts in `TypographyTokens` ignore Dynamic Type today,
+        // but if a future widget uses `.body`/`.subheadline`, this cap
+        // keeps the panel layout intact.
+        .dynamicTypeSize(...DynamicTypeSize.large)
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
 
@@ -88,7 +94,7 @@ struct ContentView: View {
             wingsRow
             expandedContent
                 .frame(width: m.panelWidth, alignment: .top)
-                .background(ThemeTokens.panelBackground)
+                .background(ThemeTokens.panelBackground(systemDark: vm.systemIsDark))
                 .clipShape(
                     ExpandedPanelShape(
                         outerInset: wingTopOuterRadius,
@@ -126,7 +132,7 @@ struct ContentView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: m.wingWidth, height: vm.notchSize.height,
                        alignment: .leading)
-                .background(ThemeTokens.wingFill)
+                .background(ThemeTokens.wingFill(systemDark: vm.systemIsDark))
                 .clipShape(
                     WingShape(
                         side: .left,
@@ -137,7 +143,7 @@ struct ContentView: View {
                 .clipped()
 
             // Notch bar (covers the hardware notch gap)
-            ThemeTokens.wingFill
+            ThemeTokens.wingFill(systemDark: vm.systemIsDark)
                 .frame(width: vm.notchSize.width + 2,
                        height: vm.notchSize.height)
                 .clipShape(
@@ -156,7 +162,7 @@ struct ContentView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: m.wingWidth, height: vm.notchSize.height,
                        alignment: .trailing)
-                .background(ThemeTokens.wingFill)
+                .background(ThemeTokens.wingFill(systemDark: vm.systemIsDark))
                 .clipShape(
                     WingShape(
                         side: .right,
