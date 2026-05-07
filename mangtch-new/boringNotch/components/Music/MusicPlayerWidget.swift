@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Defaults
 
 /// Thin NotchWidget wrapper over boring.notch's existing MusicManager.
 /// Compact views read MusicManager.shared directly; expanded view reuses
@@ -127,11 +128,138 @@ struct MusicCompactInfo: View {
 
 /// Hosts MusicPlayerView which requires a matched-geometry Namespace.
 /// The namespace is owned here so it lives for the widget's lifetime.
+///
+/// Layout mirrors boring.notch's `NotchHomeView.mainContent` —
+/// `MusicPlayerView` on the left, a fixed-width side slot on the right.
+/// Upstream fills that slot with `CalendarView`; we use it for synced
+/// lyrics instead, restoring the Mangtch-side lyrics panel and keeping
+/// album art at the boring.notch-native size (the HStack-height-sized
+/// album square only behaves correctly when something else owns the
+/// right portion of the panel).
 struct MusicExpandedView: View {
     @EnvironmentObject var vm: BoringViewModel
     @Namespace private var albumArtNamespace
 
     var body: some View {
-        MusicPlayerView(albumArtNamespace: albumArtNamespace)
+        HStack(alignment: .top, spacing: 15) {
+            MusicPlayerView(albumArtNamespace: albumArtNamespace)
+            LyricsPanel()
+                .frame(width: 215)
+        }
+    }
+}
+
+// MARK: - Lyrics Panel
+//
+// Inlined here (rather than a standalone file) because the Xcode project
+// uses a hand-maintained source list — this directory is *not* a
+// `PBXFileSystemSynchronizedRootGroup`, so a new .swift file silently
+// drops out of the build target. Adding to MusicPlayerWidget.swift keeps
+// the file count unchanged and the pbxproj untouched.
+
+/// Right-side panel of the expanded music view. Mirrors boring.notch's
+/// CalendarView slot (`NotchHomeView.swift:447` upstream) so MusicPlayerView
+/// keeps its native ~half-panel width and album art doesn't balloon to fill
+/// chrome. Reads `MusicManager.shared.syncedLyrics` directly — fetching
+/// lives in MusicManager.fetchLyrics, so this view is purely presentation.
+struct LyricsPanel: View {
+    @ObservedObject private var music = MusicManager.shared
+
+    var body: some View {
+        Group {
+            if !Defaults[.enableLyrics] {
+                placeholder("Lyrics disabled")
+            } else if music.isFetchingLyrics {
+                placeholder("Loading lyrics…")
+            } else if !music.syncedLyrics.isEmpty {
+                syncedView(lines: music.syncedLyrics)
+            } else if !music.currentLyrics
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                plainView(text: music.currentLyrics)
+            } else {
+                placeholder("No lyrics found")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+    }
+
+    @ViewBuilder
+    private func placeholder(_ label: String) -> some View {
+        Text(label)
+            .font(.system(size: 10))
+            .foregroundStyle(.secondary.opacity(0.6))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func plainView(text: String) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func syncedView(lines: [(time: Double, text: String)]) -> some View {
+        // Re-tick at ~4Hz while playing — same cadence the inline lyric
+        // line in MusicControlsView uses, so highlights stay in sync
+        // without spinning a Timer.
+        TimelineView(.animation(minimumInterval: music.isPlaying ? 0.25 : nil)) { timeline in
+            let elapsed = currentElapsed(at: timeline.date)
+            let activeIdx = currentIndex(for: elapsed, in: lines) ?? -1
+            let highlight = Color(nsColor: music.avgColor)
+                .ensureMinimumBrightness(factor: 0.6)
+
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(lines.enumerated()), id: \.offset) { idx, line in
+                            Text(line.text.isEmpty ? "♪" : line.text)
+                                .font(.system(size: 11,
+                                              weight: idx == activeIdx ? .semibold : .regular))
+                                .foregroundStyle(idx == activeIdx
+                                    ? highlight
+                                    : .secondary.opacity(0.55))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .id(idx)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .onChange(of: activeIdx) { _, newIdx in
+                    guard newIdx >= 0 else { return }
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo(newIdx, anchor: .center)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Mirrors the elapsed-time math in `MusicControlsView.songInfo` so the
+    /// active-line highlight tracks playback even while paused/seeking.
+    private func currentElapsed(at date: Date) -> Double {
+        guard music.isPlaying else { return music.elapsedTime }
+        let delta = date.timeIntervalSince(music.timestampDate)
+        let progressed = music.elapsedTime + (delta * music.playbackRate)
+        return min(max(progressed, 0), music.songDuration)
+    }
+
+    private func currentIndex(for time: TimeInterval,
+                              in lines: [(time: Double, text: String)]) -> Int? {
+        var lo = 0, hi = lines.count - 1, idx = -1
+        while lo <= hi {
+            let mid = (lo + hi) / 2
+            if lines[mid].time <= time { idx = mid; lo = mid + 1 } else { hi = mid - 1 }
+        }
+        return idx >= 0 ? idx : nil
     }
 }
