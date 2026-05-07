@@ -1,6 +1,6 @@
 # mangtch-new — Handoff
 
-> Status (2026-05-08, branch `mangtch-new-wip`, tip `6ce8f7b`): phases 1–7 complete. Builds + runs as a `.nonactivatingPanel` accessory app. Wing/panel sizing on widget-declared `widthRange`/`heightRange` contract (§6). Visual token system (`ThemeTokens` / `TypographyTokens` / per-widget `*ThemeTokens`) covers chrome + Music/KBO/Timer. Adaptive panel shading + `Defaults[.panelAppearance]` setting. Phase 8 (Width contract closure) and 9 (multi-slot wing) are next; see `PLAN-roadmap-7-to-10.md`.
+> Status (2026-05-08, branch `mangtch-new-wip`, tip `2d4dfb1`): phases 1–8 complete. Builds + runs as a `.nonactivatingPanel` accessory app. Wing/panel sizing on widget-declared `widthRange`/`heightRange` contract — width is now state-aware (`.closed` → `ideal`, `.open` → `max`) and the NSPanel frame tracks `metrics.panelWidth` with NSAnimation/SwiftUI bezier sync. KBO + Music widthRanges are content-driven again (Timer keeps `.fixed(640)`). Visual token system (`ThemeTokens` / `TypographyTokens` / per-widget `*ThemeTokens`) covers chrome + Music/KBO/Timer. Adaptive panel shading + `Defaults[.panelAppearance]` setting. Phase 9 (multi-slot wing) is next — blocked on three user decisions; see `PLAN-roadmap-7-to-10.md §5.2`.
 
 `mangtch-new/` is a fork of `boring.notch/` (open-source upstream) with non-product features stripped and Mangtch's widget machinery + KBO/Timer/Music widgets grafted in.
 
@@ -135,14 +135,15 @@ The full original plan lives at `/Users/sarang/.claude/plans/boring-notch-dreamy
 
 ## 5. Known issues
 
-### ✅ Wing/panel sizing — resolved (Phase 5d)
+### ✅ Wing/panel sizing — resolved (Phase 5d → 8)
 
-Wing sizing is content-driven via `PanelLayoutMetrics.resolve(widget:notchSize:state:)`. The original mis-sizing (open() swapping notchSize, GestureHandler using ballooned notchSize for hover math) was fixed in Phase 5a; wing-swap flicker was killed by stable-mount of wing trees in Phase 5d. Width is currently fixed at 640 — see PLAN-content-driven-sizing.md retrospective. Dynamic width re-attempt is Phase 7+.
+Wing sizing is content-driven via `PanelLayoutMetrics.resolve(widget:notchSize:state:)`. The original mis-sizing (open() swapping notchSize, GestureHandler using ballooned notchSize for hover math) was fixed in Phase 5a; wing-swap flicker was killed by stable-mount of wing trees in Phase 5d. The phase-5b 640pt width lock was lifted in Phase 8: width is again content-driven and now state-aware (`.closed` → `widthRange.ideal`, `.open` → `widthRange.max`). KBO computes its range from cached pitcher names + linescore grid; Music declares `WidthRange(380, 480, 640)` so collapsed wings sit at 480 and the expanded canvas snaps to 640.
 
 Architecture summary:
 - `Widgets/NotchWidget.swift` — protocol declares `widthRange` / `heightRange` triples.
-- `sizing/PanelLayoutMetrics.swift` — single resolver. Pure function, no measurement pass.
-- `models/BoringViewModel.swift` — exposes `metrics` (computed) + `publishedMetrics` (Combine mirror via `recomputeMetrics()` + `withObservationTracking` so `@Observable` widget state re-fires).
+- `sizing/PanelLayoutMetrics.swift` — single resolver. Pure function, no measurement pass. **State-aware width** since 8c: closed = ideal, open = max (both clamped into `[min, max]`).
+- `components/Notch/BoringNotchWindow.swift` — `resizeWindow` drives both width and height off `metrics`. NSAnimationContext uses the explicit SwiftUI bezier (`CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1.0)`) for 0.22s — matching `ContentView`'s `.animation(.easeInOut(duration: 0.22), value: m.panelWidth)` so the NSPanel frame and the SwiftUI wing chrome ease in lockstep.
+- `models/BoringViewModel.swift` — exposes `metrics` (computed) + `publishedMetrics` (Combine mirror via `recomputeMetrics()` + `withObservationTracking` so `@Observable` widget state re-fires). `setupMetricsTracking` includes `$notchState` so state-aware width re-resolves on open/close.
 - `ContentView.swift` — reads `vm.metrics.{wingWidth, panelWidth}` directly; animations drive off `panelWidth` value change.
 - Wing tree stability: ContentView mounts wing subtrees with stable identity so widget swaps don't churn AppKit views.
 
@@ -192,14 +193,20 @@ When `SUFeedURL` was deleted from Info.plist, `SUPublicEDKey` went with it. If w
 
 ## 8. Recommended next steps (priority order)
 
-Phases 1–7 complete (base `89b188a` → tip `6ce8f7b`, all on `mangtch-new-wip`). See `PLAN-roadmap-7-to-10.md §12` for the phase 7 retrospective and `§4–§5` for the phase 8/9 specs that are still in scope.
+Phases 1–8 complete (base `89b188a` → tip `2d4dfb1`, all on `mangtch-new-wip`). See `PLAN-roadmap-7-to-10.md §12` (phase 7 retro) and `§13` (phase 8 retro). `§5` (phase 9) and `§6` (phase 10) are still in scope.
 
-1. **Phase 8 — Width contract closure** (~6-8h). NSAnimation ↔ SwiftUI ease sync (or option B: window jumps instant, SwiftUI eases content). Restore content-driven widthRange for KBO + Music. See roadmap §4.
-2. **Phase 9 — Multi-slot wing** (~6-8h). Independent left/right active widget per `BoringViewModel.{leftActiveWidgetID, rightActiveWidgetID}`. **Blocked on three user decisions** (roadmap §5.2): per-wing active widget UI location, default behaviour, conflict resolution. Don't start without these.
-3. **Phase 10a — Widget contributor guide** (docs only, ~1-2h). `docs/ADDING_A_WIDGET.md` + Widget template. Cheapest sub-PR.
-4. Visually reverify wing/panel sizing per user's display setup.
-5. Smoke test the user checklist (`/Users/sarang/.claude/plans/boring-notch-dreamy-dragonfly.md` § Verification).
-6. **`mediaremote-adapter/` is in use** — `NowPlayingController.swift:193` and `MediaChecker.swift:20` reference it at runtime. Do not delete.
+1. **Phase 9 — Multi-slot wing** (~6-8h). Independent left/right active widget per `BoringViewModel.{leftActiveWidgetID, rightActiveWidgetID}`. **Blocked on three user decisions** (roadmap §5.2): per-wing active widget UI location, default behaviour, conflict resolution. Don't start without these.
+2. **Phase 10a — Widget contributor guide** (docs only, ~1-2h). `docs/ADDING_A_WIDGET.md` + Widget template. Cheapest sub-PR.
+3. Smoke test the user checklist (`/Users/sarang/.claude/plans/boring-notch-dreamy-dragonfly.md` § Verification).
+4. **`mediaremote-adapter/` is in use** — `NowPlayingController.swift:193` and `MediaChecker.swift:20` reference it at runtime. Do not delete.
+
+### Phase 8 deliverables already in tree (don't re-do)
+
+- `components/Notch/BoringNotchWindow.swift::resizeWindow` — width unlocked, NSAnimationContext uses `CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1.0)` (SwiftUI `easeInOut` bezier)
+- `sizing/PanelLayoutMetrics.swift::resolve` — state-aware width: closed → `widthRange.ideal`, open → `widthRange.max`
+- `components/KBO/KBOWidget.swift::widthRange` — content-driven (cached pitcher names + linescore grid), capped at `LayoutTokens.panelMaxWidth=640`
+- `components/Music/MusicPlayerWidget.swift::widthRange` — `WidthRange(380, 480, 640)`; closed = compact 480, open = canvas 640
+- `components/Music/MusicLayoutTokens.swift::compactWidth` (480) + `compactMinWidth` (380)
 
 ### Phase 7 deliverables already in tree (don't re-do)
 

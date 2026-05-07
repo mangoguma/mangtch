@@ -574,3 +574,63 @@ $ grep -c "ThemeTokens\.\|TypographyTokens\.\|KBOThemeTokens\.\|MusicThemeTokens
 - 단계 7 의 시각 토큰 시스템이 정착했으니 새 view 추가 시 무조건 `*Tokens` 경유. 매직 색/폰트 다시 추가하지 말 것
 - 단계 9 좌/우 wing 독립 active widget 작업 시 §5.2 의 사용자 결정 게이트 3개 (위치 UI / default / 충돌) 먼저 확정
 
+---
+
+## 13. 단계 8 회고 (2026-05-08 완료)
+
+base = `c572177` (단계 7 종료) → 단계 8 종료 = `2d4dfb1` (3 커밋, 모두 `mangtch-new-wip`).
+
+### 13.1 들어간 커밋
+
+```
+7068dac fix(mangtch-new): match NSAnimation curve to SwiftUI ease for width sync (8a)
+91cacec feat(mangtch-new): KBO content-driven widthRange restored (8b)
+2d4dfb1 feat(mangtch-new): Music widthRange tracks compact/expanded state (8c)
+```
+
+### 13.2 In-spec 산출
+
+- `BoringNotchWindow.resizeWindow` — width 잠금 해제 (`metrics.panelWidth` 추종) + `CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1.0)` 명시 베지어 (SwiftUI `easeInOut` 곡선과 일치)
+- `KBOWidget.widthRange` — Mangtch 레퍼런스 산식 포팅. starter slot (NSFont 측정) + 닫힌 row layout / 펼친 linescore grid 두 모드. `LayoutTokens.panelMaxWidth = 640` 캡
+- `KBOWidget.expandedStarterSlotWidth` / `inlineStarterSlotWidth` — 실측 기반 starter slot 계산
+- `PanelLayoutMetrics.resolve` — state-aware. closed → `ideal`, open → `max`
+- `MusicPlayerWidget.widthRange` — `WidthRange(380, 480, 640)`. 닫힘 = compactWidth 480, 펼침 = expandedWidth 640
+- `MusicLayoutTokens.compactWidth` (480) + `compactMinWidth` (380) 신설
+
+### 13.3 설계 결정 — 옵션 A 채택
+
+플랜 §4.4 가 옵션 A (NSAnimationContext 명시 + matching curve) / 옵션 B (window 즉시 jump + SwiftUI ease) / 옵션 C (window 1회 결정) 중 추천한 옵션 A 를 채택. 핵심:
+
+- CoreAnimation `.easeInEaseOut` 와 SwiftUI `.easeInOut` 은 **거의** 같지만 정확히 같지는 않음 → 실수로 wobble 재발 가능
+- `CAMediaTimingFunction(controlPoints: 0.42, 0, 0.58, 1.0)` 이 SwiftUI `easeInOut` 베지어와 정확히 일치
+- `ctx.allowsImplicitAnimation = true` 는 유지 — `setFrame:display:animate:` 가 implicit animation 안에서 작동하도록
+
+### 13.4 Out-of-spec 의도적 잔여
+
+- Timer 위젯은 `WidthRange.fixed(LayoutTokens.panelMaxWidth)` 그대로. 단계 8 spec 에 없었음. Timer 콘텐츠가 폭 가변 드라이버가 없는 (mode picker 고정 폭) 상태라 fixed 유지가 합리적
+- Music 가변 폭은 트랙 텍스트 실측이 아닌 고정 480pt — Mangtch 레퍼런스도 `preferredPanelWidth: 480` 고정. 단계 8c spec 의 "트랙 텍스트 기반" 은 §4.6 의 한 옵션이었고, 더 단순한 옵션 (고정 compactWidth) 채택
+- 자가검증 grep `WidthRange.fixed` 잔재: Timer + MusicLayoutTokens.expandedWidth 사용처 + Music heightRange = 3건. 플랜 §9 기준은 "Music 만 fixed" 였는데 Timer 도 fixed → 4건 이상. 의도적 잔여로 판단
+
+### 13.5 자가검증 결과
+
+```bash
+$ grep -rn "WidthRange.fixed\|\.fixed(" mangtch-new/boringNotch --include="*.swift" \
+    | grep "WidthRange\|HeightRange"
+# Timer widthRange (fixed 640), Music heightRange (fixed 190)
+# KBO + Music widthRange 모두 동적
+
+$ xcodebuild ... build 2>&1 | tail -3
+# ** BUILD SUCCEEDED **
+```
+
+수동 시각 검증 (사용자 확인):
+- 위젯 전환 (Music ↔ KBO ↔ Timer) wing 가장자리 wobble 없음
+- KBO 게임 수 / linescore 토글 시 폭 ease
+- Music 펼침 / 닫힘 시 wing 폭 480 ↔ 640 ease
+
+### 13.6 단계 9 시작 시 주의
+
+- `PanelLayoutMetrics.resolve` 가 state-aware 가 됐으므로, 단계 9 의 좌/우 wing 독립 active widget 도입 시 좌/우 각각의 widthRange 합산 / 충돌 정책 필요 (§5.2 결정 게이트 1, 3)
+- 단계 8 의 NSAnimation 베지어 sync 는 윈도우 단일 frame 변화에 한정. 단계 9 가 좌/우 wing 비대칭으로 동시에 변화하면 동일 곡선 + 동일 duration 가정이 깨질 수 있음 — 검증 필요
+- KBO content-driven width 는 `viewModel.startingPitchers` / `viewingLinescore` 의존. 단계 9 에서 KBO 가 wing 한쪽만 점유하는 case (wing claim 정책) 도입 시 widthRange 산식 분기 필요
+
