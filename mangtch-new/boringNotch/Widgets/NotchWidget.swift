@@ -8,6 +8,26 @@ enum WidgetPosition: String, CaseIterable, Codable {
     case center
 }
 
+// MARK: - Width / Height Ranges
+
+/// Closed-state preferred panel width range. `.open` is canvas-fixed and
+/// ignores this — see `PanelLayoutMetrics.resolve`.
+struct WidthRange {
+    let min: CGFloat        // 절대 최소 (그 이하는 콘텐츠가 깨짐)
+    let ideal: CGFloat      // 기본 폭
+    let max: CGFloat        // 그 이상은 chrome 낭비
+
+    static let `default` = WidthRange(min: 320, ideal: 480, max: 640)
+}
+
+struct HeightRange {
+    let min: CGFloat
+    let ideal: CGFloat
+    let max: CGFloat
+
+    static let `default` = HeightRange(min: 180, ideal: 260, max: 400)
+}
+
 // MARK: - Widget Protocol
 
 protocol NotchWidget: AnyObject, Identifiable where ID == String {
@@ -26,14 +46,13 @@ protocol NotchWidget: AnyObject, Identifiable where ID == String {
     /// Preferred position in the notch layout
     var preferredPosition: WidgetPosition { get }
 
-    /// Preferred panel width when this widget owns the expanded panel.
+    /// Closed-state width range. `.open` is canvas-fixed and ignores this.
     @MainActor
-    var preferredPanelWidth: CGFloat? { get }
+    var widthRange: WidthRange { get }
 
-    /// Preferred panel height when this widget owns the expanded panel.
-    /// `nil` falls back to the chrome's default (260pt).
+    /// Closed-state height range.
     @MainActor
-    var preferredPanelHeight: CGFloat? { get }
+    var heightRange: HeightRange { get }
 
     /// Compact view shown during hover state (wings). Should be <= 120pt wide.
     @MainActor
@@ -68,8 +87,8 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     private let _makeExpandedView: @MainActor () -> AnyView
     private let _activate: () -> Void
     private let _deactivate: () -> Void
-    private let _preferredPanelWidth: @MainActor () -> CGFloat?
-    private let _preferredPanelHeight: @MainActor () -> CGFloat?
+    private let _widthRange: @MainActor () -> WidthRange
+    private let _heightRange: @MainActor () -> HeightRange
 
     init(_ widget: some NotchWidget) {
         self.wrapped = widget
@@ -82,16 +101,16 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
         self._makeExpandedView = { widget.makeExpandedView() }
         self._activate = { widget.activate() }
         self._deactivate = { widget.deactivate() }
-        self._preferredPanelWidth = { widget.preferredPanelWidth }
-        self._preferredPanelHeight = { widget.preferredPanelHeight }
+        self._widthRange = { widget.widthRange }
+        self._heightRange = { widget.heightRange }
     }
 
-    var preferredPanelWidth: CGFloat? {
-        _preferredPanelWidth()
+    var widthRange: WidthRange {
+        _widthRange()
     }
 
-    var preferredPanelHeight: CGFloat? {
-        _preferredPanelHeight()
+    var heightRange: HeightRange {
+        _heightRange()
     }
 
     func makeCompactView() -> AnyView {
@@ -113,8 +132,8 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
 
 extension NotchWidget {
     @MainActor
-    var preferredPanelWidth: CGFloat? { nil }
+    var widthRange: WidthRange { .default }
 
     @MainActor
-    var preferredPanelHeight: CGFloat? { nil }
+    var heightRange: HeightRange { .default }
 }

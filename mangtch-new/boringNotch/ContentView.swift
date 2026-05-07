@@ -30,7 +30,7 @@ struct ContentView: View {
     private let panelCornerRadius: CGFloat = LayoutTokens.panelCornerRadius
 
     // MARK: - Outer boring-notch concave radius
-    private var wingTopOuterRadius: CGFloat { vm.wingWidth > 0 ? LayoutTokens.wingTopOuterRadius : 0 }
+    private var wingTopOuterRadius: CGFloat { vm.metrics.wingWidth > 0 ? LayoutTokens.wingTopOuterRadius : 0 }
 
     var body: some View {
         GeometryReader { _ in
@@ -83,10 +83,11 @@ struct ContentView: View {
 
     @ViewBuilder
     private var panelContent: some View {
+        let m = vm.metrics
         VStack(spacing: 0) {
             wingsRow
             expandedContent
-                .frame(width: vm.panelWidth, alignment: .top)
+                .frame(width: m.panelWidth, alignment: .top)
                 .background(Color(white: 0.14))
                 .clipShape(
                     ExpandedPanelShape(
@@ -94,12 +95,12 @@ struct ContentView: View {
                         bottomRadius: panelCornerRadius
                     )
                 )
-                .frame(height: vm.notchState == .open ? vm.panelHeight : 0, alignment: .top)
+                .frame(height: vm.notchState == .open ? m.totalHeight : 0, alignment: .top)
                 .clipped()
                 .allowsHitTesting(vm.notchState == .open)
                 .animation(.easeInOut(duration: 0.22), value: vm.notchState)
         }
-        .frame(width: vm.panelWidth)
+        .frame(width: m.panelWidth)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
@@ -107,7 +108,9 @@ struct ContentView: View {
 
     @ViewBuilder
     private var wingsRow: some View {
-        let wingBottomRadius: CGFloat = vm.wingsFlat ? 0 : panelCornerRadius
+        let m = vm.metrics
+        let wingsFlat = vm.notchState == .open
+        let wingBottomRadius: CGFloat = wingsFlat ? 0 : panelCornerRadius
         let wingTopOuterRadius = self.wingTopOuterRadius
 
         HStack(spacing: 0) {
@@ -115,7 +118,7 @@ struct ContentView: View {
             leftWingContent
                 .padding(.leading, wingTopOuterRadius)
                 .environment(\.colorScheme, .dark)
-                .frame(width: vm.wingWidth, height: vm.notchSize.height,
+                .frame(width: m.wingWidth, height: vm.notchSize.height,
                        alignment: .leading)
                 .background(Color.black)
                 .clipShape(
@@ -126,7 +129,7 @@ struct ContentView: View {
                     )
                 )
                 .clipped()
-                .animation(.easeInOut(duration: 0.22), value: vm.wingWidth)
+                .animation(.easeInOut(duration: 0.22), value: m.wingWidth)
 
             // Notch bar (covers the hardware notch gap)
             Color.black
@@ -135,8 +138,8 @@ struct ContentView: View {
                 .clipShape(
                     UnevenRoundedRectangle(
                         topLeadingRadius: 0,
-                        bottomLeadingRadius: vm.wingWidth > 0 ? 0 : panelCornerRadius,
-                        bottomTrailingRadius: vm.wingWidth > 0 ? 0 : panelCornerRadius,
+                        bottomLeadingRadius: m.wingWidth > 0 ? 0 : panelCornerRadius,
+                        bottomTrailingRadius: m.wingWidth > 0 ? 0 : panelCornerRadius,
                         topTrailingRadius: 0
                     )
                 )
@@ -146,7 +149,7 @@ struct ContentView: View {
             rightWingContent
                 .padding(.trailing, wingTopOuterRadius)
                 .environment(\.colorScheme, .dark)
-                .frame(width: vm.wingWidth, height: vm.notchSize.height,
+                .frame(width: m.wingWidth, height: vm.notchSize.height,
                        alignment: .trailing)
                 .background(Color.black)
                 .clipShape(
@@ -157,7 +160,7 @@ struct ContentView: View {
                     )
                 )
                 .clipped()
-                .animation(.easeInOut(duration: 0.22), value: vm.wingWidth)
+                .animation(.easeInOut(duration: 0.22), value: m.wingWidth)
         }
         // Collect wing hit zones reported by child views.
         .onPreferenceChange(WingHitZonesKey.self) { zones in

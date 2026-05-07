@@ -14,50 +14,53 @@ final class KBOWidget: NotchWidget {
     /// rows never truncate either pitcher or team name), open additionally
     /// factors in the inning grid. `viewingLinescore` and
     /// `startingPitchers` are both `@Observable`, BoringViewModel re-snaps
-    /// wing/panel via `panelModeWingWidth` whenever they change.
-    var preferredPanelWidth: CGFloat? {
+    /// wing/panel via `metrics` whenever they change.
+    var widthRange: WidthRange {
         // Row-edge slot hosts either the inline starter (non-live) or the
-        // live-state diamond/BSO cell (live). Width is the max of the
-        // widest cached pitcher-name slot and the 80pt the live cell
-        // wants, so swapping content between rows doesn't reflow.
+        // live-state diamond/BSO cell (live).
         let starterSlot = Self.inlineStarterSlotWidth(viewModel.startingPitchers)
         let rowSlot = max(80, starterSlot)
-        // Closed-row layout: 2x slot + score(64) + 2x team flex (logo 22
-        // + name ~58 + spacing) + statusChip(64) + outer paddings.
-        // Team-side natural width up to ~80pt covers every Korean team
-        // name comfortably.
         let teamSide: CGFloat = 80
         let closed = rowSlot * 2 + 64 + teamSide * 2 + 64
             + 10 * 5        // HStack(spacing: 10) between 6 children = 5 gaps
             + 28            // .padding(.horizontal, 14)
-        guard let line = viewModel.viewingLinescore else { return closed }
-
-        let innings = max(line.innings, 9)
-        let cellsWidth = CGFloat(innings + 4) * 22
-        let gridWidth = 44 + cellsWidth
-        let leftSlot = Self.expandedStarterSlotWidth(line.awayStartingPitcher)
-        let rightSlot = Self.expandedStarterSlotWidth(line.homeStartingPitcher)
-        let open = leftSlot + 8 + gridWidth + 8 + rightSlot + 16
-        return max(closed, open)
+        let ideal: CGFloat
+        if let line = viewModel.viewingLinescore {
+            let innings = max(line.innings, 9)
+            let cellsWidth = CGFloat(innings + 4) * 22
+            let gridWidth = 44 + cellsWidth
+            let leftSlot = Self.expandedStarterSlotWidth(line.awayStartingPitcher)
+            let rightSlot = Self.expandedStarterSlotWidth(line.homeStartingPitcher)
+            let open = leftSlot + 8 + gridWidth + 8 + rightSlot + 16
+            ideal = max(closed, open)
+        } else {
+            ideal = closed
+        }
+        return WidthRange(min: ideal * 0.8, ideal: ideal, max: LayoutTokens.openCanvasWidth)
     }
 
     /// Dynamic height — header (24pt) + N game rows (50pt each) + row
     /// gaps + outer vertical padding. When viewing a linescore, the
     /// selected game row replaces its inline form with the inning grid
     /// (taller). Empty-state collapses to a small fixed height.
-    var preferredPanelHeight: CGFloat? {
+    var heightRange: HeightRange {
         let header: CGFloat = 24
         let outerPadding: CGFloat = 16  // .padding(.vertical, 8) top+bottom
         let rowGap: CGFloat = 4
         let rowHeight: CGFloat = 50
         let linescoreHeight: CGFloat = 110
         let count = viewModel.games.count
-        guard count > 0 else { return header + outerPadding + 60 }
-        var rows = CGFloat(count) * rowHeight + CGFloat(max(count - 1, 0)) * rowGap
-        if viewModel.viewingLinescore != nil {
-            rows += linescoreHeight  // selected row grows for the inning grid
+        let ideal: CGFloat
+        if count > 0 {
+            var rows = CGFloat(count) * rowHeight + CGFloat(max(count - 1, 0)) * rowGap
+            if viewModel.viewingLinescore != nil {
+                rows += linescoreHeight
+            }
+            ideal = header + outerPadding + rows + 6
+        } else {
+            ideal = header + outerPadding + 60
         }
-        return header + outerPadding + rows + 6  // +6 for header→rows gap
+        return HeightRange(min: ideal * 0.8, ideal: ideal, max: ideal * 1.5)
     }
 
     /// Width needed to render the *expanded* starter slot ("선발" badge +

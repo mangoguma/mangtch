@@ -156,11 +156,12 @@ final class GestureHandler {
         )
 
         // Wider hover zone including wings.
-        let wingW = vm.wingWidth
+        let m = vm.metrics
+        let wingW = m.wingWidth
         // When open, hover zone must also cover the expanded panel body
         // so cursor moves / two-finger scroll into the panel don't trigger
         // close(). Panel height comes from the active widget's declaration.
-        let extraOpenHeight: CGFloat = vm.notchState == .open ? vm.panelHeight : 0
+        let extraOpenHeight: CGFloat = vm.notchState == .open ? m.totalHeight : 0
         let hoverZone = NSRect(
             x: notchZone.minX - wingW,
             y: notchZone.minY - 5 - extraOpenHeight,

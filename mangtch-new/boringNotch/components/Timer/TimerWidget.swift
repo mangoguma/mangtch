@@ -13,8 +13,8 @@ final class TimerWidget: NotchWidget {
     /// Static — Timer's compact wing is small (digit + small icon) and
     /// expanded view fits in a fixed 360x260 box (toggle + 90pt dial +
     /// numpad row).
-    var preferredPanelWidth: CGFloat? { 480 }
-    var preferredPanelHeight: CGFloat? { 260 }
+    var widthRange: WidthRange { WidthRange(min: 360, ideal: 480, max: LayoutTokens.openCanvasWidth) }
+    var heightRange: HeightRange { HeightRange(min: 220, ideal: 260, max: 320) }
 
     @MainActor
     func makeCompactView() -> AnyView {

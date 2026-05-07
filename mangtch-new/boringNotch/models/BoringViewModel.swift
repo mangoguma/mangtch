@@ -37,70 +37,19 @@ class BoringViewModel: NSObject, ObservableObject {
 
     // MARK: - Wing/panel size
     //
-    // Sizing contract: the active widget's `preferredPanelWidth` /
-    // `preferredPanelHeight` are the **only** signals chrome reads. No
-    // hidden measurement pass, no Combine snap. Widgets that need to
-    // grow with their content (long titles, dynamic row layouts) must
-    // recompute their preferred values themselves and surface them via
-    // these declarations — KBOWidget is the reference pattern.
+    // Sizing contract: the active widget's `widthRange` / `heightRange`
+    // declarations are the **only** signals chrome reads. Resolution lives
+    // in `PanelLayoutMetrics.resolve` — pure, state-driven. Read via
+    // `metrics` below.
 
-    /// Visual floor — wings need enough chrome on either side of the
-    /// hardware notch to read as a connected panel rather than two
-    /// disconnected pills with bare desktop showing through the gap.
-    static let minWingWidth: CGFloat = LayoutTokens.minWingWidth
-    /// Default panel width when no widget declares one.
-    static let defaultPanelWidth: CGFloat = 480
-    /// Default panel height when no widget declares one.
-    static let defaultPanelHeight: CGFloat = 260
-    /// Absolute safety ceiling — keeps a runaway widget from pushing
-    /// the panel off-screen on small displays.
-    static let absoluteMaxWingWidth: CGFloat = LayoutTokens.absoluteMaxWingWidth
-
-    /// Wing width.
-    ///
-    /// - **Open** (expanded panel visible): snap to boring.notch's native
-    ///   `openNotchSize.width` (640pt). The expanded views (`MusicPlayerView`,
-    ///   settings, etc.) are pixel-designed against this fixed width, so any
-    ///   narrower panel causes content to overflow chrome.
-    /// - **Closed/hover**: honor the active widget's `preferredPanelWidth`
-    ///   so compact wings size to their content (long song titles, dynamic
-    ///   KBO rows). This is the Mangtch-style content-driven sizing.
-    var wingWidth: CGFloat {
-        if notchState == .open {
-            let half = (openNotchSize.width - closedNotchSize.width) / 2
-            return min(max(half, Self.minWingWidth), Self.absoluteMaxWingWidth)
-        }
-        let preferred = WidgetRegistry.shared
-            .widget(for: currentExpandedWidgetID)?.preferredPanelWidth
-            ?? Self.defaultPanelWidth
-        let half = (preferred - closedNotchSize.width) / 2
-        return min(max(half, Self.minWingWidth), Self.absoluteMaxWingWidth)
+    /// Single resolver. State-driven (notchState), widget-driven for closed.
+    /// `.open` snaps to boring.notch's 640×190 canvas (widget ignored).
+    var metrics: PanelLayoutMetrics {
+        let widget = WidgetRegistry.shared.widget(for: currentExpandedWidgetID)
+        return PanelLayoutMetrics.resolve(widget: widget,
+                                          notchSize: notchSize,
+                                          state: notchState)
     }
-
-    /// Total panel width: notch bar + both wings.
-    var panelWidth: CGFloat { notchSize.width + wingWidth * 2 }
-
-    /// Expanded panel content height.
-    ///
-    /// - **Open**: `openNotchSize.height` (upstream's pixel-design canvas)
-    ///   + `expandedChromeTopHeight` (Divider + WidgetSwitcherBar — defined
-    ///   in `sizing/matters.swift` so the NSPanel window size agrees) so
-    ///   the widget content area equals the upstream-native 190pt after
-    ///   the tab bar / divider eat their share.
-    /// - **Closed**: honor the widget's preferred height (or default).
-    ///   Currently only used by `GestureHandler` hit-zone math; harmless to
-    ///   keep widget-driven here.
-    var panelHeight: CGFloat {
-        if notchState == .open {
-            return openNotchSize.height + expandedChromeTopHeight
-        }
-        return WidgetRegistry.shared
-            .widget(for: currentExpandedWidgetID)?.preferredPanelHeight
-            ?? Self.defaultPanelHeight
-    }
-
-    /// Whether wings should render flat (no bottom radius) — true while panel is open.
-    var wingsFlat: Bool { notchState == .open }
 
     @Published var dragDetectorTargeting: Bool = false
     @Published var generalDropTargeting: Bool = false

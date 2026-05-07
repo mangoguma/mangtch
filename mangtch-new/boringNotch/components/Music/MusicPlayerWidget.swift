@@ -15,35 +15,25 @@ final class MusicPlayerWidget: NotchWidget {
 
     /// Dynamic — sized to the current track's text so the right-wing
     /// title/artist never truncate. Mirrors KBOWidget's content-driven
-    /// approach. Layout breakdown for the right wing (`MusicCompactInfo`):
-    ///   textBlock = max(titleWidth, artistWidth)
-    ///   transport = 22*3 + 6*2  (three controls, two inter-button gaps)
-    ///   wingContent = textBlock + 10 + transport + 16 (outer HStack +
-    ///                 .padding(.horizontal, 8))
-    /// Total panel width = notchHole + wingContent * 2 (symmetric wings).
-    /// Floor uses a default-width track so wings don't degenerate when
-    /// no track is loaded.
-    var preferredPanelWidth: CGFloat? {
+    /// approach.
+    var widthRange: WidthRange {
         let music = MusicManager.shared
-        let title = music.songTitle
-        let artist = music.artistName
-        let titleW = Self.textWidth(title.isEmpty ? "Track Title" : title,
+        let titleW = Self.textWidth(music.songTitle.isEmpty ? "Track Title" : music.songTitle,
                                     size: 11, weight: .semibold)
-        let artistW = Self.textWidth(artist.isEmpty ? "Artist" : artist,
+        let artistW = Self.textWidth(music.artistName.isEmpty ? "Artist" : music.artistName,
                                      size: 10, weight: .regular)
         let textBlock = max(titleW, artistW)
-        let transport: CGFloat = 22 * 3 + 6 * 2
-        let wingContent = textBlock + 10 + transport + 16
-        // Notch width factored in by chrome; we just declare total panel
-        // width assuming a typical hole (~200pt). Chrome subtracts the
-        // actual hole and halves to derive wingWidth.
+        let transport = LayoutTokens.compactControlSize * 3 + LayoutTokens.compactTransportSpacing * 2
+        let wingContent = textBlock + LayoutTokens.compactRowSpacing + transport
+                        + LayoutTokens.compactHorizontalPadding * 2
         let notchHole: CGFloat = 200
-        return notchHole + wingContent * 2
+        let ideal = notchHole + wingContent * 2
+        return WidthRange(min: 360, ideal: ideal, max: LayoutTokens.openCanvasWidth)
     }
 
     /// Static — the expanded music UI (album art + title + progress)
     /// fits comfortably in 260pt. Album art square is sized off this.
-    var preferredPanelHeight: CGFloat? { 260 }
+    var heightRange: HeightRange { HeightRange(min: 220, ideal: 260, max: 320) }
 
     func makeCompactView() -> AnyView {
         AnyView(MusicCompactArtwork())

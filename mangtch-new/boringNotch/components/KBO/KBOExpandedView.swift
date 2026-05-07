@@ -545,7 +545,7 @@ struct KBOExpandedView: View {
             }
         }
         // Slot sizes to its actual content — the panel chrome's
-        // `preferredPanelWidth` derivation in `KBOWidget` measures the
+        // `widthRange` derivation in `KBOWidget` measures the
         // same name with the same font, so wing/panel widen to fit
         // exactly. No `lineLimit` (CLAUDE.md), no fixed slot width.
         .fixedSize(horizontal: true, vertical: false)
