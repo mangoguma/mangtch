@@ -44,31 +44,14 @@ struct PanelLayoutMetrics {
         )
     }
 
+    /// Convenience for the type-erased wrapper used by `WidgetRegistry`.
+    /// Delegates to the `any NotchWidget` overload via `.wrapped` so the
+    /// resolver body lives in exactly one place.
     @MainActor
     static func resolve(widget: AnyNotchWidget?,
                         notchSize: CGSize,
                         state: NotchState) -> PanelLayoutMetrics {
-        // Open: canvas snap (widget intentionally ignored)
-        let openWingW = clamp((LayoutTokens.openCanvasWidth - notchSize.width) / 2,
-                              min: LayoutTokens.minWingWidth,
-                              max: LayoutTokens.absoluteMaxWingWidth)
-        let openContentH = LayoutTokens.openCanvasHeight
-
-        let range = widget?.widthRange ?? .default
-        let closedWingW = clamp((range.ideal - notchSize.width) / 2,
-                                min: LayoutTokens.minWingWidth,
-                                max: LayoutTokens.absoluteMaxWingWidth)
-        let closedContentH = widget?.heightRange.ideal ?? HeightRange.default.ideal
-
-        let isOpen = (state == .open)
-        return PanelLayoutMetrics(
-            closedWidth: notchSize.width + closedWingW * 2,
-            openWidth: notchSize.width + openWingW * 2,
-            wingWidth: isOpen ? openWingW : closedWingW,
-            panelWidth: notchSize.width + (isOpen ? openWingW : closedWingW) * 2,
-            contentHeight: isOpen ? openContentH : closedContentH,
-            chromeHeight: LayoutTokens.chromeTopHeight
-        )
+        resolve(widget: widget?.wrapped, notchSize: notchSize, state: state)
     }
 
     private static func clamp(_ x: CGFloat, min lo: CGFloat, max hi: CGFloat) -> CGFloat {
