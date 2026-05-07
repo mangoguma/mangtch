@@ -35,6 +35,9 @@ struct SettingsView: View {
                 NavigationLink(value: "Media") {
                     Label("Media", systemImage: "play.laptopcomputer")
                 }
+                NavigationLink(value: "Widgets") {
+                    Label("Widgets", systemImage: "square.grid.2x2")
+                }
                 NavigationLink(value: "HUD") {
                     Label("HUDs", systemImage: "dial.medium.fill")
                 }
@@ -73,6 +76,8 @@ struct SettingsView: View {
                     Appearance()
                 case "Media":
                     Media()
+                case "Widgets":
+                    WidgetsSettings()
                 case "HUD":
                     HUD()
                 case "Battery":
@@ -661,6 +666,60 @@ struct Media: View {
         } else {
             return MediaControllerType.allCases
         }
+    }
+}
+
+struct WidgetsSettings: View {
+    @Bindable private var registry = WidgetRegistry.shared
+
+    var body: some View {
+        Form {
+            Section {
+                if registry.widgets.isEmpty {
+                    Text("No widgets registered.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    List {
+                        ForEach(registry.widgets, id: \.id) { widget in
+                            WidgetRow(widget: widget)
+                        }
+                        .onMove { from, to in
+                            registry.move(from: from, to: to)
+                        }
+                    }
+                    .frame(minHeight: 220)
+                }
+            } header: {
+                Text("Active Widgets")
+            } footer: {
+                Text("Drag to reorder. Toggle to show/hide a widget in the panel.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accentColor(.effectiveAccent)
+        .navigationTitle("Widgets")
+    }
+}
+
+private struct WidgetRow: View {
+    @ObservedObject var widget: AnyNotchWidget
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: widget.icon)
+                .frame(width: 22)
+                .foregroundStyle(.secondary)
+            Text(widget.displayName)
+            Spacer()
+            Toggle("", isOn: Binding(
+                get: { widget.isEnabled },
+                set: { WidgetRegistry.shared.setEnabled(widget.id, $0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+        }
+        .padding(.vertical, 2)
     }
 }
 

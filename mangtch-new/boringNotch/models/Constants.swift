@@ -74,7 +74,11 @@ extension Defaults.Keys {
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")
-    
+
+    // MARK: Widgets
+    static let widgetOrder = Key<[String]>("widgetOrder", default: [])
+    static let widgetEnabled = Key<[String: Bool]>("widgetEnabled", default: [:])
+
     // MARK: Behavior
     static let minimumHoverDuration = Key<TimeInterval>("minimumHoverDuration", default: 0.3)
     static let enableHaptics = Key<Bool>("enableHaptics", default: true)
