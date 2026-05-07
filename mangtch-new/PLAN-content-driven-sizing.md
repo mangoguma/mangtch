@@ -7,7 +7,7 @@
 
 ---
 
-## 진행 상태 (2026-05-07)
+## 진행 상태 (2026-05-07 update)
 
 `mangtch-new-wip` 위에 다음이 머지됨:
 
@@ -15,8 +15,46 @@
 |---|---|---|
 | **5a** sizing contract 콘텐츠 주도화 | ✅ done | `578d715` |
 | **5b** NSPanel resize 와이어링 | ⚠️ partial | `dad25a1` |
-| **5c** ScrollView fallback + 화면 안전 영역 | ⏳ not started | — |
-| **5d** wing 콘텐츠 swap 플리커 (신규) | ⏳ FE 인수 | `69cac3b` |
+| **5c** safeMax + KBO 행 bloat 수정 | ✅ done | `5d998c0` |
+| **5d** wing 콘텐츠 swap 플리커 → stable-mount | ✅ done | `4b104b9` |
+
+### 5d 확정 — stable-mount wing host (semantic slot 대안)
+
+플랜 §5d 권장이었던 "semantic slot 데이터 모델 리팩터" 대신 **stable-mount
+ZStack** 패턴 채택. 모든 위젯의 wing 트리(`AnyView?`)를 `AnyNotchWidget`이
+init 시점에 1회 빌드해서 캐시 → ContentView가 ZStack에 영구 마운트, opacity
++ env-게이트(`wingHitZoneEmissionEnabled`)로 활성 owner만 가시화/hit-zone emit.
+
+이유: KBO 라이브 패널의 BasesDiamond / 펄스 LIVE / hover-toggle / 마퀴 같은
+풍부한 SwiftUI 표현을 4-field descriptor로 압축하면 손실이 큼. 식별성 churn /
+PreferenceKey churn / 내부 state 리셋이라는 root cause 셋이 stable-mount
+하나로 해결됨. 컴팩트 뷰 5개(`MusicCompactArtwork`/`MusicCompactInfo`/
+`KBOCompactView`/`KBORightWingContainer`/`TimerCompactView`)는 무변경.
+
+`NotchWidget` 프로토콜에서 `makeCompactView()` 제거, `makeLeftWingView()` /
+`makeRightWingView() -> AnyView?` 추가 (default nil).
+
+### 5c 확정 — Color.clear bloat가 진짜 원인
+
+플랜 §6의 ScrollView fallback (`ViewThatFits` / `.fixedSize`)은 **회귀**.
+ViewThatFits가 자식 VStack에 컨테이너 height를 proposed로 내려보내며 한 행이
+spare를 흡수해 부풀어오름. revert.
+
+대신 `KBOExpandedView.gameRow`의 좌측 슬롯 `Color.clear` (live 행 전용,
+non-live는 `inlineStarterLabel`)가 height greedy라 panel spare를 다 빨아먹던
+잠재 버그 발견. 5b 이후 panel이 콘텐츠 주도로 변하며 spare가 생기자 노출됨.
+`Color.clear.frame(height: 0)`로 height 잠금 → 라이브 행이 비-라이브와 균일
+높이로 정착.
+
+heightRange safeMax cap (`screen 70%` / `700pt` 절대 ceiling)은 유지 —
+KBO 5경기/일 cap이라 no-op이지만 row-height 산식이 향후 drift할 때 panel이
+viewport 밖으로 자라는 걸 막음.
+
+> 아래 5b 미해결 / 5d 다음 착수자 / 5c ScrollView 후보 섹션은 **회고용
+> 보존**. 위 5c·5d 확정 박스가 실제 채택 결정. 새 작업자는 회고 섹션의
+> "큰 리팩터 vs 대안" 분석을 stable-mount 채택 이유 이해용으로만 참고.
+
+### 5b 미해결 (5d로 분리됨 — 위 5d 확정 박스 참조)
 
 ### 5b 실제 적용된 결정 (플랜과 차이)
 
