@@ -14,7 +14,35 @@ let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
 let shadowPadding: CGFloat = 20
 let openNotchSize: CGSize = .init(width: 640, height: 190)
-let windowSize: CGSize = .init(width: openNotchSize.width, height: openNotchSize.height + shadowPadding)
+/// Chrome above the widget content area inside the expanded panel —
+/// `Divider` (1pt) + `WidgetSwitcherBar` (22pt button + 3pt vertical
+/// padding × 2 = 28pt). Read by both `BoringViewModel.panelHeight` and
+/// `windowFrame(for:)` so the NSPanel window grows with the chrome.
+let expandedChromeTopHeight: CGFloat = 29
+
+/// Window size assuming a zero-height notch strip (notched-display
+/// fallback). Concrete window creation should use `windowFrame(for:)`
+/// to size against the actual `closedNotchSize.height` on the target
+/// screen — this constant exists only for compatibility with code
+/// paths that need a static size before a screen is known.
+let windowSize: CGSize = .init(width: openNotchSize.width,
+                               height: openNotchSize.height
+                                       + shadowPadding
+                                       + expandedChromeTopHeight)
+
+/// Window size that fits the notch strip + expanded panel + shadow on
+/// the given screen. The NSPanel must be tall enough to host
+/// `wingsRow` (closedNotchSize.height) + `expandedContent`
+/// (`openNotchSize.height + expandedChromeTopHeight`) + shadow padding;
+/// otherwise SwiftUI clips the bottom of the expanded panel.
+@MainActor func windowFrame(for screenUUID: String? = nil) -> CGSize {
+    let notchHeight = getClosedNotchSize(screenUUID: screenUUID).height
+    return .init(width: openNotchSize.width,
+                 height: notchHeight
+                         + openNotchSize.height
+                         + expandedChromeTopHeight
+                         + shadowPadding)
+}
 let cornerRadiusInsets: (opened: (top: CGFloat, bottom: CGFloat), closed: (top: CGFloat, bottom: CGFloat)) = (opened: (top: 19, bottom: 24), closed: (top: 6, bottom: 14))
 
 enum MusicPlayerImageSizes {

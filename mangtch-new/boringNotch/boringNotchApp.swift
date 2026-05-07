@@ -187,7 +187,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func createBoringNotchWindow(for screen: NSScreen, with viewModel: BoringViewModel) -> NSWindow {
-        let rect = NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height)
+        let frameSize = windowFrame(for: viewModel.screenUUID)
+        let rect = NSRect(x: 0, y: 0, width: frameSize.width, height: frameSize.height)
         let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
 
         let window = BoringNotchWindow(contentRect: rect, styleMask: styleMask, backing: .buffered, defer: false)

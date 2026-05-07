@@ -82,17 +82,17 @@ class BoringViewModel: NSObject, ObservableObject {
 
     /// Expanded panel content height.
     ///
-    /// - **Open**: snap to boring.notch's native `openNotchSize.height`
-    ///   (190pt). The expanded views are pixel-designed against this — in
-    ///   particular `MusicPlayerView` sizes the album art via
-    ///   `aspectRatio(1, contentMode: .fit)`, so a taller panel makes the
-    ///   art square balloon to the panel height and overflow horizontally.
+    /// - **Open**: `openNotchSize.height` (upstream's pixel-design canvas)
+    ///   + `expandedChromeTopHeight` (Divider + WidgetSwitcherBar — defined
+    ///   in `sizing/matters.swift` so the NSPanel window size agrees) so
+    ///   the widget content area equals the upstream-native 190pt after
+    ///   the tab bar / divider eat their share.
     /// - **Closed**: honor the widget's preferred height (or default).
     ///   Currently only used by `GestureHandler` hit-zone math; harmless to
     ///   keep widget-driven here.
     var panelHeight: CGFloat {
         if notchState == .open {
-            return openNotchSize.height
+            return openNotchSize.height + expandedChromeTopHeight
         }
         return WidgetRegistry.shared
             .widget(for: currentExpandedWidgetID)?.preferredPanelHeight

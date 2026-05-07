@@ -146,6 +146,11 @@ struct MusicExpandedView: View {
             LyricsPanel()
                 .frame(width: 215)
         }
+        // Match the 5pt inset that AlbumArtView applies on the left side
+        // (NotchHomeView.swift:21 `padding(.all, 5)`). Without this the
+        // LyricsPanel's visible box extends 5pt closer to the right chrome
+        // than album art does to the left, producing asymmetric margins.
+        .padding(.trailing, 5)
     }
 }
 
