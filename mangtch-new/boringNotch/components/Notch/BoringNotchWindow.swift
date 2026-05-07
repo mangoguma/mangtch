@@ -68,15 +68,14 @@ class BoringNotchWindow: NSPanel {
     /// Resize the panel window to fit the active widget's metrics, anchored
     /// to the top edge so the notch strip stays glued to the menu bar.
     ///
-    /// Width is locked to `LayoutTokens.panelMaxWidth` — the window stays
-    /// large enough to host any widget's panel and the actual wing/panel
-    /// width animation happens in SwiftUI (`.frame(width: m.wingWidth)`).
-    /// Mixing window-frame width animation with SwiftUI's wing-width
-    /// animation produced a "fills from the outside" wobble because the
-    /// two timing curves drift; locking width sidesteps that entirely.
-    /// Height does grow / shrink with content because KBO can exceed the
-    /// Music canvas (190pt) — there SwiftUI alone can't fix it without
-    /// the NSPanel growing.
+    /// Both width and height track `metrics`. To keep SwiftUI's
+    /// `.easeInOut(0.22)` wing/panel-width animation visually synced with
+    /// the NSWindow frame animation, we drive `NSAnimationContext` with the
+    /// exact bezier control points SwiftUI's `easeInOut` uses
+    /// (`(0.42, 0, 0.58, 1.0)`) for the same 0.22s duration. CoreAnimation's
+    /// named `.easeInEaseOut` is *almost* the same curve but not identical —
+    /// using the explicit control points eliminates the edge-wobble that
+    /// killed phase-5b's first attempt at content-driven width.
     @MainActor
     func resizeWindow(metrics: PanelLayoutMetrics,
                       notchHeight: CGFloat,
@@ -85,7 +84,7 @@ class BoringNotchWindow: NSPanel {
         let height: CGFloat = isOpen
             ? notchHeight + metrics.totalHeight + LayoutTokens.shadowPadding
             : notchHeight + LayoutTokens.shadowPadding
-        let width: CGFloat = LayoutTokens.panelMaxWidth
+        let width: CGFloat = metrics.panelWidth
 
         let anchorScreen = self.screen ?? NSScreen.main
         guard let screenFrame = anchorScreen?.frame else { return }
@@ -101,6 +100,9 @@ class BoringNotchWindow: NSPanel {
         if animated {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.22
+                ctx.timingFunction = CAMediaTimingFunction(
+                    controlPoints: 0.42, 0, 0.58, 1.0
+                )
                 ctx.allowsImplicitAnimation = true
                 self.animator().setFrame(newFrame, display: true)
             }
