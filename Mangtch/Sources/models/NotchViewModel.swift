@@ -96,7 +96,7 @@ final class NotchViewModel {
 
     // MARK: - Configuration
 
-    let maxExpandedHeight: CGFloat = 260
+    let maxExpandedHeight: CGFloat = 320
 
     /// Current target height for the expanded panel — base height plus
     /// whatever extra room the active widget asked for. Used by gesture

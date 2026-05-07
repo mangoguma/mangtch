@@ -18,6 +18,8 @@ struct KBOGame: Decodable, Identifiable, Equatable, Hashable {
     let statusInfo: String            // "경기취소" / "8회초" / etc.
     let cancel: Bool
     let suspended: Bool
+    let homeStarterName: String?
+    let awayStarterName: String?
 
     var homeEmblemURL: URL? { homeTeamEmblemUrl.flatMap(URL.init(string:)) }
     var awayEmblemURL: URL? { awayTeamEmblemUrl.flatMap(URL.init(string:)) }
