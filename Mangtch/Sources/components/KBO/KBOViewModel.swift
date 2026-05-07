@@ -639,6 +639,26 @@ final class KBOViewModel {
         // a flurry of low-importance pitches would re-evaluate every poll.
         lastSeenSeqno = fresh.last!.seqno
 
+        // Always apply the latest BSO snapshot immediately — even for
+        // low-importance plays (pitches) that don't enter the ticker
+        // queue. BSO dots must stay current regardless of ticker state.
+        if let lastSnapshot = fresh.last(where: { $0.liveSnapshot != nil })?.liveSnapshot,
+           let gameId = self.trackedGame?.gameId {
+            let current = self.liveStates[gameId]
+            self.liveStates[gameId] = KBOLinescore.LiveState(
+                balls: lastSnapshot.balls,
+                strikes: lastSnapshot.strikes,
+                outs: lastSnapshot.outs,
+                onFirst: lastSnapshot.onFirst,
+                onSecond: lastSnapshot.onSecond,
+                onThird: lastSnapshot.onThird,
+                batterName: current?.batterName,
+                batOrder: current?.batOrder,
+                pitcherName: current?.pitcherName,
+                attackingSide: lastSnapshot.attackingSide ?? current?.attackingSide
+            )
+        }
+
         // Immediately refetch to pick up BSO/score changes that arrived
         // with or just after this play. 2s cooldown to avoid spamming.
         if Date().timeIntervalSince(lastPlayRefetchTime) >= 2,
@@ -695,9 +715,24 @@ final class KBOViewModel {
                 }
                 // Sync BSO/bases with this play's snapshot so the
                 // visual update matches the ticker/TTS timing.
+                // Preserve pitcher/batter names from the current state
+                // since snapshots only carry BSO/bases (names need
+                // lineup lookup that only the main fetch does).
                 if let snapshot = play.liveSnapshot,
                    let gameId = self.trackedGame?.gameId {
-                    self.liveStates[gameId] = snapshot
+                    let current = self.liveStates[gameId]
+                    self.liveStates[gameId] = KBOLinescore.LiveState(
+                        balls: snapshot.balls,
+                        strikes: snapshot.strikes,
+                        outs: snapshot.outs,
+                        onFirst: snapshot.onFirst,
+                        onSecond: snapshot.onSecond,
+                        onThird: snapshot.onThird,
+                        batterName: current?.batterName,
+                        batOrder: current?.batOrder,
+                        pitcherName: current?.pitcherName,
+                        attackingSide: snapshot.attackingSide ?? current?.attackingSide
+                    )
                 }
                 try? await Task.sleep(for: Self.playDisplayInterval)
             }
