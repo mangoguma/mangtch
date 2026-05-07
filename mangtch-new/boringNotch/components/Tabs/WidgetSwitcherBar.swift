@@ -24,7 +24,7 @@ struct WidgetSwitcherBar: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(currentID == widget.id
-                                          ? Color.accentColor.opacity(0.25)
+                                          ? ThemeTokens.switcherSelectedFill
                                           : Color.clear)
                             )
                             .foregroundStyle(currentID == widget.id ? .primary : .secondary)

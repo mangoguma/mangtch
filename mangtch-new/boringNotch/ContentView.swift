@@ -88,7 +88,7 @@ struct ContentView: View {
             wingsRow
             expandedContent
                 .frame(width: m.panelWidth, alignment: .top)
-                .background(Color(white: 0.14))
+                .background(ThemeTokens.panelBackground)
                 .clipShape(
                     ExpandedPanelShape(
                         outerInset: wingTopOuterRadius,
@@ -126,7 +126,7 @@ struct ContentView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: m.wingWidth, height: vm.notchSize.height,
                        alignment: .leading)
-                .background(Color.black)
+                .background(ThemeTokens.wingFill)
                 .clipShape(
                     WingShape(
                         side: .left,
@@ -137,7 +137,7 @@ struct ContentView: View {
                 .clipped()
 
             // Notch bar (covers the hardware notch gap)
-            Color.black
+            ThemeTokens.wingFill
                 .frame(width: vm.notchSize.width + 2,
                        height: vm.notchSize.height)
                 .clipShape(
@@ -156,7 +156,7 @@ struct ContentView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: m.wingWidth, height: vm.notchSize.height,
                        alignment: .trailing)
-                .background(Color.black)
+                .background(ThemeTokens.wingFill)
                 .clipShape(
                     WingShape(
                         side: .right,
