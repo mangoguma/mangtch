@@ -159,6 +159,7 @@
 		FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002003FA002003FA002003 /* TimerViewModel.swift */; };
 		FA002004FA002004FA002004 /* TimerCompactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002005FA002005FA002005 /* TimerCompactView.swift */; };
 		FA002006FA002006FA002006 /* TimerExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002007FA002007FA002007 /* TimerExpandedView.swift */; };
+		FA002009FA002009FA002009 /* TimerLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002008FA002008FA002008 /* TimerLayoutTokens.swift */; };
 		FA003001FA003001FA003001 /* KBOWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003000FA003000FA003000 /* KBOWidget.swift */; };
 		FA003002FA003002FA003002 /* KBOViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003003FA003003FA003003 /* KBOViewModel.swift */; };
 		FA003004FA003004FA003004 /* KBOCompactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003005FA003005FA003005 /* KBOCompactView.swift */; };
@@ -348,6 +349,7 @@
 		FA002003FA002003FA002003 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
 		FA002005FA002005FA002005 /* TimerCompactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerCompactView.swift; sourceTree = "<group>"; };
 		FA002007FA002007FA002007 /* TimerExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerExpandedView.swift; sourceTree = "<group>"; };
+		FA002008FA002008FA002008 /* TimerLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerLayoutTokens.swift; sourceTree = "<group>"; };
 		FA003000FA003000FA003000 /* KBOWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOWidget.swift; sourceTree = "<group>"; };
 		FA003003FA003003FA003003 /* KBOViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOViewModel.swift; sourceTree = "<group>"; };
 		FA003005FA003005FA003005 /* KBOCompactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOCompactView.swift; sourceTree = "<group>"; };
@@ -853,6 +855,7 @@
 				FA002003FA002003FA002003 /* TimerViewModel.swift */,
 				FA002005FA002005FA002005 /* TimerCompactView.swift */,
 				FA002007FA002007FA002007 /* TimerExpandedView.swift */,
+				FA002008FA002008FA002008 /* TimerLayoutTokens.swift */,
 			);
 			path = Timer;
 			sourceTree = "<group>";
@@ -1161,6 +1164,7 @@
 				FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */,
 				FA002004FA002004FA002004 /* TimerCompactView.swift in Sources */,
 				FA002006FA002006FA002006 /* TimerExpandedView.swift in Sources */,
+				FA002009FA002009FA002009 /* TimerLayoutTokens.swift in Sources */,
 				FA003001FA003001FA003001 /* KBOWidget.swift in Sources */,
 				FA003002FA003002FA003002 /* KBOViewModel.swift in Sources */,
 				FA003004FA003004FA003004 /* KBOCompactView.swift in Sources */,

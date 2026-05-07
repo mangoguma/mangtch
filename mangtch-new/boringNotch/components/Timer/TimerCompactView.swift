@@ -4,17 +4,17 @@ struct TimerCompactView: View {
     let viewModel: TimerViewModel
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: TimerLayoutTokens.compactRowSpacing) {
             // Circular progress
             ZStack {
                 Circle()
-                    .stroke(Color.white.opacity(0.15), lineWidth: 2.5)
+                    .stroke(Color.white.opacity(0.15), lineWidth: TimerLayoutTokens.compactRingStroke)
 
                 Circle()
                     .trim(from: 0, to: viewModel.progress)
                     .stroke(
                         viewModel.stateColor,
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                        style: StrokeStyle(lineWidth: TimerLayoutTokens.compactRingStroke, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.25), value: viewModel.progress)
@@ -24,7 +24,8 @@ struct TimerCompactView: View {
                     .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(viewModel.stateColor)
             }
-            .frame(width: 18, height: 18)
+            .frame(width: TimerLayoutTokens.compactRingSize,
+                   height: TimerLayoutTokens.compactRingSize)
 
             // Time display
             if viewModel.isActive || viewModel.state == .finished {
@@ -42,8 +43,8 @@ struct TimerCompactView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
+        .padding(.horizontal, TimerLayoutTokens.compactHorizontalPadding)
+        .padding(.vertical, TimerLayoutTokens.compactVerticalPadding)
         .contentShape(Rectangle())
     }
 }

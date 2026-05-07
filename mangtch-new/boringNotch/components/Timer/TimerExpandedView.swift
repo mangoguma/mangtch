@@ -11,7 +11,7 @@ struct TimerExpandedView: View {
     private let trackColor: Color = Color(white: 0.28)
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: TimerLayoutTokens.expandedSpacing) {
             // Mode selector
             modePicker
 
@@ -21,8 +21,8 @@ struct TimerExpandedView: View {
             // Controls
             controlButtons
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, TimerLayoutTokens.expandedHorizontalPadding)
+        .padding(.vertical, TimerLayoutTokens.expandedVerticalPadding)
     }
 
     // MARK: - Mode Picker
@@ -37,8 +37,8 @@ struct TimerExpandedView: View {
                 }) {
                     Text(mode.rawValue)
                         .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, TimerLayoutTokens.modePillHorizontalPadding)
+                        .padding(.vertical, TimerLayoutTokens.modePillVerticalPadding)
                         .background(
                             viewModel.mode == mode
                                 ? accentColor.opacity(0.2)
@@ -61,13 +61,14 @@ struct TimerExpandedView: View {
     // MARK: - Time Display
 
     private var timeDisplay: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: TimerLayoutTokens.timeDisplaySpacing) {
             // Duration adjustment (countdown only, when idle)
             if viewModel.mode == .countdown && !viewModel.isActive && viewModel.state != .finished {
                 Button(action: { viewModel.adjustDuration(by: -60) }) {
                     Image(systemName: "minus")
                         .font(.system(size: 13, weight: .medium))
-                        .frame(width: 28, height: 28)
+                        .frame(width: TimerLayoutTokens.adjustButtonSize,
+                               height: TimerLayoutTokens.adjustButtonSize)
                         .background(backgroundSecondary.opacity(0.5))
                         .clipShape(Circle())
                 }
@@ -78,13 +79,13 @@ struct TimerExpandedView: View {
             // Progress ring + time
             ZStack {
                 Circle()
-                    .stroke(trackColor, lineWidth: 4)
+                    .stroke(trackColor, lineWidth: TimerLayoutTokens.progressRingStroke)
 
                 Circle()
                     .trim(from: 0, to: viewModel.progress)
                     .stroke(
                         viewModel.stateColor,
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                        style: StrokeStyle(lineWidth: TimerLayoutTokens.progressRingStroke, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.25), value: viewModel.progress)
@@ -96,14 +97,16 @@ struct TimerExpandedView: View {
                     .contentTransition(.numericText())
                     .animation(.linear(duration: 0.25), value: viewModel.formattedTime)
             }
-            .frame(width: 90, height: 90)
+            .frame(width: TimerLayoutTokens.progressRingSize,
+                   height: TimerLayoutTokens.progressRingSize)
 
             // Duration adjustment (countdown only, when idle)
             if viewModel.mode == .countdown && !viewModel.isActive && viewModel.state != .finished {
                 Button(action: { viewModel.adjustDuration(by: 60) }) {
                     Image(systemName: "plus")
                         .font(.system(size: 13, weight: .medium))
-                        .frame(width: 28, height: 28)
+                        .frame(width: TimerLayoutTokens.adjustButtonSize,
+                               height: TimerLayoutTokens.adjustButtonSize)
                         .background(backgroundSecondary.opacity(0.5))
                         .clipShape(Circle())
                 }
@@ -116,7 +119,7 @@ struct TimerExpandedView: View {
     // MARK: - Control Buttons
 
     private var controlButtons: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: TimerLayoutTokens.actionRowSpacing) {
             // Reset
             if viewModel.isActive || viewModel.state == .finished {
                 actionButton(
@@ -168,14 +171,14 @@ struct TimerExpandedView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: TimerLayoutTokens.actionButtonInternalSpacing) {
                 Image(systemName: icon)
                     .font(.system(size: 11, weight: .semibold))
                 Text(label)
                     .font(.system(size: 11, weight: .semibold))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
+            .padding(.horizontal, TimerLayoutTokens.actionButtonHorizontalPadding)
+            .padding(.vertical, TimerLayoutTokens.actionButtonVerticalPadding)
             .background(color.opacity(0.15))
             .foregroundStyle(color)
             .clipShape(Capsule())
