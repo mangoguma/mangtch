@@ -13,11 +13,12 @@ final class TimerWidget: NotchWidget {
     /// Static — Timer's compact wing is small (digit + small icon) and
     /// expanded view fits in a fixed 360x260 box (toggle + 90pt dial +
     /// numpad row).
-    var widthRange: WidthRange {
-        WidthRange(min: TimerLayoutTokens.panelMinWidth,
-                   ideal: TimerLayoutTokens.panelIdealWidth,
-                   max: LayoutTokens.panelMaxWidth)
-    }
+    /// Width is locked to the global panel canvas so switching widgets
+    /// never changes wing geometry — the asymmetric compact-view swap
+    /// (Music album art ↔ Timer digits ↔ KBO icon) would otherwise show
+    /// up as a wobble in the wing frame. Timer's expanded view fits well
+    /// inside the panel canvas.
+    var widthRange: WidthRange { .fixed(LayoutTokens.panelMaxWidth) }
     var heightRange: HeightRange {
         HeightRange(min: TimerLayoutTokens.panelMinHeight,
                     ideal: TimerLayoutTokens.panelIdealHeight,

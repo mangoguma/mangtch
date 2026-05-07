@@ -42,14 +42,24 @@ class BoringViewModel: NSObject, ObservableObject {
     // in `PanelLayoutMetrics.resolve` — pure, state-driven. Read via
     // `metrics` below.
 
-    /// Single resolver. State-driven (notchState), widget-driven for closed.
-    /// `.open` snaps to boring.notch's 640×190 canvas (widget ignored).
+    /// Single resolver. Widget-driven for both states; reads
+    /// `widthRange`/`heightRange` from the currently active widget.
+    @MainActor
     var metrics: PanelLayoutMetrics {
         let widget = WidgetRegistry.shared.widget(for: currentExpandedWidgetID)
         return PanelLayoutMetrics.resolve(widget: widget,
                                           notchSize: notchSize,
                                           state: notchState)
     }
+
+    /// Mirror of `metrics` published via Combine — observers (NSPanel
+    /// resize wiring in `boringNotchApp.swift`) react to changes here.
+    /// Triggered by:
+    ///   - @Published inputs (notchSize, notchState, currentExpandedWidgetID)
+    ///     via explicit Combine subscription
+    ///   - @Observable widget state (KBO games/linescore) via re-armed
+    ///     `withObservationTracking` recursion
+    @Published private(set) var publishedMetrics: PanelLayoutMetrics?
 
     @Published var dragDetectorTargeting: Bool = false
     @Published var generalDropTargeting: Bool = false
@@ -98,6 +108,37 @@ class BoringViewModel: NSObject, ObservableObject {
             .store(in: &cancellables)
 
         setupDetectorObserver()
+        setupMetricsTracking()
+    }
+
+    /// Wire the @Published triggers that influence `metrics`. Each emission
+    /// re-runs `recomputeMetrics`, which itself re-arms a
+    /// `withObservationTracking` closure so @Observable widget state changes
+    /// (KBO games/linescore/starters) also re-fire it.
+    private func setupMetricsTracking() {
+        Publishers.CombineLatest3($notchSize, $notchState, $currentExpandedWidgetID)
+            .sink { [weak self] _, _, _ in
+                Task { @MainActor [weak self] in
+                    self?.recomputeMetrics()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    @MainActor
+    private func recomputeMetrics() {
+        var resolved: PanelLayoutMetrics!
+        withObservationTracking {
+            resolved = self.metrics
+        } onChange: { [weak self] in
+            // Fired off the observation thread; bounce to main and re-arm.
+            Task { @MainActor [weak self] in
+                self?.recomputeMetrics()
+            }
+        }
+        if resolved != publishedMetrics {
+            publishedMetrics = resolved
+        }
     }
     
     private func setupDetectorObserver() {

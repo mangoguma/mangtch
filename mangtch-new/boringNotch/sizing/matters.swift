@@ -35,12 +35,12 @@ let windowSize: CGSize = .init(width: openNotchSize.width,
                                        + shadowPadding
                                        + expandedChromeTopHeight)
 
-/// Window size that fits the notch strip + expanded panel + shadow on
-/// the given screen. The NSPanel must be tall enough to host
-/// `wingsRow` (closedNotchSize.height) + `expandedContent`
-/// (`openNotchSize.height + expandedChromeTopHeight`) + shadow padding;
-/// otherwise SwiftUI clips the bottom of the expanded panel.
-@MainActor func windowFrame(for screenUUID: String? = nil) -> CGSize {
+/// Initial NSPanel frame, used at window creation before any
+/// `PanelLayoutMetrics` has been published. Sized against the
+/// `openNotchSize` canvas so Music (the default widget) renders correctly
+/// on first launch; subsequent metrics changes re-frame the window via
+/// `BoringNotchWindow.resizeWindow(metrics:notchHeight:isOpen:animated:)`.
+@MainActor func initialWindowFrame(for screenUUID: String? = nil) -> CGSize {
     let notchHeight = getClosedNotchSize(screenUUID: screenUUID).height
     return .init(width: openNotchSize.width,
                  height: notchHeight

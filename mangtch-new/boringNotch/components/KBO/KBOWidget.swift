@@ -9,51 +9,22 @@ final class KBOWidget: NotchWidget {
     let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
 
-    /// Panel width is content-driven in both closed and open modes:
-    /// closed grows with the widest cached starter name (so collapsed
-    /// rows never truncate either pitcher or team name), open additionally
-    /// factors in the inning grid. `viewingLinescore` and
-    /// `startingPitchers` are both `@Observable`, BoringViewModel re-snaps
-    /// wing/panel via `metrics` whenever they change.
-    var widthRange: WidthRange {
-        // Row-edge slot hosts either the inline starter (non-live) or the
-        // live-state diamond/BSO cell (live).
-        let starterSlot = Self.inlineStarterSlotWidth(viewModel.startingPitchers)
-        let rowSlot = max(KBOLayoutTokens.rowSlotMinWidth, starterSlot)
-        let teamSide = KBOLayoutTokens.teamSideWidth
-        let closed = rowSlot * 2
-            + KBOLayoutTokens.scoreColumnWidth
-            + teamSide * 2
-            + KBOLayoutTokens.statusChipWidth
-            + KBOLayoutTokens.panelChildSpacing * CGFloat(KBOLayoutTokens.panelChildGapCount)
-            + KBOLayoutTokens.panelOuterHorizontalPadding
-        let ideal: CGFloat
-        if let line = viewModel.viewingLinescore {
-            let innings = max(line.innings, 9)
-            let cellsWidth = CGFloat(innings + KBOLayoutTokens.linescoreInningExtraColumns)
-                * KBOLayoutTokens.linescoreTotalsCellWidth
-            let gridWidth = KBOLayoutTokens.linescoreTeamLabelWidth + cellsWidth
-            let leftSlot = Self.expandedStarterSlotWidth(line.awayStartingPitcher)
-            let rightSlot = Self.expandedStarterSlotWidth(line.homeStartingPitcher)
-            let open = leftSlot
-                + KBOLayoutTokens.openGridGutter
-                + gridWidth
-                + KBOLayoutTokens.openGridGutter
-                + rightSlot
-                + KBOLayoutTokens.openOuterPadding
-            ideal = max(closed, open)
-        } else {
-            ideal = closed
-        }
-        return WidthRange(min: ideal * KBOLayoutTokens.panelMinScale,
-                          ideal: ideal,
-                          max: LayoutTokens.panelMaxWidth)
-    }
+    /// Width is locked to the global panel canvas so switching widgets
+    /// (Music ↔ KBO ↔ Timer) never resizes the wings — the compact-view
+    /// swap would otherwise show as a wobble because each widget returns
+    /// a structurally different `makeCompactView()`. KBO's expanded
+    /// content (5 game rows + linescore grid) is sized to fit this width;
+    /// the row internals scale to the available `panelWidth`, not the
+    /// other way around.
+    var widthRange: WidthRange { .fixed(LayoutTokens.panelMaxWidth) }
 
     /// Dynamic height — header (24pt) + N game rows (50pt each) + row
     /// gaps + outer vertical padding. When viewing a linescore, the
     /// selected game row replaces its inline form with the inning grid
-    /// (taller). Empty-state collapses to a small fixed height.
+    /// (taller). Empty / loading / error states share a fixed minHeight
+    /// box (`emptyStateMinHeight`) — the formula must reserve space for
+    /// header + body gutter + that box, otherwise SwiftUI clips the
+    /// "경기가 없어요" line.
     var heightRange: HeightRange {
         let header = KBOLayoutTokens.panelHeaderHeight
         let outerPadding = KBOLayoutTokens.panelOuterVerticalPadding
@@ -69,45 +40,17 @@ final class KBOWidget: NotchWidget {
             }
             ideal = header + outerPadding + rows + KBOLayoutTokens.panelHeightFooterSlack
         } else {
-            ideal = header + outerPadding + KBOLayoutTokens.panelHeightEmptyExtra
+            // panelCornerRadius slack so the rounded bottom edge doesn't
+            // clip into the centered empty/loading/error message.
+            ideal = header
+                + KBOLayoutTokens.bodyOuterSpacing
+                + KBOLayoutTokens.emptyStateMinHeight
+                + outerPadding
+                + LayoutTokens.panelCornerRadius
         }
         return HeightRange(min: ideal * KBOLayoutTokens.panelMinScale,
                            ideal: ideal,
                            max: ideal * KBOLayoutTokens.panelMaxHeightScale)
-    }
-
-    /// Width needed to render the *expanded* starter slot ("선발" badge +
-    /// "P" badge + name). Uses real text metrics so long names like
-    /// "로드리게스" never collide with the inning grid.
-    @MainActor
-    private static func expandedStarterSlotWidth(_ name: String?) -> CGFloat {
-        let font = NSFont.systemFont(ofSize: KBOLayoutTokens.expandedStarterFontSize,
-                                     weight: .semibold)
-        let text = name ?? "—"
-        let nameWidth = (text as NSString).size(withAttributes: [.font: font]).width
-        return ceil(nameWidth)
-            + KBOLayoutTokens.expandedStarterBadgePadding
-            + KBOLayoutTokens.expandedStarterRowSpacing
-            + KBOLayoutTokens.expandedStarterTrailing
-    }
-
-    /// Width of the inline starter slot used by the collapsed game row.
-    /// Mirrors `KBOExpandedView.starterSlotWidth` so wing/panel width
-    /// matches what the row actually renders.
-    @MainActor
-    private static func inlineStarterSlotWidth(_ cache: [String: KBOStarters]) -> CGFloat {
-        let font = NSFont.systemFont(ofSize: KBOLayoutTokens.inlineStarterFontSize,
-                                     weight: .semibold)
-        let widest = cache.values
-            .flatMap { [$0.away, $0.home] }
-            .compactMap { $0 }
-            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
-            .max() ?? 0
-        return max(KBOLayoutTokens.inlineStarterMinWidth,
-                   ceil(widest)
-                   + KBOLayoutTokens.inlineStarterNameGap
-                   + KBOLayoutTokens.inlineStarterBadgeWidth
-                   + KBOLayoutTokens.inlineStarterTrailing)
     }
 
     let viewModel = KBOViewModel()

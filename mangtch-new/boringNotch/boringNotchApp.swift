@@ -187,7 +187,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func createBoringNotchWindow(for screen: NSScreen, with viewModel: BoringViewModel) -> NSWindow {
-        let frameSize = windowFrame(for: viewModel.screenUUID)
+        let frameSize = initialWindowFrame(for: viewModel.screenUUID)
         let rect = NSRect(x: 0, y: 0, width: frameSize.width, height: frameSize.height)
         let styleMask: NSWindow.StyleMask = [.borderless, .nonactivatingPanel, .utilityWindow, .hudWindow]
 
@@ -199,6 +199,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         window.orderFrontRegardless()
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
+
+        // Drive NSPanel resize from publishedMetrics + notchState. The first
+        // emission also fires after window creation, so the initial frame
+        // (sized for Music's canvas) is immediately re-snapped to the active
+        // widget's actual range.
+        viewModel.$publishedMetrics
+            .compactMap { $0 }
+            .combineLatest(viewModel.$notchState, viewModel.$closedNotchSize)
+            .removeDuplicates(by: { lhs, rhs in
+                lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
+            })
+            .receive(on: RunLoop.main)
+            .sink { [weak window] m, state, closedNotch in
+                guard let window = window as? BoringNotchWindow else { return }
+                window.resizeWindow(metrics: m,
+                                    notchHeight: closedNotch.height,
+                                    isOpen: state == .open,
+                                    animated: true)
+            }
+            .store(in: &viewModel.cancellables)
 
         // Observe when the window's screen changes so we can update drag detectors
         windowScreenDidChangeObserver = NotificationCenter.default.addObserver(
@@ -370,6 +390,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Register widgets (Phase 4 will add real widget instances here)
         WidgetRegistry.shared.registerDefaults()
+        // Kick each widget's activate() so KBO's startMonitoring fires the
+        // initial fetch at app launch instead of waiting for the user to
+        // navigate days. Music/Timer activate() is a no-op.
+        WidgetRegistry.shared.activateAll()
 
         // Start global mouse/keyboard monitor for wing-button dispatch
         GestureHandler.shared.start()
