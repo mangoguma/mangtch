@@ -175,56 +175,92 @@ struct ContentView: View {
     }
 
     // MARK: - Wing Contents
+    //
+    // Both wings stable-mount every widget's wing tree (left and right)
+    // in a ZStack and toggle visibility per active owner via opacity +
+    // hit-zone emission gating. Trees keep SwiftUI view identity for the
+    // app's lifetime, so swapping owners no longer remounts subtrees,
+    // resets internal state, or churns hit-zone preferences. The earlier
+    // `if/else AnyView` chain made SwiftUI's diff non-deterministic
+    // (sometimes crossfade, sometimes snap) and produced the wing flicker
+    // the panel never had — the panel always rendered identity-stable
+    // single-child branches via `.id(widget.id) .transition(.opacity)`.
 
-    /// Left wing: defaults to the Music album-art slot. Other widgets only
-    /// take over when they have live state worth surfacing — switching the
-    /// expanded panel to KBO/Timer alone does not swap the wing, which
-    /// avoids the structural-AnyView flicker (each widget's `makeCompactView`
-    /// returns an unrelated view tree, so SwiftUI can only crossfade or
-    /// snap; the takeover gate keeps both rare).
     @ViewBuilder
     private var leftWingContent: some View {
+        let activeID = leftWingOwnerID
+        ZStack(alignment: .leading) {
+            ForEach(widgetRegistry.widgets) { widget in
+                if let tree = widget.leftWingView {
+                    tree
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        .opacity(widget.id == activeID ? 1 : 0)
+                        .allowsHitTesting(widget.id == activeID)
+                        .environment(\.wingHitZoneEmissionEnabled,
+                                     widget.id == activeID)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.22), value: activeID)
+    }
+
+    @ViewBuilder
+    private var rightWingContent: some View {
+        let activeID = rightWingOwnerID
+        ZStack(alignment: .trailing) {
+            ForEach(widgetRegistry.widgets) { widget in
+                if let tree = widget.rightWingView {
+                    tree
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                        .opacity(widget.id == activeID ? 1 : 0)
+                        .allowsHitTesting(widget.id == activeID)
+                        .environment(\.wingHitZoneEmissionEnabled,
+                                     widget.id == activeID)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.22), value: activeID)
+    }
+
+    // MARK: - Wing Owner Resolution
+    //
+    // Single source of truth for which mounted wing tree should be visible
+    // and emit hit zones. Trees themselves are stable-mounted regardless;
+    // these resolvers only decide opacity/emission.
+
+    /// Left-wing precedence: active expanded widget claims iff it has
+    /// live content → Timer iff running → Music default. Mirrors the
+    /// pre-refactor `hasWingContent` policy.
+    private var leftWingOwnerID: String {
         if vm.currentExpandedWidgetID != "music-player",
            let active = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
            active.isEnabled,
-           hasWingContent(active) {
-            active.makeCompactView()
-                .transition(.opacity)
-        } else if let timerWidget = widgetRegistry.widget(for: "timer"),
-                  let timer = timerWidget.wrapped as? TimerWidget,
-                  timerWidget.isEnabled,
-                  (timer.viewModel.isActive || timer.viewModel.displayTime > 0) {
-            timerWidget.makeCompactView()
-                .transition(.opacity)
-        } else if let musicWidget = widgetRegistry.widget(for: "music-player"),
-                  musicWidget.isEnabled {
-            musicWidget.makeCompactView()
-                .transition(.opacity)
-        } else {
-            Color.clear.frame(width: 1)
+           widgetClaimsLeftWing(active) {
+            return active.id
         }
+        if let timerWidget = widgetRegistry.widget(for: "timer"),
+           let timer = timerWidget.wrapped as? TimerWidget,
+           timerWidget.isEnabled,
+           timer.viewModel.isActive || timer.viewModel.displayTime > 0 {
+            return "timer"
+        }
+        return "music-player"
     }
 
-    /// Right wing: music info+controls by default; KBO live state when KBO is
-    /// the active widget and has a live pinned game.
-    @ViewBuilder
-    private var rightWingContent: some View {
+    /// Right-wing precedence: KBO live game when KBO panel is active →
+    /// Music default otherwise.
+    private var rightWingOwnerID: String {
         if vm.currentExpandedWidgetID == "kbo",
-           let kboWidget = widgetRegistry.widget(for: "kbo")?.wrapped as? KBOWidget,
-           kboWidget.viewModel.selectedGame?.isLive == true {
-            KBORightWingContainer(viewModel: kboWidget.viewModel)
-                .transition(.opacity)
-        } else {
-            MusicCompactInfo()
-                .transition(.opacity)
+           let kboWidget = widgetRegistry.widget(for: "kbo"),
+           kboWidget.isEnabled,
+           let kbo = kboWidget.wrapped as? KBOWidget,
+           kbo.viewModel.selectedGame?.isLive == true {
+            return "kbo"
         }
+        return "music-player"
     }
 
-    /// True when a widget has live state worth claiming the wing for.
-    /// Returning false keeps the wing on its Music default — the inverse
-    /// of "active widget = wing widget" prevents wing identity from
-    /// thrashing every time the expanded panel toggles.
-    private func hasWingContent(_ widget: AnyNotchWidget) -> Bool {
+    private func widgetClaimsLeftWing(_ widget: AnyNotchWidget) -> Bool {
         if let timer = widget.wrapped as? TimerWidget {
             return timer.viewModel.isActive || timer.viewModel.displayTime > 0
         }
@@ -236,7 +272,7 @@ struct ContentView: View {
             if !kbo.viewModel.isShowingToday { return true }
             return kbo.viewModel.selectedGame?.isLive == true
         }
-        return true
+        return widget.leftWingView != nil
     }
 
     // MARK: - Expanded Content

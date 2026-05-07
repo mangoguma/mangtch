@@ -21,8 +21,15 @@ final class MusicPlayerWidget: NotchWidget {
     var widthRange: WidthRange { .fixed(MusicLayoutTokens.expandedWidth) }
     var heightRange: HeightRange { .fixed(MusicLayoutTokens.expandedHeight) }
 
-    func makeCompactView() -> AnyView {
+    /// Music owns both wings by default. Built once and stable-mounted by
+    /// the wing host; ContentView's owner resolution toggles opacity to
+    /// hand the slot off to KBO/Timer when their state warrants takeover.
+    func makeLeftWingView() -> AnyView? {
         AnyView(MusicCompactArtwork())
+    }
+
+    func makeRightWingView() -> AnyView? {
+        AnyView(MusicCompactInfo())
     }
 
     func makeExpandedView() -> AnyView {

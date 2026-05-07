@@ -15,6 +15,22 @@ extension EnvironmentValues {
     }
 }
 
+/// Whether `.wingHitZone(...)` modifiers under this subtree should publish
+/// their rects. The wing host stable-mounts every widget's wing tree and
+/// flips this per branch so only the active owner's hit zones reach the
+/// gesture handler — invisible-but-mounted trees stay silent. Default true
+/// so isolated previews and one-off mounts still report.
+private struct WingHitZoneEmissionKey: EnvironmentKey {
+    static let defaultValue: Bool = true
+}
+
+extension EnvironmentValues {
+    var wingHitZoneEmissionEnabled: Bool {
+        get { self[WingHitZoneEmissionKey.self] }
+        set { self[WingHitZoneEmissionKey.self] = newValue }
+    }
+}
+
 /// Identifies a clickable region that lives on the notch's wings.
 /// GestureHandler hit-tests global mouseDown events against the collected
 /// rects rather than computing button positions arithmetically.
@@ -42,6 +58,7 @@ struct WingHitZonesKey: PreferenceKey {
 private struct WingHitZoneReporter: ViewModifier {
     let button: WingButton
     @Environment(\.notchHostWindow) private var hostWindow
+    @Environment(\.wingHitZoneEmissionEnabled) private var emissionEnabled
 
     func body(content: Content) -> some View {
         content.background(
@@ -50,7 +67,9 @@ private struct WingHitZoneReporter: ViewModifier {
                 let screenRect = toScreen(rect: global)
                 Color.clear.preference(
                     key: WingHitZonesKey.self,
-                    value: [WingHitZone(button: button, rect: screenRect)]
+                    value: emissionEnabled
+                        ? [WingHitZone(button: button, rect: screenRect)]
+                        : []
                 )
             }
         )

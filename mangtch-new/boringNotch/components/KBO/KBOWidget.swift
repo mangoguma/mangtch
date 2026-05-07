@@ -56,8 +56,13 @@ final class KBOWidget: NotchWidget {
     let viewModel = KBOViewModel()
 
     @MainActor
-    func makeCompactView() -> AnyView {
+    func makeLeftWingView() -> AnyView? {
         AnyView(KBOCompactView(viewModel: viewModel))
+    }
+
+    @MainActor
+    func makeRightWingView() -> AnyView? {
+        AnyView(KBORightWingContainer(viewModel: viewModel))
     }
 
     @MainActor

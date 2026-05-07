@@ -65,9 +65,18 @@ protocol NotchWidget: AnyObject, Identifiable where ID == String {
     @MainActor
     var heightRange: HeightRange { get }
 
-    /// Compact view shown during hover state (wings). Should be <= 120pt wide.
+    /// Compact view for the left wing — `nil` means this widget never
+    /// claims that wing. Built once per app lifetime by `AnyNotchWidget`
+    /// and stable-mounted by the wing host; ContentView toggles opacity
+    /// to swap owners instead of remounting, which preserves SwiftUI view
+    /// identity across owner changes (no AnyView diff churn, no internal
+    /// state reset, deterministic hit-zone preference emission).
     @MainActor
-    func makeCompactView() -> AnyView
+    func makeLeftWingView() -> AnyView?
+
+    /// Compact view for the right wing — see `makeLeftWingView`.
+    @MainActor
+    func makeRightWingView() -> AnyView?
 
     /// Expanded view shown when panel is fully expanded
     @MainActor
@@ -94,7 +103,15 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     }
 
     let wrapped: any NotchWidget
-    private let _makeCompactView: @MainActor () -> AnyView
+
+    /// Built once at registration so the wing host can stable-mount it
+    /// for the life of the app. SwiftUI keeps the underlying view identity
+    /// across owner toggles, so each wing's internal state (hover flags,
+    /// observed-object subscriptions, animation phases) survives swaps —
+    /// the only thing that changes is opacity + hit-zone emission gating.
+    let leftWingView: AnyView?
+    let rightWingView: AnyView?
+
     private let _makeExpandedView: @MainActor () -> AnyView
     private let _activate: () -> Void
     private let _deactivate: () -> Void
@@ -108,7 +125,8 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
         self.icon = widget.icon
         self.preferredPosition = widget.preferredPosition
         self.isEnabled = widget.isEnabled
-        self._makeCompactView = { widget.makeCompactView() }
+        self.leftWingView = widget.makeLeftWingView()
+        self.rightWingView = widget.makeRightWingView()
         self._makeExpandedView = { widget.makeExpandedView() }
         self._activate = { widget.activate() }
         self._deactivate = { widget.deactivate() }
@@ -122,10 +140,6 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
 
     var heightRange: HeightRange {
         _heightRange()
-    }
-
-    func makeCompactView() -> AnyView {
-        _makeCompactView()
     }
 
     func makeExpandedView() -> AnyView {
@@ -147,4 +161,12 @@ extension NotchWidget {
 
     @MainActor
     var heightRange: HeightRange { .default }
+
+    /// Widgets that don't claim a wing slot return nil — the wing host
+    /// won't mount any tree for them, so they cost nothing in the ZStack.
+    @MainActor
+    func makeLeftWingView() -> AnyView? { nil }
+
+    @MainActor
+    func makeRightWingView() -> AnyView? { nil }
 }

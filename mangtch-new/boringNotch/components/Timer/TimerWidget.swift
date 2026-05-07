@@ -26,7 +26,7 @@ final class TimerWidget: NotchWidget {
     }
 
     @MainActor
-    func makeCompactView() -> AnyView {
+    func makeLeftWingView() -> AnyView? {
         AnyView(TimerCompactView(viewModel: viewModel))
     }
 
