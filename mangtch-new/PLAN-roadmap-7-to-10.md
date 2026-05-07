@@ -358,7 +358,7 @@ Wing pair 미정의 위젯 (예: Settings) 은 priority chain 진입 X (`hasWing
 |---|---|---|
 | **9a** | priority chain (`wingOwnerID`) 도입 + `WidgetSwitcherBar` 는 panel-only 로 보존. `NotchWidget` 에 `wingPriority` / `claimsWings` 추가, wing pair (좌·우) non-optional 강제. KBO 는 `wingPair` 그대로, Timer 는 `TimerCompactView` → `TimerLeftWing/TimerRightWing` 분리. `PanelLayoutMetrics` 는 closed 시 wingOwner / open 시 panel-selected 위젯의 widthRange 사용 | ✅ 538e931 |
 | **9b** | (불필요) — 9a 가 wing pair 의무화 + KBO/Timer 둘 다 정의 완료. 별도 sub 없음 | merged into 9a |
-| **9c** | KBO ScrollView 재시도 — `ViewThatFits` 대신 `.frame(maxHeight: m.contentHeight - header)` + `.fixedSize(horizontal: false, vertical: true)` 조합. 단계 5c 회고 정독 후 | TODO |
+| **9c** | KBO ScrollView 재시도 — `ViewThatFits` 대신 `.frame(maxHeight: m.contentHeight - header)` + `.fixedSize(horizontal: false, vertical: true)` 조합. 단계 5c 회고 정독 후 | ✅ 2026-05-08 |
 
 ### 5.5 단계 5d stable-mount 와의 관계
 
@@ -738,3 +738,44 @@ $ xcodebuild ... build 2>&1 | tail -3
 
 - 단계 9 의 multi-axis 가 도입됐으므로, KBO ScrollView 정공법 시 viewport height 가 `metrics.contentHeight` (panel-selected 위젯 = KBO 일 때) 기준이어야 함. wingOwnerID 가 KBO 가 아니어도 panel 이 KBO 면 그 사이즈 사용
 - 단계 5c 의 `Color.clear` height bloat 는 ScrollView 안 자식이 height-greedy 했던 게 root cause. ScrollView 도입 시 자식 hierarchy 의 모든 노드가 `.fixedSize(horizontal: false, vertical: true)` 또는 `.frame(maxHeight:...)` 로 height 명시 필요
+
+---
+
+## 15. 단계 9c 회고 (2026-05-08 완료)
+
+### 15.1 들어간 변경
+
+```
+KBOExpandedView.swift   +34 / -7
+```
+
+`gamesList` 직접 마운트를 `gamesScroller` (ScrollView 래퍼) 로 교체. 산식 + 토큰은 그대로 — 5c 의 `Color.clear.frame(height: 0)` height-lock 은 이미 라이브 행 좌·우 슬롯 (line 208, 472) 에 박혀 있어 root cause 재발 위험 없음.
+
+### 15.2 In-spec 산출
+
+- `KBOExpandedView.gamesScroller` — `ScrollView(.vertical, showsIndicators: false)` + 자식 `gamesList` 에 `.fixedSize(horizontal: false, vertical: true)` 강제. ScrollView 자체는 `.frame(maxHeight: availableGamesHeight)` 로 클램프
+- `KBOExpandedView.availableGamesHeight` — `vm.publishedMetrics?.contentHeight ?? vm.metrics.contentHeight` 에서 chrome (header 24 + bodyOuterSpacing 6 + panelOuterVerticalPadding 16) 차감. publishedMetrics 우선이라 Combine resize 가 즉시 반영됨
+- 9a multi-axis 호환 — `vm.metrics` 가 `notchState == .open` 이면 `currentExpandedWidgetID` (= "kbo" when KBOExpandedView 마운트됨) 의 widthRange/heightRange 를 쓰므로 wingOwner 가 KBO 가 아니어도 (예: Timer running + KBO panel-selected) viewport 가 KBO 사이즈
+
+### 15.3 Out-of-spec 의도적 잔여
+
+- `.scrollBounceBehavior(.basedOnSize)` 미적용 — 콘텐츠 < maxHeight 면 ScrollView 가 자연스럽게 콘텐츠 height 로 줄어들어 bounce 안 발생. 명시 modifier 가 필요해지면 그때 추가
+- 산식과 실제 콘텐츠 미세 불일치 (rowHeight 50 추정 vs 실제 ~46) 는 그대로 — 통상 케이스 (≤5경기) 는 maxHeight > intrinsic 라 ScrollView 가 발동 안 하니 무해. 10경기 mock 강제 시에만 의미
+
+### 15.4 자가검증
+
+```bash
+$ xcodebuild ... build 2>&1 | tail -3
+# ** BUILD SUCCEEDED **
+```
+
+수동 확인 권장 (사용자 검수 필요):
+- 통상 1~5경기 → 스크롤 발동 X, 패널 콘텐츠와 같이 자람
+- KBO mock 10경기 / 작은 디스플레이 (panelScreenSafeFraction × 화면 높이 < ideal) → 스크롤 발동
+- linescore 펼침 시 스크롤 영역 안에서 행 높이 점프 자연스러운지 (5c bloat 회귀 X)
+- 9a 의 wingOwner ≠ panel-selected 케이스 — Timer running + KBO panel 진입 → KBO panel viewport 가 KBO heightRange 따라 결정되는지
+
+### 15.5 단계 10a 시작 시 주의
+
+- 단계 9 (multi-slot wing) 는 사용자 결정 게이트 (§5.2) 미해결로 보류. 10a (위젯 contributor 가이드 docs) 가 다음 cheapest 후보
+- 10a 작성 시 `NotchWidget` 프로토콜의 `wingPriority` / `claimsWings` / `widthRange` / `heightRange` 4-tuple 이 contract 의 핵심. 9a/9c 결정사항 (wing pair 좌·우 의무, ScrollView fallback 패턴) 도 가이드에 박혀야 함
