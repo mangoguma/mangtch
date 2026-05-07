@@ -319,6 +319,9 @@ final class GestureHandler {
         case .kboTTSToggle:
             (registry.widget(for: "kbo")?.wrapped as? KBOWidget)?
                 .viewModel.ttsEnabled.toggle()
+        case .kboSoundToggle:
+            (registry.widget(for: "kbo")?.wrapped as? KBOWidget)?
+                .viewModel.soundEffectsEnabled.toggle()
         }
     }
 

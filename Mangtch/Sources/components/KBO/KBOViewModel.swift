@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import AVFoundation
+import Defaults
 
 @Observable
 @MainActor
@@ -136,6 +137,12 @@ final class KBOViewModel {
         didSet {
             guard oldValue != ttsEnabled else { return }
             SettingsManager.shared.kboTextToSpeechEnabled = ttsEnabled
+        }
+    }
+    var soundEffectsEnabled: Bool = Defaults[.kboSoundEffectsEnabled] {
+        didSet {
+            guard oldValue != soundEffectsEnabled else { return }
+            Defaults[.kboSoundEffectsEnabled] = soundEffectsEnabled
         }
     }
 
@@ -492,6 +499,11 @@ final class KBOViewModel {
                     let prevInning = newHoA == "0" ? newInn - 1 : newInn
                     let seqnoCutoff = self.lastSeenSeqno
 
+                    // Sound effect for inning change
+                    if soundEffectsEnabled {
+                        KBOSoundManager.shared.play(.inningChange)
+                    }
+
                     // Reset BSO/bases for the new half-inning immediately
                     let resetState = KBOLinescore.LiveState(
                         balls: 0, strikes: 0, outs: 0,
@@ -665,6 +677,11 @@ final class KBOViewModel {
                 // would feel chatty if read aloud every minute.
                 if ttsEnabled && play.importance >= .high {
                     Self.speak(play.text)
+                }
+                if soundEffectsEnabled,
+                   let sound = KBOSoundManager.shared.soundForPlay(
+                    play.text, type: play.naverType, importance: play.importance) {
+                    KBOSoundManager.shared.play(sound)
                 }
                 try? await Task.sleep(for: Self.playDisplayInterval)
             }

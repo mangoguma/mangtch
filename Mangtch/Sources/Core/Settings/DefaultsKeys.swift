@@ -20,6 +20,7 @@ extension Defaults.Keys {
     static let kboSelectedGameID = Key<String?>("kboSelectedGameID", default: nil)
     static let kboTickerEnabled = Key<Bool>("kboTickerEnabled", default: true)
     static let kboTextToSpeechEnabled = Key<Bool>("kboTextToSpeechEnabled", default: false)
+    static let kboSoundEffectsEnabled = Key<Bool>("kboSoundEffectsEnabled", default: true)
     static let expandedDragDetection = Key<Bool>("expandedDragDetection", default: true)
     /// When true, dwelling the cursor over the notch cutout opens the panel
     /// (after `minimumHoverDuration`). When false, only pan-down or click

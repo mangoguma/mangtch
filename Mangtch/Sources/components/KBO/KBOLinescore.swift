@@ -85,6 +85,8 @@ struct KBOLinescore: Equatable {
         let inning: Int
         let text: String
         let attackingSide: AttackingSide?
+        /// Raw Naver type integer for sound effect mapping.
+        let naverType: Int
         /// Editorial weight for this play, derived from Naver's `type`
         /// integer. Lets the ticker drop pitch-by-pitch noise from the
         /// queue while still surfacing scoring/at-bat outcomes, and lets
@@ -403,6 +405,7 @@ extension KBOLinescore {
                     inning: inning,
                     text: text,
                     attackingSide: side,
+                    naverType: opt.type ?? 0,
                     importance: imp
                 ))
             }

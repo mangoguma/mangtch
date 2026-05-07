@@ -22,7 +22,7 @@ struct KBOCompactView: View {
                 hoverToggles
                     .opacity(isHovering ? 1 : 0)
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 12)
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -72,6 +72,7 @@ struct KBOCompactView: View {
                 Text("\(live?.away ?? game.awayTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .fixedSize()
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.3), value: live?.away ?? game.awayTeamScore)
                 Text(":")
@@ -80,6 +81,7 @@ struct KBOCompactView: View {
                 Text("\(live?.home ?? game.homeTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .fixedSize()
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.3), value: live?.home ?? game.homeTeamScore)
                 teamName(game.homeTeamName, isBatting: homeBatting)
@@ -103,7 +105,7 @@ struct KBOCompactView: View {
     // MARK: - Hover toggles
 
     private var hoverToggles: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             toggleIcon(
                 isOn: viewModel.tickerEnabled,
                 icon: "captions.bubble.fill"
@@ -114,6 +116,11 @@ struct KBOCompactView: View {
                 icon: "speaker.wave.2.fill"
             )
             .wingHitZone(.kboTTSToggle)
+            toggleIcon(
+                isOn: viewModel.soundEffectsEnabled,
+                icon: "bell.fill"
+            )
+            .wingHitZone(.kboSoundToggle)
         }
     }
 
