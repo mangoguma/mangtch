@@ -34,7 +34,7 @@ struct KBOCompactView: View {
             .onAppear { pulse = true }
         } else {
             Image(systemName: "baseball")
-                .font(.system(size: 12))
+                .font(TypographyTokens.expandedCaptionLarge)
                 .foregroundStyle(.secondary)
         }
     }
@@ -56,11 +56,11 @@ struct KBOCompactView: View {
                         .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true),
                                    value: pulse)
                     Text("LIVE")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(TypographyTokens.microBadge)
                         .foregroundStyle(.red)
                 }
                 Text(game.statusInfo.isEmpty ? "—" : game.statusInfo)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(TypographyTokens.tinyLabelMedium)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -68,13 +68,13 @@ struct KBOCompactView: View {
             HStack(spacing: KBOLayoutTokens.compactScoreSpacing) {
                 teamName(game.awayTeamName, isBatting: awayBatting)
                 Text("\(game.awayTeamScore)")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(TypographyTokens.kboCompactScore)
                     .monospacedDigit()
                 Text(":")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(TypographyTokens.expandedSmallBold)
                     .foregroundStyle(.tertiary)
                 Text("\(game.homeTeamScore)")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(TypographyTokens.kboCompactScore)
                     .monospacedDigit()
                 teamName(game.homeTeamName, isBatting: homeBatting)
             }
@@ -87,7 +87,7 @@ struct KBOCompactView: View {
     /// reading as a strong glance signal in the narrow wing.
     private func teamName(_ name: String, isBatting: Bool) -> some View {
         Text(name)
-            .font(.system(size: 10, weight: isBatting ? .bold : .medium))
+            .font(isBatting ? TypographyTokens.expandedSmallBold : TypographyTokens.expandedSmallMedium)
             .foregroundStyle(.secondary)
             .underline(isBatting, color: .secondary)
             .lineLimit(1)
@@ -118,7 +118,7 @@ struct KBOCompactView: View {
     /// GestureHandler's global dispatch using the wing geometry.
     private func toggleIcon(isOn: Bool, icon: String) -> some View {
         Image(systemName: icon)
-            .font(.system(size: 12, weight: .semibold))
+            .font(TypographyTokens.expandedHeader)
             .foregroundStyle(isOn ? Color.white : Color.primary)
             .frame(width: KBOLayoutTokens.compactToggleWidth,
                    height: KBOLayoutTokens.compactToggleHeight)

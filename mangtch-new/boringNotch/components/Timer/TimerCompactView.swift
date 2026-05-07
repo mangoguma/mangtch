@@ -21,7 +21,7 @@ struct TimerCompactView: View {
 
                 // Mode icon
                 Image(systemName: viewModel.mode == .countdown ? "timer" : "stopwatch")
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(TypographyTokens.microSemibold)
                     .foregroundStyle(viewModel.stateColor)
             }
             .frame(width: TimerLayoutTokens.compactRingSize,
@@ -30,7 +30,7 @@ struct TimerCompactView: View {
             // Time display
             if viewModel.isActive || viewModel.state == .finished {
                 Text(viewModel.shortFormattedTime)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(TypographyTokens.timerCompact)
                     .monospacedDigit()
                     .foregroundStyle(viewModel.state == .finished
                         ? viewModel.stateColor
@@ -39,7 +39,7 @@ struct TimerCompactView: View {
                     .animation(.linear(duration: 0.25), value: viewModel.shortFormattedTime)
             } else {
                 Image(systemName: "timer")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(TypographyTokens.timerCompactLabel)
                     .foregroundStyle(.secondary)
             }
         }

@@ -36,7 +36,7 @@ struct TimerExpandedView: View {
                     }
                 }) {
                     Text(mode.rawValue)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(TypographyTokens.expandedBody)
                         .padding(.horizontal, TimerLayoutTokens.modePillHorizontalPadding)
                         .padding(.vertical, TimerLayoutTokens.modePillVerticalPadding)
                         .background(
@@ -66,7 +66,7 @@ struct TimerExpandedView: View {
             if viewModel.mode == .countdown && !viewModel.isActive && viewModel.state != .finished {
                 Button(action: { viewModel.adjustDuration(by: -60) }) {
                     Image(systemName: "minus")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(TypographyTokens.timerControl)
                         .frame(width: TimerLayoutTokens.adjustButtonSize,
                                height: TimerLayoutTokens.adjustButtonSize)
                         .background(backgroundSecondary.opacity(0.5))
@@ -91,7 +91,7 @@ struct TimerExpandedView: View {
                     .animation(.linear(duration: 0.25), value: viewModel.progress)
 
                 Text(viewModel.formattedTime)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(TypographyTokens.timerDisplay)
                     .monospacedDigit()
                     .foregroundStyle(textPrimary)
                     .contentTransition(.numericText())
@@ -104,7 +104,7 @@ struct TimerExpandedView: View {
             if viewModel.mode == .countdown && !viewModel.isActive && viewModel.state != .finished {
                 Button(action: { viewModel.adjustDuration(by: 60) }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(TypographyTokens.timerControl)
                         .frame(width: TimerLayoutTokens.adjustButtonSize,
                                height: TimerLayoutTokens.adjustButtonSize)
                         .background(backgroundSecondary.opacity(0.5))
@@ -173,9 +173,9 @@ struct TimerExpandedView: View {
         Button(action: action) {
             HStack(spacing: TimerLayoutTokens.actionButtonInternalSpacing) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(TypographyTokens.timerLabel)
                 Text(label)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(TypographyTokens.timerLabel)
             }
             .padding(.horizontal, TimerLayoutTokens.actionButtonHorizontalPadding)
             .padding(.vertical, TimerLayoutTokens.actionButtonVerticalPadding)

@@ -19,7 +19,7 @@ struct WidgetSwitcherBar: View {
                         }
                     } label: {
                         Image(systemName: widget.icon)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(TypographyTokens.switcherIcon)
                             .frame(width: 26, height: 22)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)

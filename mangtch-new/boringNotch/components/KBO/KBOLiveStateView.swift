@@ -28,7 +28,7 @@ struct KBORightWingContainer: View {
                              batterTeamColor: bColor)
         } else {
             Image(systemName: "baseball")
-                .font(.system(size: 14))
+                .font(.system(size: 14))  // wing placeholder glyph (one-off)
                 .foregroundStyle(.secondary)
         }
     }
@@ -68,7 +68,7 @@ struct KBOLiveStateView: View {
                        height: KBOLayoutTokens.liveCompactDiamondSize)
 
             Text("\(state.balls)-\(state.strikes)")
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .font(TypographyTokens.kboLivePill)
                 .monospacedDigit()
                 .foregroundStyle(.primary)
 
@@ -133,7 +133,7 @@ struct KBOLiveStateView: View {
                     // and a marquee's looping delay would confuse timing with
                     // the 5s ticker display interval.
                     Text(playText)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(TypographyTokens.expandedSmallMedium)
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -152,7 +152,7 @@ struct KBOLiveStateView: View {
     private func countRow(value: Int, total: Int, label: String, filledColor: Color) -> some View {
         HStack(spacing: KBOLayoutTokens.liveWingCountRowSpacing) {
             Text(label)
-                .font(.system(size: 8, weight: .bold))
+                .font(TypographyTokens.microBadge)
                 .foregroundStyle(.white)
             countDots(value: value, total: total, filledColor: filledColor)
         }
@@ -168,16 +168,16 @@ struct KBOLiveStateView: View {
         // attackingSide unknown), preserving the prior appearance.
         HStack(spacing: KBOLayoutTokens.liveWingPlayerRowSpacing) {
             Image(systemName: icon)
-                .font(.system(size: 9, weight: .bold))
+                .font(TypographyTokens.tinyLabelBold)
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(.white, tint ?? .secondary)
             if let order {
                 Text("\(order)")
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .font(TypographyTokens.microBadgeRounded)
                     .foregroundStyle(.white.opacity(0.7))
             }
             Text(name ?? "—")
-                .font(.system(size: 9, weight: .semibold))
+                .font(TypographyTokens.tinyLabel)
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: true, vertical: false)
         }

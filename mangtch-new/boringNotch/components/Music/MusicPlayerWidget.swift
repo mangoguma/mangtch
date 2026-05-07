@@ -64,11 +64,11 @@ struct MusicCompactInfo: View {
         HStack(spacing: LayoutTokens.compactRowSpacing) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(music.songTitle)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(TypographyTokens.compactTitle)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(music.artistName)
-                    .font(.system(size: 10, weight: .regular))
+                    .font(TypographyTokens.compactSubtitle)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -87,7 +87,7 @@ struct MusicCompactInfo: View {
 
     private func controlButton(icon: String) -> some View {
         Image(systemName: icon)
-            .font(.system(size: 11, weight: .semibold))
+            .font(TypographyTokens.compactGlyph)
             .foregroundStyle(.primary)
             .frame(width: LayoutTokens.compactControlSize, height: LayoutTokens.compactControlSize)
     }
@@ -186,7 +186,7 @@ struct LyricsPanel: View {
     @ViewBuilder
     private func placeholder(_ label: String) -> some View {
         Text(label)
-            .font(.system(size: 10))
+            .font(TypographyTokens.lyricsPlaceholder)
             .foregroundStyle(.secondary.opacity(0.6))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
@@ -195,7 +195,7 @@ struct LyricsPanel: View {
     private func plainView(text: String) -> some View {
         ScrollView(.vertical, showsIndicators: false) {
             Text(text)
-                .font(.system(size: 11))
+                .font(TypographyTokens.lyricsBody)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -217,8 +217,9 @@ struct LyricsPanel: View {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(Array(lines.enumerated()), id: \.offset) { idx, line in
                             Text(line.text.isEmpty ? "♪" : line.text)
-                                .font(.system(size: 11,
-                                              weight: idx == activeIdx ? .semibold : .regular))
+                                .font(idx == activeIdx
+                                    ? TypographyTokens.expandedBodySemibold
+                                    : TypographyTokens.lyricsBody)
                                 .foregroundStyle(idx == activeIdx
                                     ? highlight
                                     : .secondary.opacity(0.55))

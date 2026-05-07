@@ -55,7 +55,7 @@ struct KBOExpandedView: View {
     private var header: some View {
         HStack(spacing: KBOLayoutTokens.headerSpacing) {
             Label("KBO", systemImage: "baseball")
-                .font(.system(size: 12, weight: .semibold))
+                .font(TypographyTokens.expandedHeader)
 
             Spacer()
 
@@ -63,7 +63,7 @@ struct KBOExpandedView: View {
             HStack(spacing: KBOLayoutTokens.headerDayNavSpacing) {
                 Button { viewModel.shiftDay(by: -1) } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(TypographyTokens.expandedSemibold)
                         .frame(width: KBOLayoutTokens.headerChevronSize,
                                height: KBOLayoutTokens.headerChevronSize)
                         .contentShape(Rectangle())
@@ -73,12 +73,12 @@ struct KBOExpandedView: View {
                 Text(viewModel.isShowingToday
                      ? "오늘"
                      : Self.dateFormatter.string(from: viewModel.displayedDate))
-                    .font(.system(size: 11, weight: .medium))
+                    .font(TypographyTokens.expandedBody)
                     .frame(minWidth: KBOLayoutTokens.headerDateMinWidth)
 
                 Button { viewModel.shiftDay(by: 1) } label: {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(TypographyTokens.expandedSemibold)
                         .frame(width: KBOLayoutTokens.headerChevronSize,
                                height: KBOLayoutTokens.headerChevronSize)
                         .contentShape(Rectangle())
@@ -90,7 +90,7 @@ struct KBOExpandedView: View {
             // surrounding buttons don't reflow horizontally as the user
             // steps days. Fade + disable instead of conditional insertion.
             Button("오늘") { viewModel.resetToToday() }
-                .font(.system(size: 10))
+                .font(TypographyTokens.expandedCaption)
                 .buttonStyle(.plain)
                 .foregroundStyle(.tint)
                 .opacity(viewModel.isShowingToday ? 0 : 1)
@@ -101,7 +101,7 @@ struct KBOExpandedView: View {
                 NSWorkspace.shared.open(Self.naverScheduleURL)
             } label: {
                 Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 12))
+                    .font(TypographyTokens.expandedCaptionLarge)
                     .frame(width: KBOLayoutTokens.headerChevronSize,
                            height: KBOLayoutTokens.headerChevronSize)
                     .contentShape(Rectangle())
@@ -132,27 +132,27 @@ struct KBOExpandedView: View {
             emptyStateBox {
                 ProgressView().controlSize(.small)
                 Text("일정을 불러오는 중…")
-                    .font(.system(size: 11))
+                    .font(TypographyTokens.expandedBodyPlain)
                     .foregroundStyle(.secondary)
             }
         } else if let error = viewModel.lastError {
             emptyStateBox {
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 20))
+                    .font(TypographyTokens.kboLargeGlyph)
                     .foregroundStyle(.secondary)
                 Text(error)
-                    .font(.system(size: 11))
+                    .font(TypographyTokens.expandedBodyPlain)
                     .foregroundStyle(.secondary)
             }
         } else {
             emptyStateBox {
                 Image(systemName: "baseball")
-                    .font(.system(size: 22))
+                    .font(TypographyTokens.kboHeroGlyph)
                     .foregroundStyle(.secondary)
                 Text(viewModel.isShowingToday
                      ? "오늘 KBO 경기가 없어요"
                      : "이 날 KBO 경기가 없어요")
-                    .font(.system(size: 11))
+                    .font(TypographyTokens.expandedBodyPlain)
                     .foregroundStyle(.secondary)
             }
         }
@@ -356,7 +356,7 @@ struct KBOExpandedView: View {
 
     private func resultBadge(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold))
+            .font(TypographyTokens.expandedSmallBold)
             .foregroundStyle(text == "승" ? Color.blue : Color.secondary)
     }
 
@@ -403,18 +403,18 @@ struct KBOExpandedView: View {
     private func scoreColumn(_ game: KBOGame) -> some View {
         if game.cancel {
             Text("취소")
-                .font(.system(size: 11, weight: .semibold))
+                .font(TypographyTokens.expandedBodySemibold)
                 .foregroundStyle(.secondary)
         } else if game.isScheduled {
             Text("vs")
-                .font(.system(size: 11, weight: .medium))
+                .font(TypographyTokens.expandedBody)
                 .foregroundStyle(.secondary)
         } else {
             HStack(spacing: KBOLayoutTokens.scoreSpacing) {
                 scoreNumber(game.awayTeamScore,
                             isLoser: game.winnerSide == .home)
                 Text("·")
-                    .font(.system(size: 11))
+                    .font(TypographyTokens.expandedBodyPlain)
                     .foregroundStyle(.tertiary)
                 scoreNumber(game.homeTeamScore,
                             isLoser: game.winnerSide == .away)
@@ -424,7 +424,7 @@ struct KBOExpandedView: View {
 
     private func scoreNumber(_ value: Int, isLoser: Bool) -> some View {
         Text("\(value)")
-            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .font(TypographyTokens.kboBigScore)
             .monospacedDigit()
             .foregroundStyle(isLoser ? .secondary : .primary)
     }
@@ -437,7 +437,7 @@ struct KBOExpandedView: View {
             HStack(spacing: KBOLayoutTokens.liveDotSpacing) {
                 LivePulseDot()
                 Text(game.statusInfo.isEmpty ? "LIVE" : game.statusInfo)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(TypographyTokens.expandedSemibold)
                     .foregroundStyle(.red)
                     .lineLimit(1)
             }
@@ -465,7 +465,7 @@ struct KBOExpandedView: View {
 
     private func chipText(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .medium))
+            .font(TypographyTokens.expandedSmallMedium)
             .foregroundStyle(color)
             .lineLimit(1)
     }
@@ -509,7 +509,7 @@ struct KBOExpandedView: View {
             // really it's just "경기 전이라 아직 기록이 없음". Branch the
             // copy so users don't think something's broken.
             Text(preGameOrErrorMessage(for: game))
-                .font(.system(size: 10))
+                .font(TypographyTokens.expandedCaption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, minHeight: 50)
@@ -529,7 +529,7 @@ struct KBOExpandedView: View {
             Text(game.isLive
                  ? "이닝 기록 준비 중 — 잠시 후 자동으로 표시돼요"
                  : "이닝 기록이 아직 등록되지 않았어요")
-                .font(.system(size: 10))
+                .font(TypographyTokens.expandedCaption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -586,17 +586,17 @@ struct KBOExpandedView: View {
         // against the panel's dark fill if applied to text directly.
         let isLeading = alignment == .leading
         let badge = Image(systemName: "p.circle.fill")
-            .font(.system(size: 11, weight: .semibold))
+            .font(TypographyTokens.expandedBodySemibold)
             .symbolRenderingMode(.palette)
             .foregroundStyle(.white, KBOTeamColors.primary(for: teamCode))
         return VStack(alignment: alignment, spacing: KBOLayoutTokens.expandedStarterRowSpacing) {
             Text("선발")
-                .font(.system(size: 9, weight: .semibold))
+                .font(TypographyTokens.tinyLabel)
                 .foregroundStyle(.secondary)
             HStack(spacing: KBOLayoutTokens.expandedStarterRowSpacing) {
                 if isLeading { badge }
                 Text(name ?? "—")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(TypographyTokens.expandedBodySemibold)
                     .foregroundStyle(name == nil ? Color.secondary : Color.primary)
                     .fixedSize()
                 if !isLeading { badge }
