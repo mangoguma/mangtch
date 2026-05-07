@@ -478,23 +478,21 @@ final class KBOViewModel {
                 // from the previous half-inning.
                 let newInn = r.currentInning
                 let newHoA = r.currentHomeOrAway
-                if self.lastSeenInning > 0,
-                   (newInn != self.lastSeenInning || newHoA != self.lastSeenHomeOrAway) {
-                    // Inning changed — fetch previous half to catch the last out
-                    let prevInn = self.lastSeenInning
-                    let prevHoA = self.lastSeenHomeOrAway
-                    Task { @MainActor in
-                        let missed = await KBOService.fetchRelay(
-                            gameId: gameId, inning: prevInn, homeOrAway: prevHoA)
-                        let newPlays = missed.filter { $0.seqno > self.lastSeenSeqno }
-                        if !newPlays.isEmpty {
-                            self.handleNewPlays(newPlays, gameID: gameId)
-                        }
-                    }
+                let inningChanged = self.lastSeenInning > 0
+                    && (newInn != self.lastSeenInning || newHoA != self.lastSeenHomeOrAway)
+                self.lastSeenInning = newInn
+                self.lastSeenHomeOrAway = newHoA
 
-                    // Reset BSO/bases for the new half-inning. The API
-                    // may not have populated the new state yet, so force
-                    // a clean slate so stale runners/counts don't linger.
+                if inningChanged {
+                    // Capture seqno BEFORE processing current plays —
+                    // current inning has higher seqnos that would filter
+                    // out the backfill.
+                    let prevInn = self.lastSeenInning == newInn ? newInn : newInn - (newHoA == "0" ? 1 : 0)
+                    let prevHoA = newHoA == "0" ? "1" : "0"
+                    let prevInning = newHoA == "0" ? newInn - 1 : newInn
+                    let seqnoCutoff = self.lastSeenSeqno
+
+                    // Reset BSO/bases for the new half-inning immediately
                     let resetState = KBOLinescore.LiveState(
                         balls: 0, strikes: 0, outs: 0,
                         onFirst: false, onSecond: false, onThird: false,
@@ -504,9 +502,17 @@ final class KBOViewModel {
                         attackingSide: newHoA == "1" ? .home : .away
                     )
                     self.liveStates[gameId] = resetState
+
+                    // Backfill previous half-inning for missed plays
+                    Task { @MainActor in
+                        let missed = await KBOService.fetchRelay(
+                            gameId: gameId, inning: prevInning, homeOrAway: prevHoA)
+                        let newPlays = missed.filter { $0.seqno > seqnoCutoff }
+                        if !newPlays.isEmpty {
+                            self.handleNewPlays(newPlays, gameID: gameId)
+                        }
+                    }
                 }
-                self.lastSeenInning = newInn
-                self.lastSeenHomeOrAway = newHoA
 
                 if !r.allPlays.isEmpty {
                     self.handleNewPlays(r.allPlays, gameID: gameId)
