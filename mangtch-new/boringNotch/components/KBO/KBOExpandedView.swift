@@ -24,13 +24,7 @@ struct KBOExpandedView: View {
             if viewModel.games.isEmpty {
                 emptyState
             } else {
-                // Bare VStack — KBO regular season is ≤5 games/day and
-                // safeMax-clamped panel comfortably fits 5 rows + one
-                // expanded linescore. ViewThatFits + ScrollView wrapping
-                // was tried but proposed full container height down to
-                // the inner VStack, which made one row balloon to fill
-                // the leftover space.
-                gamesList
+                gamesScroller
             }
         }
         .padding(.horizontal, KBOLayoutTokens.bodyOuterHorizontalPadding)
@@ -49,6 +43,39 @@ struct KBOExpandedView: View {
                 gameRow(game)
             }
         }
+    }
+
+    /// ScrollView fallback for when computed `heightRange.ideal` gets
+    /// clamped by `panelAbsoluteMaxHeight` / `panelScreenSafeFraction`
+    /// (e.g. ≥7 games on a small display, or pathological mock data).
+    /// Sub-clamp the inner VStack's intrinsic height into the area the
+    /// panel chrome actually allocated for the games list — anything
+    /// over that scrolls. Phase 5c lesson: every child must declare an
+    /// explicit height so `Color.clear` slots inside live rows don't
+    /// expand to fill leftover ScrollView space (`gameRow` height-locks
+    /// its idle slots with `Color.clear.frame(height: 0)`).
+    private var gamesScroller: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            gamesList
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxHeight: availableGamesHeight)
+    }
+
+    /// Vertical room left for the games list after subtracting the
+    /// header row + body spacing + outer vertical padding. Reads
+    /// `vm.publishedMetrics.contentHeight` (Combine mirror so SwiftUI
+    /// re-renders on resize) and falls back to the synchronous
+    /// `vm.metrics` on first frame.
+    private var availableGamesHeight: CGFloat {
+        let total = vm.publishedMetrics?.contentHeight ?? vm.metrics.contentHeight
+        // panelOuterVerticalPadding (16) accounts for the .padding(.vertical, 8)
+        // applied at the body root; bodyOuterSpacing (6) is the gap between
+        // the header and the games list inside the outer VStack.
+        let chrome = KBOLayoutTokens.panelHeaderHeight
+            + KBOLayoutTokens.bodyOuterSpacing
+            + KBOLayoutTokens.panelOuterVerticalPadding
+        return max(0, total - chrome)
     }
 
     // MARK: - Header
