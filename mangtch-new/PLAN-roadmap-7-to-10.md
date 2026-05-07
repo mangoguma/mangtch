@@ -306,11 +306,18 @@ feat(mangtch-new): Music widthRange tracks song title length again (8c)
 
 ## 5. 단계 9 — Priority chain 기반 wing owner + KBO 스크롤 안전망
 
+> **9a 구현 후 모델 수정 (2026-05-08):** 최초 spec 은 "single owner, bilateral wings + WidgetSwitcherBar 삭제 (priority chain 이 panel 도 결정)" 였음. 9a 1차 빌드 직후 사용자 피드백: panel 은 위젯 전부 picker 로 보여야 함 — Timer 셋업하려고 패널 열려는데 Timer 가 아직 claim 안 했으면 접근 경로 없음. **wing axis 와 panel axis 를 분리** 하는 모델로 pivot:
+> - **Wings** = priority chain (Timer running > KBO live/browsing > Music) — 자동
+> - **Panel** = `WidgetSwitcherBar` 사용자 선택 — 수동
+> - 두 axis 독립. Closed 시 metrics 는 wingOwnerID, Open 시 metrics 는 currentExpandedWidgetID.
+>
+> 자세한 회고는 §14.
+
 ### 5.1 동기
 
 원본 Mangtch 의 KBO 라이브는 좌·우 wing 둘 다 점유 (양쪽이 한 위젯의 chrome). Dynamic Island 도 동일 — 한 activity 가 leading/trailing 둘 다 owner. NotchNook 도 좌=Music · 우=context 자동 전환 (사용자 토글 없음).
 
-지금 mangtch-new 는 wing 슬롯이 **단일 active widget** 이 좌·우 둘 다 차지. 이건 유지. 다만 selection 이 사용자 manual toggle (`WidgetSwitcherBar`) 인데, **state-driven priority chain** 으로 교체.
+지금 mangtch-new 는 wing 슬롯이 **단일 active widget** 이 좌·우 둘 다 차지. 이건 유지. selection 도 자동화 — sw `WidgetSwitcherBar` (panel picker) 와 분리해서 wings 만 priority chain 이 결정.
 
 KBO ScrollView fallback 은 단계 5c 에서 폐기 (`ViewThatFits` 회귀). 10경기 mock 케이스 안전망 필요 시 정공법으로 재시도.
 
@@ -347,11 +354,11 @@ Wing pair 미정의 위젯 (예: Settings) 은 priority chain 진입 X (`hasWing
 
 ### 5.4 단계 분할
 
-| Sub | 내용 |
-|---|---|
-| **9a** | `WidgetSwitcherBar` 삭제 + priority chain 도입 (`BoringViewModel.activeWingOwner` computed). `NotchWidget` 프로토콜에 `wingPriority` / `claimsWings` 추가 |
-| **9b** | KBO 위젯의 wing pair 정의 (원본 Mangtch 의 좌·우 chrome 복원). Timer 도 wing pair (icon + countdown). Music 은 이미 있음 |
-| **9c** | KBO ScrollView 재시도 — `ViewThatFits` 대신 `.frame(maxHeight: m.contentHeight - header)` + `.fixedSize(horizontal: false, vertical: true)` 조합. 단계 5c 회고 정독 후 |
+| Sub | 내용 | 상태 |
+|---|---|---|
+| **9a** | priority chain (`wingOwnerID`) 도입 + `WidgetSwitcherBar` 는 panel-only 로 보존. `NotchWidget` 에 `wingPriority` / `claimsWings` 추가, wing pair (좌·우) non-optional 강제. KBO 는 `wingPair` 그대로, Timer 는 `TimerCompactView` → `TimerLeftWing/TimerRightWing` 분리. `PanelLayoutMetrics` 는 closed 시 wingOwner / open 시 panel-selected 위젯의 widthRange 사용 | ✅ 538e931 |
+| **9b** | (불필요) — 9a 가 wing pair 의무화 + KBO/Timer 둘 다 정의 완료. 별도 sub 없음 | merged into 9a |
+| **9c** | KBO ScrollView 재시도 — `ViewThatFits` 대신 `.frame(maxHeight: m.contentHeight - header)` + `.fixedSize(horizontal: false, vertical: true)` 조합. 단계 5c 회고 정독 후 | TODO |
 
 ### 5.5 단계 5d stable-mount 와의 관계
 
@@ -373,13 +380,13 @@ stable-mount 는 위젯이 wing 트리를 한 번 build → opacity gate. single
 1. **`preferredPosition` 폐기** — enum 자체 제거. import 깨질 수 있음, 사용처 일괄 정리
 2. **Priority 충돌** — 두 위젯이 같은 priority 못 갖게 컴파일 타임 (또는 런타임 assert) 검증
 3. **KBO ScrollView 정공법** — 단계 5c 의 `Color.clear` height bloat 가 진짜 root cause. ScrollView 안 자식이 height-greedy 하지 않도록 명시 + `Color.clear.frame(height: 0)` 패턴 보존
-4. **WidgetSwitcherBar 삭제 후 expanded panel 사용자 선택** — priority chain 이 panel 컨텐츠도 결정. 사용자가 KBO 라이브 도중 일부러 Music 보고 싶은 케이스는 단계 9 범위 밖 (필요시 단계 11+)
+4. **panel-axis 와 wing-axis 분리** (9a 빌드 후 pivot 결정) — 사용자가 picker 로 고른 위젯과 wing owner 가 다를 수 있음. metrics 가 state 따라 다른 위젯 widthRange 를 쓰므로 closed→open 전환 시 폭이 점프할 수 있음 (KBO=400 wing → Music 패널=480 → KBO 라이브 시작 시 wing=KBO=620). NSAnimation 베지어 sync (단계 8) 가 잘 받아주는지 검증
+5. **`claimsWings` boolean drift** — Timer 는 `isActive || finished` 만, KBO 는 `!isShowingToday || selectedGame.isLive`. 새 위젯 추가 시 `claimsWings` 정의 누락하면 protocol default 가 없어서 컴파일 에러 (의도) — 하지만 런타임에 항상 true 반환하면 Timer 셋업 케이스 같은 회귀 다시 등장. 9a 회고 §14 참고
 
 ### 5.8 커밋
 
 ```
-refactor(mangtch-new): drop WidgetSwitcherBar + priority chain wing owner (9a)
-feat(mangtch-new): KBO/Timer bilateral wing pair (9b)
+refactor(mangtch-new): priority-chain wing owner decoupled from panel (9a)  ← 538e931
 feat(mangtch-new): KBO ScrollView fallback for >max content (9c)
 ```
 
@@ -653,3 +660,81 @@ $ xcodebuild ... build 2>&1 | tail -3
 - 단계 8 의 NSAnimation 베지어 sync 는 윈도우 단일 frame 변화에 한정. 단계 9 가 좌/우 wing 비대칭으로 동시에 변화하면 동일 곡선 + 동일 duration 가정이 깨질 수 있음 — 검증 필요
 - KBO content-driven width 는 `viewModel.startingPitchers` / `viewingLinescore` 의존. 단계 9 에서 KBO 가 wing 한쪽만 점유하는 case (wing claim 정책) 도입 시 widthRange 산식 분기 필요
 
+
+---
+
+## 14. 단계 9a 회고 (2026-05-08 완료)
+
+### 14.1 들어간 커밋
+
+```
+538e931 refactor(mangtch-new): priority-chain wing owner decoupled from panel (9a)
+```
+
+11 files changed, +316 / -209. `TimerCompactView.swift` 삭제, `WidgetSwitcherBar.swift` 보존 (1차 빌드 후 결정 번복).
+
+### 14.2 모델 (확정)
+
+**Two-axis ownership.** wing 과 panel 이 다른 source 를 따름:
+
+| Axis | Source | 의미 |
+|---|---|---|
+| Wings | `BoringViewModel.wingOwnerID` (priority chain) | "지금 가장 foreground 한 활동" — Dynamic Island 답 |
+| Panel | `BoringViewModel.currentExpandedWidgetID` (사용자 picker) | "사용자가 보고 싶은 위젯" — NotchNook 답 |
+
+- Priority chain: **Timer (20) > KBO (10) > Music (1)**.
+  - Timer: `isActive || state == .finished` 시 claim.
+  - KBO: `!isShowingToday || selectedGame.isLive` 시 claim.
+  - Music: 항상 claim (chain 의 floor).
+- `recomputeWingOwner` 가 `withObservationTracking` 으로 매 변화마다 재평가. `recomputeMetrics` 와 동일 패턴.
+- `PanelLayoutMetrics` 호출 시 state-aware 분기:
+  - `.closed` → `wingOwnerID` 의 widthRange (wings 만 보이니까)
+  - `.open` → `currentExpandedWidgetID` 의 widthRange (panel 보이니까)
+
+### 14.3 Pivot — 빌드 후 모델 수정
+
+최초 plan §5.2 의 사용자 결정 게이트 3개 → 우리가 다 박는다 결정. 결과: "single owner, bilateral wings + WidgetSwitcherBar 삭제" 로 spec.
+
+1차 9a 빌드 후 사용자 시각 검증:
+> "위젯 선택이 없어졌는데? 노래만 보임"
+
+문제: priority chain 만으로는 Timer 셋업 / KBO 비-라이브 schedule 보기 같은 정상 use case 의 진입 경로가 없음. wing 은 자동, panel 은 사용자 의도여야 함.
+
+→ `WidgetSwitcherBar` 부활, `wingOwnerID` 와 `currentExpandedWidgetID` 분리. 빌드 후 다시 사용자 검증:
+> "timer 시계 돌아가고 있을 때 아니면 kbo or music 으로 복귀해야지. 지금은 timer 창에만 들어가도 wing 에 고정됨"
+
+문제: `claimsWings` 가 `isActive || displayTime > 0` 였는데, countdown 셋업 (시간만 미리 셋) 단계에 displayTime > 0 이라 claim. → `isActive || state == .finished` 로 좁힘. Stopwatch 는 setup 시 displayTime=0 이라 미영향.
+
+### 14.4 In-spec 산출
+
+- `NotchWidget.wingPriority: Int` + `var claimsWings: Bool` 추가
+- `NotchWidget.preferredPosition` + `WidgetPosition` enum 폐기 (의미 없음 — bilateral 모델)
+- `makeLeftWingView`/`makeRightWingView` non-optional `AnyView` 강제 (좌·우 의무)
+- `BoringViewModel.wingOwnerID` (private(set)), `currentExpandedWidgetID` (사용자 picker)
+- `WidgetRegistry.register` 에서 `wingPriority` 중복 assert
+- ContentView wing host: `vm.wingOwnerID` 기반, panel: `vm.currentExpandedWidgetID` 기반
+- `PanelLayoutMetrics` 호출 시 state-aware widget 선택
+- TimerCompactView 분리 → TimerLeftWing (progress ring) + TimerRightWing (countdown digits)
+
+### 14.5 Out-of-spec 의도적 잔여
+
+- Music 의 right wing 은 title/artist 마퀴 + 컨트롤 그대로. 단계 9 §5.2 표 ("Music 우 wing = title/artist 마퀴") 와 일치 — boring.notch 원본의 visualizer 은 도입 안 함
+- Settings 위젯은 wing claim 안 함 — `WidgetRegistry` 등록 안 됨 (priority chain 진입 X). `wingPriority == 0` 슬롯은 미사용 — 향후 Settings-style chrome 추가 시 활용
+
+### 14.6 자가검증
+
+```bash
+$ xcodebuild ... build 2>&1 | tail -3
+# ** BUILD SUCCEEDED **
+```
+
+수동 시각 검증 (사용자 확인):
+- Music 만 재생 → wings = Music
+- KBO 패널 picker 진입 → panel=KBO, wings=Music 유지 (sw 분리 검증)
+- Timer 시작 → wings = Timer 로 swap
+- Timer 셋업만 (시작 X) → wings = Music/KBO 유지
+
+### 14.7 단계 9c 시작 시 주의
+
+- 단계 9 의 multi-axis 가 도입됐으므로, KBO ScrollView 정공법 시 viewport height 가 `metrics.contentHeight` (panel-selected 위젯 = KBO 일 때) 기준이어야 함. wingOwnerID 가 KBO 가 아니어도 panel 이 KBO 면 그 사이즈 사용
+- 단계 5c 의 `Color.clear` height bloat 는 ScrollView 안 자식이 height-greedy 했던 게 root cause. ScrollView 도입 시 자식 hierarchy 의 모든 노드가 `.fixedSize(horizontal: false, vertical: true)` 또는 `.frame(maxHeight:...)` 로 height 명시 필요
