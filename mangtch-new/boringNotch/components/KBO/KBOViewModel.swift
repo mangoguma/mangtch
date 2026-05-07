@@ -25,6 +25,13 @@ final class KBOViewModel {
     private var pendingDate: Date = KBOService.currentKBODate() {
         didSet {
             guard !Calendar.korea.isDate(oldValue, inSameDayAs: pendingDate) else { return }
+            // Clear stale rows + error so the empty area immediately switches
+            // to the loading state instead of showing the previous day's
+            // games (or a stale "경기가 없어요") while the new fetch is in
+            // flight. The header date label keeps lagging until commit, so
+            // the panel reads as "loading <new date>" via the spinner row.
+            self.games = []
+            self.lastError = nil
             fetchNow()
         }
     }
@@ -212,9 +219,13 @@ final class KBOViewModel {
     private func fetchNow() {
         fetchTask?.cancel()
         let date = pendingDate
+        // Flip the spinner on synchronously so any render that happens
+        // between fetchNow() and the Task body picking up the actor (e.g.
+        // user opens the panel right after KBOWidget.activate) shows the
+        // loading state instead of a momentarily stale "경기가 없어요".
+        isLoading = true
         fetchTask = Task { @MainActor in
-            isLoading = true
-            let fresh = await KBOService.fetchGames(date: date)
+            let fetched = await KBOService.fetchGames(date: date)
             // Guard against stale completions arriving after stopMonitoring
             // or after the user has navigated to a different day.
             guard !Task.isCancelled,
@@ -223,8 +234,18 @@ final class KBOViewModel {
             // Commit the date label and the games list together so the
             // header text and content swap in the same frame.
             self.displayedDate = date
-            self.games = fresh
-            self.lastError = nil
+            if let fresh = fetched {
+                self.games = fresh
+                self.lastError = nil
+            } else {
+                // Network/decode failure — clear stale games for the new
+                // date so the row list doesn't lie, and surface lastError
+                // so the empty state renders an error message instead of
+                // "no games scheduled".
+                self.games = []
+                self.lastError = "일정을 불러오지 못했어요"
+            }
+            let fresh = self.games
             self.isLoading = false
             // Auto-unpin a game once it transitions to finished or
             // cancelled. The wing already falls back to music via

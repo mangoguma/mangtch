@@ -111,18 +111,51 @@ struct KBOExpandedView: View {
         }
     }
 
-    // MARK: - Empty State
+    // MARK: - Empty / Loading / Error State
+    //
+    // Three-way branch on the empty content area:
+    //   1. isLoading → spinner ("불러오는 중…") so the user knows the
+    //      request is in flight, not that nothing's scheduled.
+    //   2. lastError != nil → the previous fetch failed; show the error
+    //      message instead of pretending no games exist.
+    //   3. otherwise → genuine no-games-scheduled day.
 
+    @ViewBuilder
     private var emptyState: some View {
+        if viewModel.isLoading {
+            emptyStateBox {
+                ProgressView().controlSize(.small)
+                Text("일정을 불러오는 중…")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        } else if let error = viewModel.lastError {
+            emptyStateBox {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            emptyStateBox {
+                Image(systemName: "baseball")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.secondary)
+                Text(viewModel.isShowingToday
+                     ? "오늘 KBO 경기가 없어요"
+                     : "이 날 KBO 경기가 없어요")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func emptyStateBox<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         VStack(spacing: KBOLayoutTokens.emptyStateSpacing) {
-            Image(systemName: "baseball")
-                .font(.system(size: 22))
-                .foregroundStyle(.secondary)
-            Text(viewModel.isShowingToday
-                 ? "오늘 KBO 경기가 없어요"
-                 : "이 날 KBO 경기가 없어요")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            content()
         }
         .frame(maxWidth: .infinity, minHeight: KBOLayoutTokens.emptyStateMinHeight)
     }
