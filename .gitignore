@@ -21,3 +21,7 @@ docs/
 .omc/
 .agent/
 .gemini/
+
+# Project-specific
+Mangtch/Mangtch-*.zip
+boring.notch/

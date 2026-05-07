@@ -1,7 +1,6 @@
 # mangtch-new — Handoff
 
-> Status: builds + runs as a `.nonactivatingPanel` accessory app.
-> Wing layout currently mis-sized (see **Known issues**). The fold/expand state machine works; click dispatch reaches `MusicManager`.
+> Status: builds + runs as a `.nonactivatingPanel` accessory app. Fold/expand works; click dispatch reaches `MusicManager`. Wing/panel sizing was refactored to a widget-declared `widthRange`/`heightRange` contract (see §6); needs visual reverify on user's display.
 
 `mangtch-new/` is a fork of `boring.notch/` (open-source upstream) with non-product features stripped and Mangtch's widget machinery + KBO/Timer/Music widgets grafted in.
 
@@ -65,7 +64,7 @@ mangtch-new/
       AnimatedFace.swift, BottomRoundedRectangle.swift, EmptyState.swift,
       HoverButton.swift, LottieView.swift, ProgressIndicator.swift
     Widgets/                            # NEW — Mangtch widget protocol layer
-      NotchWidget.swift
+      NotchWidget.swift                 # NotchWidget protocol; declares widthRange / heightRange
       WidgetRegistry.swift              # @Observable singleton; registerDefaults() registers Music+Timer+KBO
     SystemBridge/
       KBOService.swift                  # PORTED — Naver KBO API client
@@ -73,7 +72,11 @@ mangtch-new/
                                         #   NotchSpaceManager, BrightnessManager, VolumeManager
                                         # plus XPCHelperClient.swift (no-op stub — see "Cleanup needed")
     MediaControllers/                   # boring.notch — all 4 (NowPlaying, Apple Music, Spotify, YT Music)
-    helpers/, extensions/, observers/, models/, sizing/, animations/,
+    sizing/
+      matters.swift                     # boring.notch — closed/open notch size helpers, windowSize
+      PanelLayoutMetrics.swift          # NEW — pure resolver: (widget, notchSize, state) → wingWidth/panelWidth/expandedHeight
+      LayoutTokens.swift                # NEW — shared layout constants (corner radii, paddings, etc.)
+    helpers/, extensions/, observers/, models/, animations/,
       menu/, utils/, enums/, Shortcuts/  # mostly boring.notch; observers/GestureHandler.swift is PORTED
     Resources, Info.plist, boringNotch.entitlements, Localizable.xcstrings,
     boring.m4a, Assets.xcassets, Preview Content
@@ -132,17 +135,16 @@ The full original plan lives at `/Users/sarang/.claude/plans/boring-notch-dreamy
 
 ## 5. Known issues
 
-### 🔴 Wing layout is mis-sized
+### ✅ Wing/panel sizing — resolved (Phase 5d)
 
-Visually, opening the panel produces wings that span much wider than the configured `panelModeWingWidth`. After lowering the clamp from `min(max(half, 130), 480)` → `min(max(half, 130), 240)` (matching Mangtch's `maxWingWidth`), the wings are still wider than expected on the user's display. Last user feedback: "접히긴하는데 크기가 이상해" with a screenshot showing the top wing bar wider than the expanded panel below it.
+Wing sizing is content-driven via `PanelLayoutMetrics.resolve(widget:notchSize:state:)`. The original mis-sizing (open() swapping notchSize, GestureHandler using ballooned notchSize for hover math) was fixed in Phase 5a; wing-swap flicker was killed by stable-mount of wing trees in Phase 5d. Width is currently fixed at 640 — see PLAN-content-driven-sizing.md retrospective. Dynamic width re-attempt is Phase 7+.
 
-Hypotheses to investigate:
-- The wing **content** (right wing's title + 3 transport buttons) overflows the `.frame(width: vm.wingWidth, alignment: .trailing)` and `.clipped()` doesn't actually clip in this layout because the children are rendered before the frame constrains. Worth wrapping the content in a fixed-size container with `.fixedSize(horizontal: false, vertical: true)` and confirming the parent frame is honored.
-- `panelWidth` (= `notchSize.width + wingWidth*2`) computes as expected but the `wingsRow` HStack doesn't actually constrain to that width because `Color.black` in the notch bar uses `.padding(.horizontal, -1)` to extend by 2px — should be cosmetically harmless but worth eliminating as a variable.
-- Mangtch uses `WidgetRegistry.recomputeMaxWingWidth()` to re-derive `maxWingWidth` per-VM whenever a widget's `preferredPanelWidth` changes (KBO does this dynamically based on cached pitcher names). This logic was **not** ported. The current code uses a static `min(_, 240)` cap. KBO when active may want >240; Music wants ~130. Port `recomputeMaxWingWidth` from Mangtch's `WidgetRegistry.swift` (~line 51) and store `maxWingWidth` per-VM (currently a single `min(_, 240)`).
-- ContentView's hidden measurement pass writes `vm.compactWingWidth = width` from the union of left+right wing measured widths via `MeasuredWingWidthKey` (uses `max`). If one wing is much wider than the other, `compactWingWidth` ends up too big and the closed-state wing (when `notchState == .closed`) renders too wide. Mangtch separates left/right widths.
-
-Quickest A/B test: print `vm.wingWidth`, `vm.panelWidth`, `vm.compactWingWidth`, `vm.notchSize.width` in `BoringViewModel.open()` and `close()` to confirm the runtime values match the math; then compare to the visible bar width.
+Architecture summary:
+- `Widgets/NotchWidget.swift` — protocol declares `widthRange` / `heightRange` triples.
+- `sizing/PanelLayoutMetrics.swift` — single resolver. Pure function, no measurement pass.
+- `models/BoringViewModel.swift` — exposes `metrics` (computed) + `publishedMetrics` (Combine mirror via `recomputeMetrics()` + `withObservationTracking` so `@Observable` widget state re-fires).
+- `ContentView.swift` — reads `vm.metrics.{wingWidth, panelWidth}` directly; animations drive off `panelWidth` value change.
+- Wing tree stability: ContentView mounts wing subtrees with stable identity so widget swaps don't churn AppKit views.
 
 ### 🟡 SettingsView still has a stub Calendar section
 
@@ -152,9 +154,9 @@ Phase 5 of the original plan was "trim SettingsView to remove Calendar/Battery/W
 
 `boringNotch/managers/XPCHelperClient.swift` was created during Phase 2 to satisfy lingering references in `SettingsView` (and possibly elsewhere). When you next touch SettingsView, find every `XPCHelperClient.shared.*` call site, delete it (they were all related to accessibility-authorization prompts for the deleted MediaKeyInterceptor), then delete the stub file.
 
-### 🟡 `Notification.Name.boringNotchDidOpen` post is dead
+### ✅ `Notification.Name.boringNotchDidOpen` — wired
 
-`BoringViewModel.open()` posts `.boringNotchDidOpen`. Currently no observers — KBO's open-time refresh hooks were not wired. KBO refreshes via its own polling (via `KBOService`). Either delete the post or wire `KBOViewModel` to observe it (Mangtch parallel is `EventBus.notchDidOpen`).
+`BoringViewModel.open()` posts `.boringNotchDidOpen`; `KBOViewModel.swift:183` subscribes for open-time refresh. (Earlier handoff incorrectly described the post as dead.)
 
 ### 🟡 Sparkle `SUPublicEDKey` was also removed
 
@@ -168,12 +170,14 @@ When `SUFeedURL` was deleted from Info.plist, `SUPublicEDKey` went with it. If w
 
 ## 6. Where the design decisions live
 
-- **`BoringViewModel.swift`** — extended in-place (per user rule "keep boring.notch class names"). Mangtch's intermediate `.hovering` state is not modelled; `notchState` stays `.closed`/`.open`. `open()` deliberately does **not** swap `notchSize` to `openNotchSize` (that was the original bug that ballooned wings to 640×190 and trapped the panel open) — `notchSize` always equals `closedNotchSize`.
-- **`GestureHandler.swift`** — global `NSEvent` monitor for mouseMoved/leftMouseDown/keyDown. Hover dwell auto-opens (per `Defaults[.openNotchOnHover]` + `.minimumHoverDuration`); leaving the hover zone calls `vm.close()`. Wing clicks dispatched via `vm.wingHitZones` hit-test in screen coordinates.
+- **`BoringViewModel.swift`** — extended in-place (per user rule "keep boring.notch class names"). Mangtch's intermediate `.hovering` state is not modelled; `notchState` stays `.closed`/`.open`. `open()` deliberately does **not** swap `notchSize` to `openNotchSize` — `notchSize` always equals `closedNotchSize`. Sizing is exposed via `metrics: PanelLayoutMetrics` (computed) + `publishedMetrics: PanelLayoutMetrics?` (Combine-published mirror). `recomputeMetrics()` uses `withObservationTracking` so `@Observable` widget state (KBO games/linescore) also re-fires resolution.
+- **`sizing/PanelLayoutMetrics.swift`** — **the single resolver for layout sizing.** Pure function `resolve(widget:notchSize:state:) -> PanelLayoutMetrics` clamps the active widget's `widthRange.ideal` into `[min, max]` and returns `wingWidth` / `panelWidth` / `expandedHeight`. There is **no** measurement pass and **no** static clamp constant. Widgets are the single source of truth for their size.
+- **`Widgets/NotchWidget.swift`** — `NotchWidget` protocol declares `widthRange: WidthRange` and `heightRange: HeightRange` (both `(min, ideal, max)` triples). Use `WidthRange.fixed(_)` for pixel-design canvases (Music = 380), or `WidthRange(min: 320, ideal: 480, max: 640)` defaults for flex widgets. KBO computes its range dynamically from cached pitcher-name widths + inning grid.
+- **`Widgets/WidgetRegistry.swift`** — `@Observable` singleton. Registers `MusicPlayerWidget`, `TimerWidget`, `KBOWidget` in `registerDefaults()`. Pure registry — does **not** propagate sizing. Sizing is read by `BoringViewModel.metrics` from the active widget directly.
+- **`GestureHandler.swift`** — global `NSEvent` monitor for mouseMoved/leftMouseDown/keyDown. Hover dwell auto-opens (per `Defaults[.openNotchOnHover]` + `.minimumHoverDuration`); leaving the hover zone calls `vm.close()`. **Hover zone extends downward by `extraOpenHeight = 260` when open** so cursor moves into the expanded panel don't trigger close. Uses `vm.closedNotchSize` (not `notchSize`) for hover-zone math. Wing clicks dispatched via `vm.wingHitZones` hit-test in screen coordinates.
 - **`WingHitZone.swift`** — PreferenceKey-based; needs `\.notchHostWindow` Environment to convert SwiftUI-global coords → screen coords. AppDelegate must inject the `NSWindow` reference into the SwiftUI tree (`ContentView(hostWindow: window)` then `.environment(\.notchHostWindow, hostWindow)`). Confirm this wiring in `boringNotchApp.swift::createBoringNotchWindow` — if the env value is nil, hit-zones won't be reported correctly.
-- **`WidgetRegistry.swift`** — `@Observable` singleton. Registers `MusicPlayerWidget`, `TimerWidget`, `KBOWidget` in `registerDefaults()`. Missing the `recomputeMaxWingWidth` propagation (see Known issues #1).
-- **`ContentView.swift`** — the layout. Wings + notch bar + expanded panel + WidgetSwitcherBar. Hidden measurement pass for `compactWingWidth`. Pan-down opens, pan-up closes.
-- **`MusicPlayerWidget.swift`** — thin SwiftUI wrapper exposing `MusicManager.shared` content for compact wings + reusing boring.notch's existing music player UI for the expanded view.
+- **`ContentView.swift`** — the layout. Wings + notch bar + expanded panel + WidgetSwitcherBar. Reads `vm.metrics.{wingWidth, panelWidth}` directly. Animation driven off `m.panelWidth` value change. Pan-down opens, pan-up closes.
+- **`MusicPlayerWidget.swift`** — thin SwiftUI wrapper exposing `MusicManager.shared` content for compact wings + reusing boring.notch's existing music player UI for the expanded view. Uses `WidthRange.fixed(380)` since the player UI is pixel-designed.
 
 ---
 
@@ -188,10 +192,10 @@ When `SUFeedURL` was deleted from Info.plist, `SUPublicEDKey` went with it. If w
 
 ## 8. Recommended next steps (priority order)
 
-1. **Fix the wing layout sizing.** Most likely culprit: port `WidgetRegistry.recomputeMaxWingWidth()` from Mangtch and convert `BoringViewModel.maxWingWidth` from a static `240` cap into a per-VM property the registry updates. Verify by printing widths at runtime.
+1. **Visually reverify wing/panel sizing on the user's display** (Known issue 🟡 above). The static-clamp design that originally caused mis-sizing was replaced by the widget-declared `widthRange`/`heightRange` resolver in `PanelLayoutMetrics.swift`. Hover the notch, switch between Music / Timer / KBO, and confirm wings render at sensible widths. If still off, instrument `BoringViewModel.recomputeMetrics()` to print `publishedMetrics` and trace from there — the resolver is the single source.
 2. **Manual smoke test the rest of the user checklist** (from `/Users/sarang/.claude/plans/boring-notch-dreamy-dragonfly.md` § Verification): hover-expand timing, music wing-button click, widget switching, KBO data fetch (Korean baseball season; service may return "no games" off-season), Timer countdown + numpad, file drag → Shelf, multi-display, fullscreen-hide.
 3. **Clean up the `XPCHelperClient.swift` stub** along with the Calendar Settings stub when next touching SettingsView.
 4. **Decide on the `BoringNotchXPCHelper` target.** Either delete it from pbxproj or restore the helper sources if you ever bring back media-key interception. Currently it's dead weight.
-5. **Decide on `mediaremote-adapter/`.** Verify whether `MusicManager` actually loads `mediaremote-adapter.pl` / `MediaRemoteAdapter.framework` at runtime; if not, drop the directory and remove the build-phase reference.
+5. **`mediaremote-adapter/` is in use** — `NowPlayingController.swift:193` and `MediaChecker.swift:20` both reference it at runtime. Do not delete. (Earlier handoff suggested it might be droppable; that was wrong.)
 
 When in doubt about scope, re-read § 1 of this document and the architectural-rule memory file.
