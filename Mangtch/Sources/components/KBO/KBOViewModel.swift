@@ -385,7 +385,10 @@ final class KBOViewModel {
     /// on the next poll.
     func toggleExpand(_ game: KBOGame) {
         if viewingGameID == game.gameId {
-            collapse()
+            // User explicitly tapped to collapse — also unpin
+            collapseInline()
+            selectedGameID = nil
+            currentAttackingSide = nil
         } else {
             viewingGameID = game.gameId
             viewingLinescore = nil
