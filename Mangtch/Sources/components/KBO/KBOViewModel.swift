@@ -675,7 +675,7 @@ final class KBOViewModel {
                 // at-bat outcomes, baserunning, scoring. Inning-start
                 // headers and batter intros are useful in the ticker but
                 // would feel chatty if read aloud every minute.
-                if ttsEnabled && play.importance >= .high {
+                if ttsEnabled && (play.importance >= .high || play.naverType == 2 || play.naverType == 8) {
                     Self.speak(play.text)
                 }
                 if soundEffectsEnabled,

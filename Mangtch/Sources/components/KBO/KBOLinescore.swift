@@ -123,7 +123,8 @@ struct KBOLinescore: Equatable {
                 switch naverType {
                 case 24: return .critical
                 case 13, 14, 23: return .high
-                case 2, 7: return .medium
+                case 2: return .low     // substitution — TTS reads it, ticker skips
+                case 7: return .medium
                 case 0, 8: return .low  // inning header + batter intro — noise
                 case 1: return .low
                 // Unknown types default to medium so we still surface them
