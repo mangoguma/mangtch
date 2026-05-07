@@ -17,7 +17,7 @@ struct KBOExpandedView: View {
     private static let naverScheduleURL = URL(string: "https://m.sports.naver.com/kbaseball/schedule/index")!
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: KBOLayoutTokens.bodyOuterSpacing) {
             header
 
             if viewModel.games.isEmpty {
@@ -27,15 +27,15 @@ struct KBOExpandedView: View {
                 // expanded row fit naturally inside the panel, and a
                 // ScrollView would defeat the dynamic-height measurement
                 // below (it reports the available space, not content size).
-                VStack(spacing: 4) {
+                VStack(spacing: KBOLayoutTokens.rowGap) {
                     ForEach(viewModel.games) { game in
                         gameRow(game)
                     }
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, KBOLayoutTokens.bodyOuterHorizontalPadding)
+        .padding(.vertical, KBOLayoutTokens.bodyOuterVerticalPadding)
         .onAppear {
             // Re-anchor the date to today on reopen, but keep any
             // expanded row / pinned game intact so the live broadcast
@@ -47,18 +47,19 @@ struct KBOExpandedView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: KBOLayoutTokens.headerSpacing) {
             Label("KBO", systemImage: "baseball")
                 .font(.system(size: 12, weight: .semibold))
 
             Spacer()
 
             // Day navigation: ‹ date › with a "오늘" reset when off today.
-            HStack(spacing: 4) {
+            HStack(spacing: KBOLayoutTokens.headerDayNavSpacing) {
                 Button { viewModel.shiftDay(by: -1) } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .semibold))
-                        .frame(width: 18, height: 18)
+                        .frame(width: KBOLayoutTokens.headerChevronSize,
+                               height: KBOLayoutTokens.headerChevronSize)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -67,12 +68,13 @@ struct KBOExpandedView: View {
                      ? "오늘"
                      : Self.dateFormatter.string(from: viewModel.displayedDate))
                     .font(.system(size: 11, weight: .medium))
-                    .frame(minWidth: 80)
+                    .frame(minWidth: KBOLayoutTokens.headerDateMinWidth)
 
                 Button { viewModel.shiftDay(by: 1) } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                        .frame(width: 18, height: 18)
+                        .frame(width: KBOLayoutTokens.headerChevronSize,
+                               height: KBOLayoutTokens.headerChevronSize)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -94,7 +96,8 @@ struct KBOExpandedView: View {
             } label: {
                 Image(systemName: "arrow.up.right.square")
                     .font(.system(size: 12))
-                    .frame(width: 18, height: 18)
+                    .frame(width: KBOLayoutTokens.headerChevronSize,
+                           height: KBOLayoutTokens.headerChevronSize)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -111,7 +114,7 @@ struct KBOExpandedView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: KBOLayoutTokens.emptyStateSpacing) {
             Image(systemName: "baseball")
                 .font(.system(size: 22))
                 .foregroundStyle(.secondary)
@@ -121,7 +124,7 @@ struct KBOExpandedView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, minHeight: 100)
+        .frame(maxWidth: .infinity, minHeight: KBOLayoutTokens.emptyStateMinHeight)
     }
 
     // MARK: - Row
@@ -146,7 +149,7 @@ struct KBOExpandedView: View {
                     viewModel.toggleExpand(game)
                 }
             }) {
-                HStack(spacing: 10) {
+                HStack(spacing: KBOLayoutTokens.rowChildSpacing) {
                     let starters = viewModel.startingPitchers[game.gameId]
                     let slotW = rowSlotWidth
 
@@ -174,7 +177,7 @@ struct KBOExpandedView: View {
                              isBatting: attacking == .away)
 
                     scoreColumn(game)
-                        .frame(width: 64)
+                        .frame(width: KBOLayoutTokens.scoreColumnWidth)
 
                     teamSide(name: game.homeTeamName,
                              code: game.homeTeamCode,
@@ -200,10 +203,10 @@ struct KBOExpandedView: View {
                     .frame(width: slotW)
 
                     statusChip(game)
-                        .frame(width: 64, alignment: .trailing)
+                        .frame(width: KBOLayoutTokens.statusChipWidth, alignment: .trailing)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
+                .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
+                .padding(.vertical, KBOLayoutTokens.rowVerticalPadding)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -211,21 +214,23 @@ struct KBOExpandedView: View {
             // Inline box score / placeholder, visible only when expanded.
             if isExpanded {
                 Divider()
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
                 inlineDetail(game)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
+                    .padding(.vertical, KBOLayoutTokens.rowVerticalPadding)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
                 .fill(rowFill(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive))
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
                 .strokeBorder(rowStroke(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive),
-                              lineWidth: (isPinned || isExpanded) ? 1.2 : 0.5)
+                              lineWidth: (isPinned || isExpanded)
+                                ? KBOLayoutTokens.rowStrokeActive
+                                : KBOLayoutTokens.rowStrokeIdle)
         }
         .opacity(game.cancel ? 0.55 : 1)
     }
@@ -244,15 +249,19 @@ struct KBOExpandedView: View {
         let names = viewModel.startingPitchers.values
             .flatMap { [$0.away, $0.home] }
             .compactMap { $0 }
-        let font = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
+        let font = NSFont.systemFont(ofSize: KBOLayoutTokens.inlineStarterFontSize,
+                                     weight: .semibold)
         let widest = names
             .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
             .max() ?? 0
-        // Name + 4pt gap + badge (~12pt for "승/패") + 8pt outer breathing
+        // Name + gap + badge (~12pt for "승/패") + outer breathing
         // room so the badge doesn't kiss the score column.
-        let starterNeeded = ceil(widest) + 4 + 12 + 8
-        // 80pt is the natural width of KBOLiveStateView in compact mode.
-        return max(80, starterNeeded)
+        let starterNeeded = ceil(widest)
+            + KBOLayoutTokens.inlineStarterNameGap
+            + KBOLayoutTokens.inlineStarterBadgeWidth
+            + KBOLayoutTokens.inlineStarterTrailing
+        // rowSlotMinWidth is the natural width of KBOLiveStateView in compact mode.
+        return max(KBOLayoutTokens.rowSlotMinWidth, starterNeeded)
     }
 
     /// Inline starting-pitcher label that sits at the outer edges of the
@@ -271,7 +280,7 @@ struct KBOExpandedView: View {
                                     resultPrefix: String?,
                                     trailing: Bool,
                                     slotWidth: CGFloat) -> some View {
-        let inner = HStack(spacing: 4) {
+        let inner = HStack(spacing: KBOLayoutTokens.inlineStarterNameGap) {
             if !trailing {
                 Spacer(minLength: 0)
                 if let name {
@@ -325,9 +334,9 @@ struct KBOExpandedView: View {
                           isLoser: Bool,
                           isBatting: Bool) -> some View {
         let isLeading = alignment == .leading
-        HStack(spacing: 6) {
+        HStack(spacing: KBOLayoutTokens.teamSideSpacing) {
             if isLeading {
-                KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
+                KBOTeamLogo(url: logoURL, teamCode: code, size: KBOLayoutTokens.teamLogoSize)
             }
             Text(name)
                 // Bat side gets an underline rather than a colour shift —
@@ -339,7 +348,7 @@ struct KBOExpandedView: View {
                 .foregroundStyle(isLoser ? Color.secondary : Color.primary)
                 .underline(isBatting, color: isLoser ? .secondary : .primary)
             if !isLeading {
-                KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
+                KBOTeamLogo(url: logoURL, teamCode: code, size: KBOLayoutTokens.teamLogoSize)
             }
         }
         .frame(maxWidth: .infinity, alignment: isLeading ? .leading : .trailing)
@@ -356,7 +365,7 @@ struct KBOExpandedView: View {
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
         } else {
-            HStack(spacing: 6) {
+            HStack(spacing: KBOLayoutTokens.scoreSpacing) {
                 scoreNumber(game.awayTeamScore,
                             isLoser: game.winnerSide == .home)
                 Text("·")
@@ -380,7 +389,7 @@ struct KBOExpandedView: View {
         if game.cancel {
             chipText("취소", color: .secondary)
         } else if game.isLive {
-            HStack(spacing: 4) {
+            HStack(spacing: KBOLayoutTokens.liveDotSpacing) {
                 LivePulseDot()
                 Text(game.statusInfo.isEmpty ? "LIVE" : game.statusInfo)
                     .font(.system(size: 10, weight: .semibold))
@@ -499,17 +508,20 @@ struct KBOExpandedView: View {
                      totals: totalsCells(line.homeTotals),
                      isHeader: false)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: KBOLayoutTokens.linescoreCornerRadius,
+                                    style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(.secondary.opacity(0.15), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: KBOLayoutTokens.linescoreCornerRadius,
+                             style: .continuous)
+                .strokeBorder(.secondary.opacity(0.15),
+                              lineWidth: KBOLayoutTokens.linescoreDividerWidth)
         }
 
         // Starting pitchers flank the grid: away on the left (matches the
         // header row's "{away} · {home}" left/right ordering), home on the
         // right. Slot stays reserved even when a name isn't published yet
         // so the grid doesn't jump horizontally once lineups arrive.
-        return HStack(alignment: .center, spacing: 8) {
+        return HStack(alignment: .center, spacing: KBOLayoutTokens.openGridGutter) {
             starterLabel(name: line.awayStartingPitcher,
                          teamCode: game.awayTeamCode,
                          alignment: .leading)
@@ -531,11 +543,11 @@ struct KBOExpandedView: View {
             .font(.system(size: 11, weight: .semibold))
             .symbolRenderingMode(.palette)
             .foregroundStyle(.white, KBOTeamColors.primary(for: teamCode))
-        return VStack(alignment: alignment, spacing: 3) {
+        return VStack(alignment: alignment, spacing: KBOLayoutTokens.expandedStarterRowSpacing) {
             Text("선발")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.secondary)
-            HStack(spacing: 3) {
+            HStack(spacing: KBOLayoutTokens.expandedStarterRowSpacing) {
                 if isLeading { badge }
                 Text(name ?? "—")
                     .font(.system(size: 11, weight: .semibold))
@@ -566,7 +578,7 @@ struct KBOExpandedView: View {
                               weight: isHeader ? .semibold : .medium))
                 .foregroundStyle(isHeader ? .secondary : .primary)
                 .lineLimit(1)
-                .frame(width: 44, alignment: .leading)
+                .frame(width: KBOLayoutTokens.linescoreTeamLabelWidth, alignment: .leading)
 
             // Static row — innings always fit horizontally in the panel
             // (worst case 12 innings × 20pt = 240pt; usable width is ~430pt).
@@ -579,7 +591,8 @@ struct KBOExpandedView: View {
                                       design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(isHeader ? .secondary : .primary)
-                        .frame(width: 20, height: 20)
+                        .frame(width: KBOLayoutTokens.linescoreInningCellWidth,
+                               height: KBOLayoutTokens.linescoreInningCellHeight)
                 }
             }
 
@@ -593,18 +606,19 @@ struct KBOExpandedView: View {
                         .foregroundStyle(isHeader
                                          ? Color.accentColor
                                          : (i == 0 ? .primary : .secondary))
-                        .frame(width: 22, height: 20)
+                        .frame(width: KBOLayoutTokens.linescoreTotalsCellWidth,
+                               height: KBOLayoutTokens.linescoreTotalsCellHeight)
                 }
             }
-            .padding(.leading, 4)
+            .padding(.leading, KBOLayoutTokens.linescoreTotalsLeading)
             .overlay(alignment: .leading) {
                 Rectangle()
                     .fill(.secondary.opacity(0.15))
-                    .frame(width: 0.5)
-                    .padding(.vertical, 3)
+                    .frame(width: KBOLayoutTokens.linescoreDividerWidth)
+                    .padding(.vertical, KBOLayoutTokens.linescoreDividerVerticalPadding)
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, KBOLayoutTokens.linescoreSidePadding)
     }
 }
 
@@ -616,7 +630,8 @@ private struct LivePulseDot: View {
     var body: some View {
         Circle()
             .fill(Color.red)
-            .frame(width: 6, height: 6)
+            .frame(width: KBOLayoutTokens.livePulseDotSize,
+                   height: KBOLayoutTokens.livePulseDotSize)
             .scaleEffect(pulse ? 1.35 : 1.0)
             .opacity(pulse ? 0.55 : 1.0)
             .onAppear { pulse = true }

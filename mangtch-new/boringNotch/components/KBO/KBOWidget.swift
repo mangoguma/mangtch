@@ -19,24 +19,35 @@ final class KBOWidget: NotchWidget {
         // Row-edge slot hosts either the inline starter (non-live) or the
         // live-state diamond/BSO cell (live).
         let starterSlot = Self.inlineStarterSlotWidth(viewModel.startingPitchers)
-        let rowSlot = max(80, starterSlot)
-        let teamSide: CGFloat = 80
-        let closed = rowSlot * 2 + 64 + teamSide * 2 + 64
-            + 10 * 5        // HStack(spacing: 10) between 6 children = 5 gaps
-            + 28            // .padding(.horizontal, 14)
+        let rowSlot = max(KBOLayoutTokens.rowSlotMinWidth, starterSlot)
+        let teamSide = KBOLayoutTokens.teamSideWidth
+        let closed = rowSlot * 2
+            + KBOLayoutTokens.scoreColumnWidth
+            + teamSide * 2
+            + KBOLayoutTokens.statusChipWidth
+            + KBOLayoutTokens.panelChildSpacing * CGFloat(KBOLayoutTokens.panelChildGapCount)
+            + KBOLayoutTokens.panelOuterHorizontalPadding
         let ideal: CGFloat
         if let line = viewModel.viewingLinescore {
             let innings = max(line.innings, 9)
-            let cellsWidth = CGFloat(innings + 4) * 22
-            let gridWidth = 44 + cellsWidth
+            let cellsWidth = CGFloat(innings + KBOLayoutTokens.linescoreInningExtraColumns)
+                * KBOLayoutTokens.linescoreTotalsCellWidth
+            let gridWidth = KBOLayoutTokens.linescoreTeamLabelWidth + cellsWidth
             let leftSlot = Self.expandedStarterSlotWidth(line.awayStartingPitcher)
             let rightSlot = Self.expandedStarterSlotWidth(line.homeStartingPitcher)
-            let open = leftSlot + 8 + gridWidth + 8 + rightSlot + 16
+            let open = leftSlot
+                + KBOLayoutTokens.openGridGutter
+                + gridWidth
+                + KBOLayoutTokens.openGridGutter
+                + rightSlot
+                + KBOLayoutTokens.openOuterPadding
             ideal = max(closed, open)
         } else {
             ideal = closed
         }
-        return WidthRange(min: ideal * 0.8, ideal: ideal, max: LayoutTokens.openCanvasWidth)
+        return WidthRange(min: ideal * KBOLayoutTokens.panelMinScale,
+                          ideal: ideal,
+                          max: LayoutTokens.openCanvasWidth)
     }
 
     /// Dynamic height — header (24pt) + N game rows (50pt each) + row
@@ -44,11 +55,11 @@ final class KBOWidget: NotchWidget {
     /// selected game row replaces its inline form with the inning grid
     /// (taller). Empty-state collapses to a small fixed height.
     var heightRange: HeightRange {
-        let header: CGFloat = 24
-        let outerPadding: CGFloat = 16  // .padding(.vertical, 8) top+bottom
-        let rowGap: CGFloat = 4
-        let rowHeight: CGFloat = 50
-        let linescoreHeight: CGFloat = 110
+        let header = KBOLayoutTokens.panelHeaderHeight
+        let outerPadding = KBOLayoutTokens.panelOuterVerticalPadding
+        let rowGap = KBOLayoutTokens.rowGap
+        let rowHeight = KBOLayoutTokens.panelHeightRowHeight
+        let linescoreHeight = KBOLayoutTokens.panelHeightLinescoreSection
         let count = viewModel.games.count
         let ideal: CGFloat
         if count > 0 {
@@ -56,11 +67,13 @@ final class KBOWidget: NotchWidget {
             if viewModel.viewingLinescore != nil {
                 rows += linescoreHeight
             }
-            ideal = header + outerPadding + rows + 6
+            ideal = header + outerPadding + rows + KBOLayoutTokens.panelHeightFooterSlack
         } else {
-            ideal = header + outerPadding + 60
+            ideal = header + outerPadding + KBOLayoutTokens.panelHeightEmptyExtra
         }
-        return HeightRange(min: ideal * 0.8, ideal: ideal, max: ideal * 1.5)
+        return HeightRange(min: ideal * KBOLayoutTokens.panelMinScale,
+                           ideal: ideal,
+                           max: ideal * KBOLayoutTokens.panelMaxHeightScale)
     }
 
     /// Width needed to render the *expanded* starter slot ("선발" badge +
@@ -68,10 +81,14 @@ final class KBOWidget: NotchWidget {
     /// "로드리게스" never collide with the inning grid.
     @MainActor
     private static func expandedStarterSlotWidth(_ name: String?) -> CGFloat {
-        let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let font = NSFont.systemFont(ofSize: KBOLayoutTokens.expandedStarterFontSize,
+                                     weight: .semibold)
         let text = name ?? "—"
         let nameWidth = (text as NSString).size(withAttributes: [.font: font]).width
-        return ceil(nameWidth) + 14 + 3 + 6
+        return ceil(nameWidth)
+            + KBOLayoutTokens.expandedStarterBadgePadding
+            + KBOLayoutTokens.expandedStarterRowSpacing
+            + KBOLayoutTokens.expandedStarterTrailing
     }
 
     /// Width of the inline starter slot used by the collapsed game row.
@@ -79,13 +96,18 @@ final class KBOWidget: NotchWidget {
     /// matches what the row actually renders.
     @MainActor
     private static func inlineStarterSlotWidth(_ cache: [String: KBOStarters]) -> CGFloat {
-        let font = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
+        let font = NSFont.systemFont(ofSize: KBOLayoutTokens.inlineStarterFontSize,
+                                     weight: .semibold)
         let widest = cache.values
             .flatMap { [$0.away, $0.home] }
             .compactMap { $0 }
             .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
             .max() ?? 0
-        return max(70, ceil(widest) + 4 + 12 + 8)
+        return max(KBOLayoutTokens.inlineStarterMinWidth,
+                   ceil(widest)
+                   + KBOLayoutTokens.inlineStarterNameGap
+                   + KBOLayoutTokens.inlineStarterBadgeWidth
+                   + KBOLayoutTokens.inlineStarterTrailing)
     }
 
     let viewModel = KBOViewModel()

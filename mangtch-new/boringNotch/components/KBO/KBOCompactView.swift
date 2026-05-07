@@ -21,13 +21,14 @@ struct KBOCompactView: View {
                 hoverToggles
                     .opacity(isHovering ? 1 : 0)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
+            .padding(.horizontal, KBOLayoutTokens.compactHorizontalPadding)
+            .padding(.vertical, KBOLayoutTokens.compactVerticalPadding)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: KBOLayoutTokens.compactBackgroundCornerRadius,
+                                 style: .continuous)
                     .fill(Color.accentColor.opacity(isHovering ? 0.18 : 0))
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, KBOLayoutTokens.compactBackgroundHorizontalInset)
+                    .padding(.vertical, KBOLayoutTokens.compactBackgroundVerticalInset)
             )
             .animation(.easeInOut(duration: 0.18), value: isHovering)
             .onAppear { pulse = true }
@@ -44,12 +45,13 @@ struct KBOCompactView: View {
         let attacking = viewModel.currentAttackingSide
         let awayBatting = attacking == .away
         let homeBatting = attacking == .home
-        return HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 3) {
+        return HStack(spacing: KBOLayoutTokens.compactRowSpacing) {
+            VStack(alignment: .leading, spacing: KBOLayoutTokens.compactInnerVerticalSpacing) {
+                HStack(spacing: KBOLayoutTokens.compactLiveBadgeSpacing) {
                     Circle()
                         .fill(Color.red)
-                        .frame(width: 5, height: 5)
+                        .frame(width: KBOLayoutTokens.compactLiveDotSize,
+                               height: KBOLayoutTokens.compactLiveDotSize)
                         .opacity(pulse ? 0.5 : 1.0)
                         .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true),
                                    value: pulse)
@@ -63,7 +65,7 @@ struct KBOCompactView: View {
                     .lineLimit(1)
             }
 
-            HStack(spacing: 3) {
+            HStack(spacing: KBOLayoutTokens.compactScoreSpacing) {
                 teamName(game.awayTeamName, isBatting: awayBatting)
                 Text("\(game.awayTeamScore)")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -94,7 +96,7 @@ struct KBOCompactView: View {
     // MARK: - Hover toggles
 
     private var hoverToggles: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: KBOLayoutTokens.compactToggleSpacing) {
             toggleIcon(
                 isOn: viewModel.tickerEnabled,
                 icon: "captions.bubble.fill"
@@ -118,9 +120,11 @@ struct KBOCompactView: View {
         Image(systemName: icon)
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(isOn ? Color.white : Color.primary)
-            .frame(width: 28, height: 22)
+            .frame(width: KBOLayoutTokens.compactToggleWidth,
+                   height: KBOLayoutTokens.compactToggleHeight)
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: KBOLayoutTokens.compactToggleCornerRadius,
+                                 style: .continuous)
                     .fill(isOn ? Color.accentColor : Color.secondary.opacity(0.22))
             )
     }

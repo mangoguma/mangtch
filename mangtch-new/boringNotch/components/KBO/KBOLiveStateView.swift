@@ -60,11 +60,12 @@ struct KBOLiveStateView: View {
     }
 
     private var compactBody: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: KBOLayoutTokens.liveCompactHStackSpacing) {
             BasesDiamond(onFirst: state.onFirst,
                          onSecond: state.onSecond,
                          onThird: state.onThird)
-                .frame(width: 18, height: 18)
+                .frame(width: KBOLayoutTokens.liveCompactDiamondSize,
+                       height: KBOLayoutTokens.liveCompactDiamondSize)
 
             Text("\(state.balls)-\(state.strikes)")
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
@@ -79,7 +80,7 @@ struct KBOLiveStateView: View {
     }
 
     private func compactOutsDots(value: Int) -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: KBOLayoutTokens.liveCompactDotSpacing) {
             ForEach(0..<2, id: \.self) { i in
                 let isFilled = i < value
                 Circle()
@@ -90,7 +91,8 @@ struct KBOLiveStateView: View {
                             lineWidth: 0.8
                         )
                     )
-                    .frame(width: 6, height: 6)
+                    .frame(width: KBOLayoutTokens.liveCompactDotSize,
+                           height: KBOLayoutTokens.liveCompactDotSize)
             }
         }
     }
@@ -99,20 +101,21 @@ struct KBOLiveStateView: View {
         // Three columns: diamond | B/S/O dots | pitcher/batter names.
         // Stretches to fill the full wing width so the right side doesn't
         // sit empty when names are present.
-        HStack(spacing: 6) {
+        HStack(spacing: KBOLayoutTokens.liveWingHStackSpacing) {
             BasesDiamond(onFirst: state.onFirst,
                          onSecond: state.onSecond,
                          onThird: state.onThird)
-                .frame(width: 22, height: 22)
+                .frame(width: KBOLayoutTokens.liveWingDiamondSize,
+                       height: KBOLayoutTokens.liveWingDiamondSize)
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
                 countRow(value: state.balls, total: 3, label: "B", filledColor: .green)
                 countRow(value: state.strikes, total: 2, label: "S", filledColor: .yellow)
                 countRow(value: state.outs, total: 2, label: "O", filledColor: .red)
             }
 
             ZStack {
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
                     playerRow(icon: "p.circle.fill",
                               name: state.pitcherName,
                               tint: pitcherTeamColor)
@@ -139,15 +142,15 @@ struct KBOLiveStateView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, KBOLayoutTokens.liveWingHorizontalPadding)
+        .padding(.vertical, KBOLayoutTokens.liveWingVerticalPadding)
         // No inner pill — the wing's own dark panel background already
         // provides the contrast surface. An extra rounded rect inside it
         // would visibly disagree with the wing's edge curvature.
     }
 
     private func countRow(value: Int, total: Int, label: String, filledColor: Color) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: KBOLayoutTokens.liveWingCountRowSpacing) {
             Text(label)
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.white)
@@ -163,7 +166,7 @@ struct KBOLiveStateView: View {
         // letter glyph stays white — the conventional "club badge" look.
         // Falls back to a flat white symbol when no tint resolved (e.g.
         // attackingSide unknown), preserving the prior appearance.
-        HStack(spacing: 3) {
+        HStack(spacing: KBOLayoutTokens.liveWingPlayerRowSpacing) {
             Image(systemName: icon)
                 .font(.system(size: 9, weight: .bold))
                 .symbolRenderingMode(.palette)
@@ -184,7 +187,7 @@ struct KBOLiveStateView: View {
     /// for strikes, red for outs); unused slots stay as a hollow black ring
     /// so the row still reads on the light wing background.
     private func countDots(value: Int, total: Int, filledColor: Color) -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: KBOLayoutTokens.liveWingDotSpacing) {
             ForEach(0..<total, id: \.self) { i in
                 let isFilled = i < value
                 Circle()
@@ -195,7 +198,8 @@ struct KBOLiveStateView: View {
                             lineWidth: 0.8
                         )
                     )
-                    .frame(width: 6, height: 6)
+                    .frame(width: KBOLayoutTokens.liveWingDotSize,
+                           height: KBOLayoutTokens.liveWingDotSize)
             }
         }
     }
@@ -212,7 +216,7 @@ private struct BasesDiamond: View {
     var body: some View {
         GeometryReader { geo in
             let s = min(geo.size.width, geo.size.height)
-            let baseSize: CGFloat = s * 0.34
+            let baseSize: CGFloat = s * KBOLayoutTokens.baseDiamondInnerScale
             ZStack {
                 // 2nd (top center)
                 base(filled: onSecond, size: baseSize)

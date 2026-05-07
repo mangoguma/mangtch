@@ -164,6 +164,7 @@
 		FA003002FA003002FA003002 /* KBOViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003003FA003003FA003003 /* KBOViewModel.swift */; };
 		FA003004FA003004FA003004 /* KBOCompactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003005FA003005FA003005 /* KBOCompactView.swift */; };
 		FA003006FA003006FA003006 /* KBOExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003007FA003007FA003007 /* KBOExpandedView.swift */; };
+		FA003019FA003019FA003019 /* KBOLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003018FA003018FA003018 /* KBOLayoutTokens.swift */; };
 		FA003008FA003008FA003008 /* KBOLinescore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003009FA003009FA003009 /* KBOLinescore.swift */; };
 		FA003010FA003010FA003010 /* KBOLiveStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003011FA003011FA003011 /* KBOLiveStateView.swift */; };
 		FA003012FA003012FA003012 /* KBOModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003013FA003013FA003013 /* KBOModels.swift */; };
@@ -359,6 +360,7 @@
 		FA003013FA003013FA003013 /* KBOModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOModels.swift; sourceTree = "<group>"; };
 		FA003015FA003015FA003015 /* KBOTeamColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOTeamColors.swift; sourceTree = "<group>"; };
 		FA003017FA003017FA003017 /* KBOTeamLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOTeamLogo.swift; sourceTree = "<group>"; };
+		FA003018FA003018FA003018 /* KBOLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOLayoutTokens.swift; sourceTree = "<group>"; };
 		FA004000FA004000FA004000 /* KBOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOService.swift; sourceTree = "<group>"; };
 		7EAE8DC2B8AB5273C5276F03 /* GestureHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestureHandler.swift; sourceTree = "<group>"; };
 		4172D61169276B47572E3AF3 /* AnimationTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTokens.swift; sourceTree = "<group>"; };
@@ -872,6 +874,7 @@
 				FA003013FA003013FA003013 /* KBOModels.swift */,
 				FA003015FA003015FA003015 /* KBOTeamColors.swift */,
 				FA003017FA003017FA003017 /* KBOTeamLogo.swift */,
+				FA003018FA003018FA003018 /* KBOLayoutTokens.swift */,
 			);
 			path = KBO;
 			sourceTree = "<group>";
@@ -1174,6 +1177,7 @@
 				FA003012FA003012FA003012 /* KBOModels.swift in Sources */,
 				FA003014FA003014FA003014 /* KBOTeamColors.swift in Sources */,
 				FA003016FA003016FA003016 /* KBOTeamLogo.swift in Sources */,
+				FA003019FA003019FA003019 /* KBOLayoutTokens.swift in Sources */,
 				FA004001FA004001FA004001 /* KBOService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
