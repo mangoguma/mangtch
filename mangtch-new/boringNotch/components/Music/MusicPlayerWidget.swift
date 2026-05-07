@@ -10,8 +10,16 @@ final class MusicPlayerWidget: NotchWidget {
     let id = "music-player"
     let displayName = "Music"
     let icon = "music.note"
-    let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
+
+    /// Lowest priority — Music is the fallback owner. Anything else
+    /// (Timer running, KBO live) outranks it.
+    let wingPriority: Int = 1
+
+    /// Music always claims so the priority chain has a guaranteed floor.
+    /// Even when no song is playing, the compact views render an idle
+    /// placeholder (album art at 0.4 opacity) — better than an empty wing.
+    var claimsWings: Bool { true }
 
     /// State-aware width: collapsed wings sit at the compact-row ideal
     /// (`compactWidth`) so the album-art tile + title/artist pair don't
@@ -30,11 +38,11 @@ final class MusicPlayerWidget: NotchWidget {
     /// Music owns both wings by default. Built once and stable-mounted by
     /// the wing host; ContentView's owner resolution toggles opacity to
     /// hand the slot off to KBO/Timer when their state warrants takeover.
-    func makeLeftWingView() -> AnyView? {
+    func makeLeftWingView() -> AnyView {
         AnyView(MusicCompactArtwork())
     }
 
-    func makeRightWingView() -> AnyView? {
+    func makeRightWingView() -> AnyView {
         AnyView(MusicCompactInfo())
     }
 

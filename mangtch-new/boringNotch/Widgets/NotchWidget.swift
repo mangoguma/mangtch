@@ -1,13 +1,5 @@
 import SwiftUI
 
-// MARK: - Widget Position
-
-enum WidgetPosition: String, CaseIterable, Codable {
-    case leftWing
-    case rightWing
-    case center
-}
-
 // MARK: - Width / Height Ranges
 
 /// Widget-declared panel width range. `PanelLayoutMetrics.resolve` clamps
@@ -41,6 +33,13 @@ struct HeightRange {
 
 // MARK: - Widget Protocol
 
+/// Single-owner, bilateral wings. The widget that wins the priority chain
+/// (highest `wingPriority` among those whose `claimsWings` is true) owns
+/// **both** wings and the expanded panel. There is no per-wing selection
+/// and no user toggle — selection is purely state-driven.
+///
+/// Every conformer must build both wing views; one-sided wings would
+/// produce an asymmetric notch chrome that no widget in the design covers.
 protocol NotchWidget: AnyObject, Identifiable where ID == String {
     /// Unique identifier for this widget
     var id: String { get }
@@ -54,8 +53,19 @@ protocol NotchWidget: AnyObject, Identifiable where ID == String {
     /// Whether the widget is currently enabled
     var isEnabled: Bool { get set }
 
-    /// Preferred position in the notch layout
-    var preferredPosition: WidgetPosition { get }
+    /// Higher value wins the priority chain. Ties are not allowed across
+    /// registered widgets — `WidgetRegistry` asserts uniqueness at register
+    /// time. `0` is reserved for "never claims" (no current widget uses it,
+    /// but Settings-style chrome that shouldn't appear in wings would).
+    var wingPriority: Int { get }
+
+    /// State-driven claim. Read on every observation tick, so it must
+    /// only depend on state already exposed via `@Observable`/`@Published`
+    /// — otherwise the priority chain won't recompute when the answer
+    /// changes. Returning `false` hands the wings off to the next-priority
+    /// widget that returns `true`.
+    @MainActor
+    var claimsWings: Bool { get }
 
     /// Closed-state width range. `.open` is canvas-fixed and ignores this.
     @MainActor
@@ -65,18 +75,18 @@ protocol NotchWidget: AnyObject, Identifiable where ID == String {
     @MainActor
     var heightRange: HeightRange { get }
 
-    /// Compact view for the left wing — `nil` means this widget never
-    /// claims that wing. Built once per app lifetime by `AnyNotchWidget`
-    /// and stable-mounted by the wing host; ContentView toggles opacity
-    /// to swap owners instead of remounting, which preserves SwiftUI view
-    /// identity across owner changes (no AnyView diff churn, no internal
-    /// state reset, deterministic hit-zone preference emission).
+    /// Compact view for the left wing. Built once per app lifetime by
+    /// `AnyNotchWidget` and stable-mounted by the wing host; ContentView
+    /// toggles opacity to swap owners instead of remounting, which
+    /// preserves SwiftUI view identity across owner changes (no AnyView
+    /// diff churn, no internal state reset, deterministic hit-zone
+    /// preference emission).
     @MainActor
-    func makeLeftWingView() -> AnyView?
+    func makeLeftWingView() -> AnyView
 
     /// Compact view for the right wing — see `makeLeftWingView`.
     @MainActor
-    func makeRightWingView() -> AnyView?
+    func makeRightWingView() -> AnyView
 
     /// Expanded view shown when panel is fully expanded
     @MainActor
@@ -96,7 +106,7 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     let id: String
     let displayName: String
     let icon: String
-    let preferredPosition: WidgetPosition
+    let wingPriority: Int
 
     @Published var isEnabled: Bool {
         didSet { wrapped.isEnabled = isEnabled }
@@ -109,21 +119,22 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     /// across owner toggles, so each wing's internal state (hover flags,
     /// observed-object subscriptions, animation phases) survives swaps —
     /// the only thing that changes is opacity + hit-zone emission gating.
-    let leftWingView: AnyView?
-    let rightWingView: AnyView?
+    let leftWingView: AnyView
+    let rightWingView: AnyView
 
     private let _makeExpandedView: @MainActor () -> AnyView
     private let _activate: () -> Void
     private let _deactivate: () -> Void
     private let _widthRange: @MainActor () -> WidthRange
     private let _heightRange: @MainActor () -> HeightRange
+    private let _claimsWings: @MainActor () -> Bool
 
     init(_ widget: some NotchWidget) {
         self.wrapped = widget
         self.id = widget.id
         self.displayName = widget.displayName
         self.icon = widget.icon
-        self.preferredPosition = widget.preferredPosition
+        self.wingPriority = widget.wingPriority
         self.isEnabled = widget.isEnabled
         self.leftWingView = widget.makeLeftWingView()
         self.rightWingView = widget.makeRightWingView()
@@ -132,6 +143,7 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
         self._deactivate = { widget.deactivate() }
         self._widthRange = { widget.widthRange }
         self._heightRange = { widget.heightRange }
+        self._claimsWings = { widget.claimsWings }
     }
 
     var widthRange: WidthRange {
@@ -140,6 +152,10 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
 
     var heightRange: HeightRange {
         _heightRange()
+    }
+
+    var claimsWings: Bool {
+        _claimsWings()
     }
 
     func makeExpandedView() -> AnyView {
@@ -161,12 +177,4 @@ extension NotchWidget {
 
     @MainActor
     var heightRange: HeightRange { .default }
-
-    /// Widgets that don't claim a wing slot return nil — the wing host
-    /// won't mount any tree for them, so they cost nothing in the ZStack.
-    @MainActor
-    func makeLeftWingView() -> AnyView? { nil }
-
-    @MainActor
-    func makeRightWingView() -> AnyView? { nil }
 }

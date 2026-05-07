@@ -6,8 +6,21 @@ final class KBOWidget: NotchWidget {
     let id = "kbo"
     let displayName = "KBO"
     let icon = "baseball"
-    let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
+
+    /// Mid-priority. Wins over Music whenever a live game (or non-today
+    /// browsing) is in progress; loses to Timer (the user explicitly
+    /// started a countdown — that's the most foreground intent).
+    let wingPriority: Int = 10
+
+    /// Hold the wings while the user is browsing a non-today date — they're
+    /// clearly in the KBO context and flipping to Music under a KBO panel
+    /// is jarring. Otherwise only claim when a selected game is live.
+    @MainActor
+    var claimsWings: Bool {
+        if !viewModel.isShowingToday { return true }
+        return viewModel.selectedGame?.isLive == true
+    }
 
     /// Content-driven width (re-enabled in phase 8b). The closed-row layout
     /// drives `min` / `ideal` so the panel never leaves a starter name
@@ -144,12 +157,12 @@ final class KBOWidget: NotchWidget {
     let viewModel = KBOViewModel()
 
     @MainActor
-    func makeLeftWingView() -> AnyView? {
+    func makeLeftWingView() -> AnyView {
         AnyView(KBOCompactView(viewModel: viewModel))
     }
 
     @MainActor
-    func makeRightWingView() -> AnyView? {
+    func makeRightWingView() -> AnyView {
         AnyView(KBORightWingContainer(viewModel: viewModel))
     }
 

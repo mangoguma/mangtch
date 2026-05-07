@@ -194,17 +194,15 @@ struct ContentView: View {
 
     @ViewBuilder
     private var leftWingContent: some View {
-        let activeID = leftWingOwnerID
+        let activeID = vm.wingOwnerID
         ZStack(alignment: .leading) {
             ForEach(widgetRegistry.widgets) { widget in
-                if let tree = widget.leftWingView {
-                    tree
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                        .opacity(widget.id == activeID ? 1 : 0)
-                        .allowsHitTesting(widget.id == activeID)
-                        .environment(\.wingHitZoneEmissionEnabled,
-                                     widget.id == activeID)
-                }
+                widget.leftWingView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .opacity(widget.id == activeID ? 1 : 0)
+                    .allowsHitTesting(widget.id == activeID)
+                    .environment(\.wingHitZoneEmissionEnabled,
+                                 widget.id == activeID)
             }
         }
         .animation(.easeInOut(duration: 0.22), value: activeID)
@@ -212,73 +210,18 @@ struct ContentView: View {
 
     @ViewBuilder
     private var rightWingContent: some View {
-        let activeID = rightWingOwnerID
+        let activeID = vm.wingOwnerID
         ZStack(alignment: .trailing) {
             ForEach(widgetRegistry.widgets) { widget in
-                if let tree = widget.rightWingView {
-                    tree
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                        .opacity(widget.id == activeID ? 1 : 0)
-                        .allowsHitTesting(widget.id == activeID)
-                        .environment(\.wingHitZoneEmissionEnabled,
-                                     widget.id == activeID)
-                }
+                widget.rightWingView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .opacity(widget.id == activeID ? 1 : 0)
+                    .allowsHitTesting(widget.id == activeID)
+                    .environment(\.wingHitZoneEmissionEnabled,
+                                 widget.id == activeID)
             }
         }
         .animation(.easeInOut(duration: 0.22), value: activeID)
-    }
-
-    // MARK: - Wing Owner Resolution
-    //
-    // Single source of truth for which mounted wing tree should be visible
-    // and emit hit zones. Trees themselves are stable-mounted regardless;
-    // these resolvers only decide opacity/emission.
-
-    /// Left-wing precedence: active expanded widget claims iff it has
-    /// live content → Timer iff running → Music default. Mirrors the
-    /// pre-refactor `hasWingContent` policy.
-    private var leftWingOwnerID: String {
-        if vm.currentExpandedWidgetID != "music-player",
-           let active = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
-           active.isEnabled,
-           widgetClaimsLeftWing(active) {
-            return active.id
-        }
-        if let timerWidget = widgetRegistry.widget(for: "timer"),
-           let timer = timerWidget.wrapped as? TimerWidget,
-           timerWidget.isEnabled,
-           timer.viewModel.isActive || timer.viewModel.displayTime > 0 {
-            return "timer"
-        }
-        return "music-player"
-    }
-
-    /// Right-wing precedence: KBO live game when KBO panel is active →
-    /// Music default otherwise.
-    private var rightWingOwnerID: String {
-        if vm.currentExpandedWidgetID == "kbo",
-           let kboWidget = widgetRegistry.widget(for: "kbo"),
-           kboWidget.isEnabled,
-           let kbo = kboWidget.wrapped as? KBOWidget,
-           kbo.viewModel.selectedGame?.isLive == true {
-            return "kbo"
-        }
-        return "music-player"
-    }
-
-    private func widgetClaimsLeftWing(_ widget: AnyNotchWidget) -> Bool {
-        if let timer = widget.wrapped as? TimerWidget {
-            return timer.viewModel.isActive || timer.viewModel.displayTime > 0
-        }
-        if let kbo = widget.wrapped as? KBOWidget {
-            // Hold the wing while the user is browsing a non-today date —
-            // they're clearly in the KBO context and flipping wings to
-            // music under a KBO panel is jarring. Otherwise only claim
-            // for a pinned live game.
-            if !kbo.viewModel.isShowingToday { return true }
-            return kbo.viewModel.selectedGame?.isLive == true
-        }
-        return widget.leftWingView != nil
     }
 
     // MARK: - Expanded Content

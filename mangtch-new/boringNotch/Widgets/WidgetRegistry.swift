@@ -31,6 +31,12 @@ final class WidgetRegistry {
     func register(_ widget: some NotchWidget) {
         guard !widgets.contains(where: { $0.id == widget.id }) else { return }
         let wrapped = AnyNotchWidget(widget)
+        // Priority chain requires unique priorities — duplicates make the
+        // owner resolution non-deterministic (sort isn't stable across
+        // ties). Assert at registration so the offender is obvious in dev,
+        // rather than producing an intermittent wing flicker in prod.
+        assert(!widgets.contains(where: { $0.wingPriority == wrapped.wingPriority }),
+               "Duplicate wingPriority \(wrapped.wingPriority) registered by \(wrapped.id)")
         if let stored = Defaults[.widgetEnabled][wrapped.id] {
             wrapped.isEnabled = stored
         }
@@ -50,10 +56,6 @@ final class WidgetRegistry {
         widgets.first { $0.id == id }
     }
 
-    func widgets(for position: WidgetPosition) -> [AnyNotchWidget] {
-        enabledWidgets.filter { $0.preferredPosition == position }
-    }
-
     // MARK: - Lifecycle
 
     func activateAll() {
@@ -71,7 +73,8 @@ final class WidgetRegistry {
     // MARK: - User-controlled mutations
 
     /// Enable/disable a widget. Persists to Defaults and triggers Observation
-    /// so chrome (ContentView, WidgetSwitcherBar) re-evaluates `enabledWidgets`.
+    /// so chrome (ContentView, BoringViewModel's priority chain) re-evaluates
+    /// `enabledWidgets`.
     func setEnabled(_ id: String, _ enabled: Bool) {
         guard let idx = widgets.firstIndex(where: { $0.id == id }) else { return }
         widgets[idx].isEnabled = enabled

@@ -32,7 +32,29 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var hoveredWing: HoveredWing = .none
 
     // MARK: - Widget layout
-    /// ID of the widget currently shown in the expanded panel.
+    //
+    // Two axes — wings vs panel — driven by different sources:
+    //
+    // 1. `wingOwnerID` — wings only. Priority-chain driven; reflects "what
+    //    is most foreground right now" (Timer running > KBO live > Music).
+    //    Resolved under `withObservationTracking` by `recomputeWingOwner`,
+    //    so @Observable widget state changes re-fire the resolution.
+    // 2. `currentExpandedWidgetID` — expanded panel only. User-selected via
+    //    `WidgetSwitcherBar`. Independent of the wing owner so a user
+    //    browsing KBO standings doesn't get yanked back to Music when
+    //    a different widget grabs the wings, and so the panel can host
+    //    widgets that aren't currently claiming (Timer setup, KBO non-live
+    //    schedule).
+    //
+    // Both seeded to "music-player" so chrome has a stable ID before
+    // `WidgetRegistry.registerDefaults` runs.
+
+    /// Priority-chain owner of both wings. Read-only externally.
+    @Published private(set) var wingOwnerID: String = "music-player"
+
+    /// User-selected widget shown in the expanded panel. Bound by the
+    /// `WidgetSwitcherBar`; also drives `metrics` so the panel can size
+    /// itself to the picked widget's `widthRange`/`heightRange`.
     @Published var currentExpandedWidgetID: String = "music-player"
 
     // MARK: - Wing/panel size
@@ -42,11 +64,20 @@ class BoringViewModel: NSObject, ObservableObject {
     // in `PanelLayoutMetrics.resolve` — pure, state-driven. Read via
     // `metrics` below.
 
-    /// Single resolver. Widget-driven for both states; reads
-    /// `widthRange`/`heightRange` from the currently active widget.
+    /// Single resolver. Widget-driven; the **source widget** depends on
+    /// state because the panel and the wings can be owned by different
+    /// widgets:
+    ///
+    /// - `.closed` → `wingOwnerID`. The wings are the only thing visible,
+    ///   and their widths are computed from `panelWidth - notchWidth)/2` —
+    ///   so the width must follow whatever widget is actually rendering
+    ///   into the wings (priority-chain owner).
+    /// - `.open` → `currentExpandedWidgetID`. The expanded panel covers
+    ///   the wings; its width must fit the user-picked widget's canvas.
     @MainActor
     var metrics: PanelLayoutMetrics {
-        let widget = WidgetRegistry.shared.widget(for: currentExpandedWidgetID)
+        let sourceID = notchState == .open ? currentExpandedWidgetID : wingOwnerID
+        let widget = WidgetRegistry.shared.widget(for: sourceID)
         return PanelLayoutMetrics.resolve(widget: widget,
                                           notchSize: notchSize,
                                           state: notchState)
@@ -132,6 +163,7 @@ class BoringViewModel: NSObject, ObservableObject {
 
         setupDetectorObserver()
         setupMetricsTracking()
+        setupWingOwnerTracking()
         setupAppearanceObserver()
     }
 
@@ -169,13 +201,58 @@ class BoringViewModel: NSObject, ObservableObject {
     /// `withObservationTracking` closure so @Observable widget state changes
     /// (KBO games/linescore/starters) also re-fire it.
     private func setupMetricsTracking() {
-        Publishers.CombineLatest3($notchSize, $notchState, $currentExpandedWidgetID)
-            .sink { [weak self] _, _, _ in
+        // `metrics` reads either `currentExpandedWidgetID` or `wingOwnerID`
+        // depending on `notchState`, so both must trigger recomputation.
+        let sourcesA = Publishers.CombineLatest($notchSize, $notchState)
+        let sourcesB = Publishers.CombineLatest($currentExpandedWidgetID, $wingOwnerID)
+        sourcesA.combineLatest(sourcesB)
+            .sink { [weak self] _, _ in
                 Task { @MainActor [weak self] in
                     self?.recomputeMetrics()
                 }
             }
             .store(in: &cancellables)
+    }
+
+    /// Kicks off the priority-chain resolution loop. First evaluation
+    /// runs immediately so the seeded "music-player" ID gets corrected
+    /// the moment a higher-priority widget is registered and claims;
+    /// subsequent re-runs are driven by `recomputeWingOwner`'s own
+    /// observation tracking.
+    private func setupWingOwnerTracking() {
+        Task { @MainActor [weak self] in
+            self?.recomputeWingOwner()
+        }
+    }
+
+    @MainActor
+    private func recomputeWingOwner() {
+        var resolved: String!
+        withObservationTracking {
+            resolved = Self.resolveWingOwner()
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.recomputeWingOwner()
+            }
+        }
+        if resolved != wingOwnerID {
+            wingOwnerID = resolved
+        }
+    }
+
+    /// Walks the registry's enabled widgets in descending `wingPriority`
+    /// order and returns the first whose `claimsWings` is true. The
+    /// "music-player" ID is the floor — Music always claims, so this
+    /// floor only matters during the brief window before
+    /// `registerDefaults` populates the registry.
+    @MainActor
+    private static func resolveWingOwner() -> String {
+        let candidates = WidgetRegistry.shared.enabledWidgets
+            .sorted { $0.wingPriority > $1.wingPriority }
+        for widget in candidates where widget.claimsWings {
+            return widget.id
+        }
+        return "music-player"
     }
 
     @MainActor

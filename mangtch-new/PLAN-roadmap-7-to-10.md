@@ -304,63 +304,82 @@ feat(mangtch-new): Music widthRange tracks song title length again (8c)
 
 ---
 
-## 5. 단계 9 — 멀티 슬롯 wing + KBO 스크롤 안전망
+## 5. 단계 9 — Priority chain 기반 wing owner + KBO 스크롤 안전망
 
 ### 5.1 동기
 
-지금 wing 은 **단일 active widget** 이 좌우 모두 차지 (또는 default Music). 이상적: 좌 wing = Music album art, 우 wing = KBO live state, 동시 표시. 사용자가 wing 별로 active widget 선택.
+원본 Mangtch 의 KBO 라이브는 좌·우 wing 둘 다 점유 (양쪽이 한 위젯의 chrome). Dynamic Island 도 동일 — 한 activity 가 leading/trailing 둘 다 owner. NotchNook 도 좌=Music · 우=context 자동 전환 (사용자 토글 없음).
+
+지금 mangtch-new 는 wing 슬롯이 **단일 active widget** 이 좌·우 둘 다 차지. 이건 유지. 다만 selection 이 사용자 manual toggle (`WidgetSwitcherBar`) 인데, **state-driven priority chain** 으로 교체.
 
 KBO ScrollView fallback 은 단계 5c 에서 폐기 (`ViewThatFits` 회귀). 10경기 mock 케이스 안전망 필요 시 정공법으로 재시도.
 
-### 5.2 사용자 결정 게이트 (착수 전 확정 필요)
+### 5.2 모델 — single owner, bilateral wings
 
-1. **wing 별 active widget 선택 UI 위치** — Settings? WidgetSwitcherBar 컨텍스트 메뉴? wing 마다 작은 뱃지?
-2. **default 동작** — 신규 사용자는 좌/우 모두 무엇? (예: 좌=Music, 우=KBO live 만 takeover)
-3. **충돌** — 같은 위젯이 좌/우 둘 다 claim 하면? (예: KBO 가 좌 wing 도 원하고 우 wing 도 원함)
+**좌·우 wing 동시에 한 위젯 owner**. 위젯이 자기 `leftWingView` + `rightWingView` 페어 설계.
 
-위 셋 결정 안 받으면 단계 9 착수 X.
+Priority chain (state-driven, 위에서부터 평가):
+
+```
+Timer (running) > KBO (live game) > Music (playing) > 없음
+```
+
+각 위젯 wing pair:
+
+| 위젯 | 좌 wing | 우 wing |
+|---|---|---|
+| Music | album art | title/artist 마퀴 |
+| KBO | (live state — 팀 로고 / 점수) | linescore / 투수 |
+| Timer | icon | 카운트다운 |
+
+Wing pair 미정의 위젯 (예: Settings) 은 priority chain 진입 X (`hasWings: Bool = false`). 진입하면 좌·우 둘 다 의무 — 한쪽만 정의는 컴파일 에러.
+
+사용자 결정 게이트 (이전 5.2 의 위치/default/충돌) — **모두 정책으로 박힘. Settings UI 없음.** WidgetSwitcherBar 삭제.
 
 ### 5.3 In scope
 
-- `BoringViewModel.currentExpandedWidgetID` → `leftActiveWidgetID` + `rightActiveWidgetID` 분리
-- `NotchWidget.preferredPosition` 활용 강화 (지금은 거의 무시됨)
-- 위젯 마다 `claimsLeftWing(when:)` / `claimsRightWing(when:)` 동적 boolean (예: KBO 가 라이브 게임 있을 때만 우 wing claim)
-- Settings 위젯 관리 UI 확장 — 위젯 마다 "default position" 토글
+- `WidgetSwitcherBar` 삭제. 사용처 (NotchContentView, expanded panel chrome) 정리
+- `BoringViewModel.currentExpandedWidgetID` 의 setter 가 사용자 toggle 이 아니라 priority chain 평가 결과 반영
+- `NotchWidget` 프로토콜에 `wingPriority: Int` (0 = no wings) + `claimsWings(state) -> Bool` 추가
+- 각 위젯에 wing pair 보장 (Music/KBO/Timer — Settings 는 wing 없음)
+- `NotchWidget.preferredPosition` enum 폐기 (의미 사라짐 — bilateral 모델이라)
 - KBO ScrollView 정공법 재시도 (별 sub)
 
 ### 5.4 단계 분할
 
 | Sub | 내용 |
 |---|---|
-| **9a** | `BoringViewModel` 의 active id 분리 + ContentView wing 마운트 로직 변경 |
-| **9b** | Settings 위젯 mgmt 에 position default 토글 추가 |
+| **9a** | `WidgetSwitcherBar` 삭제 + priority chain 도입 (`BoringViewModel.activeWingOwner` computed). `NotchWidget` 프로토콜에 `wingPriority` / `claimsWings` 추가 |
+| **9b** | KBO 위젯의 wing pair 정의 (원본 Mangtch 의 좌·우 chrome 복원). Timer 도 wing pair (icon + countdown). Music 은 이미 있음 |
 | **9c** | KBO ScrollView 재시도 — `ViewThatFits` 대신 `.frame(maxHeight: m.contentHeight - header)` + `.fixedSize(horizontal: false, vertical: true)` 조합. 단계 5c 회고 정독 후 |
 
 ### 5.5 단계 5d stable-mount 와의 관계
 
-stable-mount 는 위젯이 wing 트리를 한 번 build → opacity gate. 멀티 슬롯에서도 같은 패턴 유지 가능:
-- 좌 wing host = ZStack { 모든 위젯의 leftWingView }, 활성 owner 만 opacity 1
-- 우 wing host = ZStack { 모든 위젯의 rightWingView }
-- `wingHitZoneEmissionEnabled` env 가 좌/우 따로 게이트
+stable-mount 는 위젯이 wing 트리를 한 번 build → opacity gate. single-owner 모델에서도 그대로:
+- wing host = ZStack { 모든 wing-capable 위젯의 (leftWingView + rightWingView) }, 현재 owner 만 opacity 1
+- `wingHitZoneEmissionEnabled` env 가 owner 만 true
 
 ### 5.6 검증
 
-- 좌=Music, 우=KBO 동시 표시
-- KBO live 끝나면 우 wing 이 default (Music) 로 reverts
-- Settings 토글 즉시 반영
-- 단계 5d 의 swap 플리커가 멀티 슬롯에서도 발생 X
+- Music 만 재생 → 양쪽 Music chrome
+- KBO 라이브 시작 → 양쪽 KBO chrome 으로 swap (단계 5d 플리커 X)
+- KBO 라이브 + Timer 시작 → 양쪽 Timer chrome (priority)
+- Timer stop → 즉시 KBO 로 복귀
+- KBO 라이브 종료 → Music 로 복귀
+- Music 미재생 + 다른 claim 없음 → wing 없음 (notch 베어)
 
 ### 5.7 함정
 
-1. **`preferredPosition`** 이 지금 enum (`leftWing/rightWing/center`) 인데 거의 사용 안 됨. 의미 확정 필요. 단계 9 에서 핵심 구조가 됨.
-2. **WidgetSwitcherBar** 도 어떻게 변할지 — 좌/우 wing 다른 active widget 인데 switcher 가 panel expanded view 만 control? 또는 좌/우 wing 각각 control?
-3. **KBO ScrollView 정공법** — 단계 5c 의 `Color.clear` height bloat 가 진짜 root cause 였음. ScrollView 도입 자체가 회귀였던 거라, 다시 도입할 때 같은 함정 피하려면 **`Color.clear.frame(height: 0)` 패턴 보존** + ScrollView 안 자식이 height-greedy 하지 않도록 명시.
+1. **`preferredPosition` 폐기** — enum 자체 제거. import 깨질 수 있음, 사용처 일괄 정리
+2. **Priority 충돌** — 두 위젯이 같은 priority 못 갖게 컴파일 타임 (또는 런타임 assert) 검증
+3. **KBO ScrollView 정공법** — 단계 5c 의 `Color.clear` height bloat 가 진짜 root cause. ScrollView 안 자식이 height-greedy 하지 않도록 명시 + `Color.clear.frame(height: 0)` 패턴 보존
+4. **WidgetSwitcherBar 삭제 후 expanded panel 사용자 선택** — priority chain 이 panel 컨텐츠도 결정. 사용자가 KBO 라이브 도중 일부러 Music 보고 싶은 케이스는 단계 9 범위 밖 (필요시 단계 11+)
 
 ### 5.8 커밋
 
 ```
-feat(mangtch-new): independent active widget per wing slot (9a)
-feat(mangtch-new): per-widget wing position settings (9b)
+refactor(mangtch-new): drop WidgetSwitcherBar + priority chain wing owner (9a)
+feat(mangtch-new): KBO/Timer bilateral wing pair (9b)
 feat(mangtch-new): KBO ScrollView fallback for >max content (9c)
 ```
 

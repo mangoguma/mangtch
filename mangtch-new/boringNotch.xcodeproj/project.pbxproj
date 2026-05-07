@@ -85,6 +85,7 @@
 		FA007C05FA007C05FA007C05 /* TimerThemeTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA007C04FA007C04FA007C04 /* TimerThemeTokens.swift */; };
 		1443E7F72C609DCE0027C1FC /* PanelLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1443E7F62C609DCE0027C1FC /* PanelLayoutMetrics.swift */; };
 		147163982C5D35B70068B555 /* MusicVisualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147163972C5D35B70068B555 /* MusicVisualizer.swift */; };
+		E35EE98254D18D0205B0C8DF /* WidgetSwitcherBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C935143A697D3A87452A3D0 /* WidgetSwitcherBar.swift */; };
 		1471639A2C5D35FF0068B555 /* MusicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147163992C5D35FF0068B555 /* MusicManager.swift */; };
 		1471A8592C6281BD0058408D /* BoringNotchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1471A8582C6281BD0058408D /* BoringNotchWindow.swift */; };
 
@@ -154,12 +155,10 @@
 		4F3BB6E350B87A4F9F7FD65F /* WingShapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20B3DEBA8CB77041EFA17315 /* WingShapes.swift */; };
 		9A43BFA223F70250A3E4A55D /* GestureHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EAE8DC2B8AB5273C5276F03 /* GestureHandler.swift */; };
 		1B049E5226542EA3A714B67D /* AnimationTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4172D61169276B47572E3AF3 /* AnimationTokens.swift */; };
-		129D0CEF2845D9C8534C095F /* WidgetSwitcherBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63EA60B0768F8D31240C4F44 /* WidgetSwitcherBar.swift */; };
 		FA001001FA001001FA001001 /* MusicPlayerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001000FA001000FA001000 /* MusicPlayerWidget.swift */; };
 		FA001003FA001003FA001003 /* MusicLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001002FA001002FA001002 /* MusicLayoutTokens.swift */; };
 		FA002001FA002001FA002001 /* TimerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002000FA002000FA002000 /* TimerWidget.swift */; };
 		FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002003FA002003FA002003 /* TimerViewModel.swift */; };
-		FA002004FA002004FA002004 /* TimerCompactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002005FA002005FA002005 /* TimerCompactView.swift */; };
 		FA002006FA002006FA002006 /* TimerExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002007FA002007FA002007 /* TimerExpandedView.swift */; };
 		FA002009FA002009FA002009 /* TimerLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002008FA002008FA002008 /* TimerLayoutTokens.swift */; };
 		FA003001FA003001FA003001 /* KBOWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003000FA003000FA003000 /* KBOWidget.swift */; };
@@ -262,6 +261,7 @@
 		1443E7F62C609DCE0027C1FC /* PanelLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutMetrics.swift; sourceTree = "<group>"; };
 		1443E7F42C609E650027C1FC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		147163972C5D35B70068B555 /* MusicVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVisualizer.swift; sourceTree = "<group>"; };
+		6C935143A697D3A87452A3D0 /* WidgetSwitcherBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSwitcherBar.swift; sourceTree = "<group>"; };
 		147163992C5D35FF0068B555 /* MusicManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicManager.swift; sourceTree = "<group>"; };
 		1471A8582C6281BD0058408D /* BoringNotchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoringNotchWindow.swift; sourceTree = "<group>"; };
 
@@ -331,7 +331,6 @@
 		FA001002FA001002FA001002 /* MusicLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLayoutTokens.swift; sourceTree = "<group>"; };
 		FA002000FA002000FA002000 /* TimerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerWidget.swift; sourceTree = "<group>"; };
 		FA002003FA002003FA002003 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
-		FA002005FA002005FA002005 /* TimerCompactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerCompactView.swift; sourceTree = "<group>"; };
 		FA002007FA002007FA002007 /* TimerExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerExpandedView.swift; sourceTree = "<group>"; };
 		FA002008FA002008FA002008 /* TimerLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerLayoutTokens.swift; sourceTree = "<group>"; };
 		FA003000FA003000FA003000 /* KBOWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOWidget.swift; sourceTree = "<group>"; };
@@ -347,7 +346,6 @@
 		FA004000FA004000FA004000 /* KBOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOService.swift; sourceTree = "<group>"; };
 		7EAE8DC2B8AB5273C5276F03 /* GestureHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestureHandler.swift; sourceTree = "<group>"; };
 		4172D61169276B47572E3AF3 /* AnimationTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTokens.swift; sourceTree = "<group>"; };
-		63EA60B0768F8D31240C4F44 /* WidgetSwitcherBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSwitcherBar.swift; sourceTree = "<group>"; };
 	/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -664,8 +662,8 @@
 			children = (
 				9A0887312C7A693000C160EA /* TabButton.swift */,
 				9A0887342C7AFF8E00C160EA /* TabSelectionView.swift */,
+				6C935143A697D3A87452A3D0 /* WidgetSwitcherBar.swift */,
 			
-				63EA60B0768F8D31240C4F44 /* WidgetSwitcherBar.swift */,
 			);
 			path = Tabs;
 			sourceTree = "<group>";
@@ -809,7 +807,6 @@
 			children = (
 				FA002000FA002000FA002000 /* TimerWidget.swift */,
 				FA002003FA002003FA002003 /* TimerViewModel.swift */,
-				FA002005FA002005FA002005 /* TimerCompactView.swift */,
 				FA002007FA002007FA002007 /* TimerExpandedView.swift */,
 				FA002008FA002008FA002008 /* TimerLayoutTokens.swift */,
 				FA007C04FA007C04FA007C04 /* TimerThemeTokens.swift */,
@@ -954,6 +951,7 @@
 				5955950D2E900ED800C66711 /* ApplicationRelauncher.swift in Sources */,
 				1100292A2E8691B400035A57 /* FileShareView.swift in Sources */,
 				147163982C5D35B70068B555 /* MusicVisualizer.swift in Sources */,
+				E35EE98254D18D0205B0C8DF /* WidgetSwitcherBar.swift in Sources */,
 				11CC44A22CEE614100C7244B /* BoringViewCoordinator.swift in Sources */,
 				B186543C2C6F49AE000B926A /* ShortcutConstants.swift in Sources */,
 				11A45C792E34E63100CEB175 /* MediaChecker.swift in Sources */,
@@ -1077,12 +1075,10 @@
 				4F3BB6E350B87A4F9F7FD65F /* WingShapes.swift in Sources */,
 				9A43BFA223F70250A3E4A55D /* GestureHandler.swift in Sources */,
 				1B049E5226542EA3A714B67D /* AnimationTokens.swift in Sources */,
-				129D0CEF2845D9C8534C095F /* WidgetSwitcherBar.swift in Sources */,
 				FA001001FA001001FA001001 /* MusicPlayerWidget.swift in Sources */,
 				FA001003FA001003FA001003 /* MusicLayoutTokens.swift in Sources */,
 				FA002001FA002001FA002001 /* TimerWidget.swift in Sources */,
 				FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */,
-				FA002004FA002004FA002004 /* TimerCompactView.swift in Sources */,
 				FA002006FA002006FA002006 /* TimerExpandedView.swift in Sources */,
 				FA002009FA002009FA002009 /* TimerLayoutTokens.swift in Sources */,
 				FA003001FA003001FA003001 /* KBOWidget.swift in Sources */,
