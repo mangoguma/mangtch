@@ -41,6 +41,25 @@ final class KBOWidget: NotchWidget {
         return max(closed, open)
     }
 
+    /// Dynamic height — header (24pt) + N game rows (50pt each) + row
+    /// gaps + outer vertical padding. When viewing a linescore, the
+    /// selected game row replaces its inline form with the inning grid
+    /// (taller). Empty-state collapses to a small fixed height.
+    var preferredPanelHeight: CGFloat? {
+        let header: CGFloat = 24
+        let outerPadding: CGFloat = 16  // .padding(.vertical, 8) top+bottom
+        let rowGap: CGFloat = 4
+        let rowHeight: CGFloat = 50
+        let linescoreHeight: CGFloat = 110
+        let count = viewModel.games.count
+        guard count > 0 else { return header + outerPadding + 60 }
+        var rows = CGFloat(count) * rowHeight + CGFloat(max(count - 1, 0)) * rowGap
+        if viewModel.viewingLinescore != nil {
+            rows += linescoreHeight  // selected row grows for the inning grid
+        }
+        return header + outerPadding + rows + 6  // +6 for header→rows gap
+    }
+
     /// Width needed to render the *expanded* starter slot ("선발" badge +
     /// "P" badge + name). Uses real text metrics so long names like
     /// "로드리게스" never collide with the inning grid.

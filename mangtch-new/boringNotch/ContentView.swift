@@ -12,15 +12,6 @@ import SwiftUI
 // MARK: - Measured Wing Width PreferenceKey
 
 /// Reports the natural width of wing content for auto-sizing.
-/// Takes the max of all reported values so symmetric wings use
-/// the wider content's width.
-private struct MeasuredWingWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
 // MARK: - ContentView
 
 @MainActor
@@ -103,7 +94,7 @@ struct ContentView: View {
                         bottomRadius: panelCornerRadius
                     )
                 )
-                .frame(height: vm.notchState == .open ? 260 : 0, alignment: .top)
+                .frame(height: vm.notchState == .open ? vm.panelHeight : 0, alignment: .top)
                 .clipped()
                 .allowsHitTesting(vm.notchState == .open)
                 .animation(.easeInOut(duration: 0.22), value: vm.notchState)
@@ -173,29 +164,6 @@ struct ContentView: View {
             var seen: [WingButton: WingHitZone] = [:]
             for z in zones { seen[z.button] = z }
             vm.wingHitZones = Array(seen.values)
-        }
-        // Hidden measurement pass — render wing content at natural size
-        // off-screen to compute ideal compact width without feedback loops.
-        .background(
-            HStack(spacing: 0) {
-                leftWingContent
-                    .fixedSize(horizontal: true, vertical: false)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(key: MeasuredWingWidthKey.self,
-                                               value: geo.size.width)
-                    })
-                rightWingContent
-                    .fixedSize(horizontal: true, vertical: false)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(key: MeasuredWingWidthKey.self,
-                                               value: geo.size.width)
-                    })
-            }
-            .frame(height: 0)
-            .hidden()
-        )
-        .onPreferenceChange(MeasuredWingWidthKey.self) { width in
-            vm.compactWingWidth = width
         }
     }
 

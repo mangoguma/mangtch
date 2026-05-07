@@ -30,6 +30,11 @@ protocol NotchWidget: AnyObject, Identifiable where ID == String {
     @MainActor
     var preferredPanelWidth: CGFloat? { get }
 
+    /// Preferred panel height when this widget owns the expanded panel.
+    /// `nil` falls back to the chrome's default (260pt).
+    @MainActor
+    var preferredPanelHeight: CGFloat? { get }
+
     /// Compact view shown during hover state (wings). Should be <= 120pt wide.
     @MainActor
     func makeCompactView() -> AnyView
@@ -64,6 +69,7 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
     private let _activate: () -> Void
     private let _deactivate: () -> Void
     private let _preferredPanelWidth: @MainActor () -> CGFloat?
+    private let _preferredPanelHeight: @MainActor () -> CGFloat?
 
     init(_ widget: some NotchWidget) {
         self.wrapped = widget
@@ -77,10 +83,15 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
         self._activate = { widget.activate() }
         self._deactivate = { widget.deactivate() }
         self._preferredPanelWidth = { widget.preferredPanelWidth }
+        self._preferredPanelHeight = { widget.preferredPanelHeight }
     }
 
     var preferredPanelWidth: CGFloat? {
         _preferredPanelWidth()
+    }
+
+    var preferredPanelHeight: CGFloat? {
+        _preferredPanelHeight()
     }
 
     func makeCompactView() -> AnyView {
@@ -103,4 +114,7 @@ final class AnyNotchWidget: Identifiable, ObservableObject {
 extension NotchWidget {
     @MainActor
     var preferredPanelWidth: CGFloat? { nil }
+
+    @MainActor
+    var preferredPanelHeight: CGFloat? { nil }
 }

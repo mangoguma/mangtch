@@ -35,31 +35,52 @@ class BoringViewModel: NSObject, ObservableObject {
     /// ID of the widget currently shown in the expanded panel.
     @Published var currentExpandedWidgetID: String = "music-player"
 
-    /// Measured natural width of wing compact content (hidden measurement pass in ContentView).
-    @Published var compactWingWidth: CGFloat = 0
+    // MARK: - Wing/panel size
+    //
+    // Sizing contract: the active widget's `preferredPanelWidth` /
+    // `preferredPanelHeight` are the **only** signals chrome reads. No
+    // hidden measurement pass, no Combine snap. Widgets that need to
+    // grow with their content (long titles, dynamic row layouts) must
+    // recompute their preferred values themselves and surface them via
+    // these declarations — KBOWidget is the reference pattern.
 
-    // MARK: - Wing width
-    /// Wing width to render. When open uses panel-derived width; when closed uses compact content width.
+    /// Visual floor — wings need enough chrome on either side of the
+    /// hardware notch to read as a connected panel rather than two
+    /// disconnected pills with bare desktop showing through the gap.
+    static let minWingWidth: CGFloat = 130
+    /// Default panel width when no widget declares one.
+    static let defaultPanelWidth: CGFloat = 480
+    /// Default panel height when no widget declares one.
+    static let defaultPanelHeight: CGFloat = 260
+    /// Absolute safety ceiling — keeps a runaway widget from pushing
+    /// the panel off-screen on small displays.
+    static let absoluteMaxWingWidth: CGFloat = 480
+
+    /// Wing width = (active widget's preferredPanelWidth − notch hole) / 2,
+    /// clamped to `[minWingWidth, absoluteMaxWingWidth]`. Computed (not
+    /// stored) so it always reflects the current widget state.
     var wingWidth: CGFloat {
-        notchState == .open ? panelModeWingWidth : compactWingWidth
+        let preferred = WidgetRegistry.shared
+            .widget(for: currentExpandedWidgetID)?.preferredPanelWidth
+            ?? Self.defaultPanelWidth
+        let half = (preferred - closedNotchSize.width) / 2
+        return min(max(half, Self.minWingWidth), Self.absoluteMaxWingWidth)
     }
 
-    /// Half of the active widget's preferred panel width minus the hardware notch width.
-    /// Clamps match Mangtch: min 130, max 240.
-    private var panelModeWingWidth: CGFloat {
-        let registry = WidgetRegistry.shared
-        let preferred = registry.widget(for: currentExpandedWidgetID)?.preferredPanelWidth
-            ?? 380
-        let notchW = closedNotchSize.width
-        let half = (preferred - notchW) / 2
-        return min(max(half, 130), 240)
+    /// Total panel width: notch bar + both wings.
+    var panelWidth: CGFloat { notchSize.width + wingWidth * 2 }
+
+    /// Expanded panel content height — taken straight from the active
+    /// widget. Used by `ContentView` for the expanded-panel frame and
+    /// by `GestureHandler` for hit-zone extension while open.
+    var panelHeight: CGFloat {
+        WidgetRegistry.shared
+            .widget(for: currentExpandedWidgetID)?.preferredPanelHeight
+            ?? Self.defaultPanelHeight
     }
 
     /// Whether wings should render flat (no bottom radius) — true while panel is open.
     var wingsFlat: Bool { notchState == .open }
-
-    /// Total panel width: notch bar + both wings.
-    var panelWidth: CGFloat { notchSize.width + wingWidth * 2 }
 
     @Published var dragDetectorTargeting: Bool = false
     @Published var generalDropTargeting: Bool = false
@@ -106,7 +127,7 @@ class BoringViewModel: NSObject, ObservableObject {
             }
             .assign(to: \.anyDropZoneTargeting, on: self)
             .store(in: &cancellables)
-        
+
         setupDetectorObserver()
     }
     

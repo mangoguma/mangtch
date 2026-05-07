@@ -159,9 +159,8 @@ final class GestureHandler {
         let wingW = vm.wingWidth
         // When open, hover zone must also cover the expanded panel body
         // so cursor moves / two-finger scroll into the panel don't trigger
-        // close(). Panel height is currently fixed at 260 in ContentView.
-        let openPanelHeight: CGFloat = 260
-        let extraOpenHeight: CGFloat = vm.notchState == .open ? openPanelHeight : 0
+        // close(). Panel height comes from the active widget's declaration.
+        let extraOpenHeight: CGFloat = vm.notchState == .open ? vm.panelHeight : 0
         let hoverZone = NSRect(
             x: notchZone.minX - wingW,
             y: notchZone.minY - 5 - extraOpenHeight,
