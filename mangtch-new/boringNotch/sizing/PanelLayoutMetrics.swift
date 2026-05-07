@@ -2,10 +2,13 @@ import SwiftUI
 
 /// Single panel-sizing resolver. Pure, state-driven — no side effects.
 ///
-/// Width and height are content-driven for both `.closed` and `.open`: the
-/// active widget's `widthRange.ideal` / `heightRange.ideal` are clamped into
-/// `[min, max]`. Music widgets opt into a fixed canvas via
-/// `WidthRange.fixed(_)` (see `MusicLayoutTokens`).
+/// Width is state-aware: `.closed` clamps `widthRange.ideal` (the
+/// content-driven "compact" width), `.open` clamps `widthRange.max` (the
+/// expanded canvas). Widgets that want the same width in both states
+/// declare `WidthRange.fixed(_)` so `min == ideal == max` and the clamp
+/// degenerates. Height uses `heightRange.ideal` regardless of state — the
+/// closed branch ignores `contentHeight` anyway (only `notchSize.height`
+/// shows when collapsed).
 struct PanelLayoutMetrics: Equatable {
     let panelWidth: CGFloat        // notch + wing*2
     let wingWidth: CGFloat
@@ -20,7 +23,8 @@ struct PanelLayoutMetrics: Equatable {
         let widthR = widget?.widthRange ?? .default
         let heightR = widget?.heightRange ?? .default
 
-        let panelW = clamp(widthR.ideal, min: widthR.min, max: widthR.max)
+        let widthTarget = state == .open ? widthR.max : widthR.ideal
+        let panelW = clamp(widthTarget, min: widthR.min, max: widthR.max)
         let wingW = clamp((panelW - notchSize.width) / 2,
                           min: LayoutTokens.minWingWidth,
                           max: LayoutTokens.absoluteMaxWingWidth)

@@ -13,12 +13,18 @@ final class MusicPlayerWidget: NotchWidget {
     let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
 
-    /// Music declares its boring.notch pixel-design canvas (640×190) as the
-    /// panel size in both closed and open states. Upstream views
-    /// (MusicPlayerView, AlbumArtView, MusicControlsView) are pixel-laid
-    /// against this exact frame; honoring a content-driven width here makes
-    /// album art / lyrics-panel proportions drift.
-    var widthRange: WidthRange { .fixed(MusicLayoutTokens.expandedWidth) }
+    /// State-aware width: collapsed wings sit at the compact-row ideal
+    /// (`compactWidth`) so the album-art tile + title/artist pair don't
+    /// squat across the whole notch when nothing is expanded; opening the
+    /// panel snaps to `expandedWidth` (640) — the canvas every upstream
+    /// view (MusicPlayerView, AlbumArtView, MusicControlsView) is pixel-
+    /// laid against. `PanelLayoutMetrics.resolve` picks `ideal` for
+    /// `.closed` and `max` for `.open` (8c, phase 8).
+    var widthRange: WidthRange {
+        WidthRange(min: MusicLayoutTokens.compactMinWidth,
+                   ideal: MusicLayoutTokens.compactWidth,
+                   max: MusicLayoutTokens.expandedWidth)
+    }
     var heightRange: HeightRange { .fixed(MusicLayoutTokens.expandedHeight) }
 
     /// Music owns both wings by default. Built once and stable-mounted by
