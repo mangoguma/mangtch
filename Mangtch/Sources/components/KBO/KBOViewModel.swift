@@ -173,7 +173,7 @@ final class KBOViewModel {
     private var lastPlayRefetchTime: Date = .distantPast
     private var cancellables = Set<AnyCancellable>()
 
-    private static let trackedPollSeconds: TimeInterval = 10
+    private static let trackedPollSeconds: TimeInterval = 5
     private static let schedulePollLive: TimeInterval = 60
     private static let schedulePollIdle: TimeInterval = 300
 
