@@ -37,6 +37,10 @@ enum LayoutTokens {
 
     // MARK: Music expanded inner layout
     static let musicLyricsGutter: CGFloat = 15
+    static let lyricsMinWidth: CGFloat = 180
+    static let lyricsIdealWidth: CGFloat = 215
+    static let lyricsMaxWidth: CGFloat = 260
+    static let musicPlayerMinWidth: CGFloat = 320
 
     // MARK: Music compact wing
     static let compactRowSpacing: CGFloat = 10

@@ -128,19 +128,41 @@ struct MusicCompactInfo: View {
 /// right portion of the panel).
 struct MusicExpandedView: View {
     @EnvironmentObject var vm: BoringViewModel
+    @ObservedObject private var music = MusicManager.shared
+    @Default(.enableLyrics) private var enableLyrics
     @Namespace private var albumArtNamespace
 
     var body: some View {
         HStack(alignment: .top, spacing: LayoutTokens.musicLyricsGutter) {
             MusicPlayerView(albumArtNamespace: albumArtNamespace)
-            LyricsPanel()
-                .frame(width: 215)
+                .frame(minWidth: LayoutTokens.musicPlayerMinWidth, alignment: .leading)
+                .layoutPriority(2)
+
+            if shouldShowLyricsPanel {
+                LyricsPanel()
+                    .frame(minWidth: LayoutTokens.lyricsMinWidth,
+                           idealWidth: LayoutTokens.lyricsIdealWidth,
+                           maxWidth: LayoutTokens.lyricsMaxWidth)
+                    .layoutPriority(1)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
         }
         // Match the 5pt inset that AlbumArtView applies on the left side
         // (NotchHomeView.swift:21 `padding(.all, 5)`). Without this the
         // LyricsPanel's visible box extends 5pt closer to the right chrome
         // than album art does to the left, producing asymmetric margins.
         .padding(.trailing, LayoutTokens.visualBalanceInset)
+        .animation(.easeInOut(duration: 0.18), value: shouldShowLyricsPanel)
+    }
+
+    private var shouldShowLyricsPanel: Bool {
+        guard enableLyrics else { return false }
+        if music.isFetchingLyrics { return true }
+        if !music.syncedLyrics.isEmpty { return true }
+        if !music.currentLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return false
     }
 }
 
@@ -162,9 +184,7 @@ struct LyricsPanel: View {
 
     var body: some View {
         Group {
-            if !Defaults[.enableLyrics] {
-                placeholder("Lyrics disabled")
-            } else if music.isFetchingLyrics {
+            if music.isFetchingLyrics {
                 placeholder("Loading lyrics…")
             } else if !music.syncedLyrics.isEmpty {
                 syncedView(lines: music.syncedLyrics)
@@ -172,7 +192,8 @@ struct LyricsPanel: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 plainView(text: music.currentLyrics)
             } else {
-                placeholder("No lyrics found")
+                // Parent unmounts when lyrics absent — defensive only.
+                EmptyView()
             }
         }
         .padding(.horizontal, 10)
