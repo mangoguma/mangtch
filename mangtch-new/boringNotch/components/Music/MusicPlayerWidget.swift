@@ -13,27 +13,13 @@ final class MusicPlayerWidget: NotchWidget {
     let preferredPosition: WidgetPosition = .leftWing
     var isEnabled: Bool = true
 
-    /// Dynamic — sized to the current track's text so the right-wing
-    /// title/artist never truncate. Mirrors KBOWidget's content-driven
-    /// approach.
-    var widthRange: WidthRange {
-        let music = MusicManager.shared
-        let titleW = Self.textWidth(music.songTitle.isEmpty ? "Track Title" : music.songTitle,
-                                    size: 11, weight: .semibold)
-        let artistW = Self.textWidth(music.artistName.isEmpty ? "Artist" : music.artistName,
-                                     size: 10, weight: .regular)
-        let textBlock = max(titleW, artistW)
-        let transport = LayoutTokens.compactControlSize * 3 + LayoutTokens.compactTransportSpacing * 2
-        let wingContent = textBlock + LayoutTokens.compactRowSpacing + transport
-                        + LayoutTokens.compactHorizontalPadding * 2
-        let notchHole: CGFloat = 200
-        let ideal = notchHole + wingContent * 2
-        return WidthRange(min: 360, ideal: ideal, max: LayoutTokens.openCanvasWidth)
-    }
-
-    /// Static — the expanded music UI (album art + title + progress)
-    /// fits comfortably in 260pt. Album art square is sized off this.
-    var heightRange: HeightRange { HeightRange(min: 220, ideal: 260, max: 320) }
+    /// Music declares its boring.notch pixel-design canvas (640×190) as the
+    /// panel size in both closed and open states. Upstream views
+    /// (MusicPlayerView, AlbumArtView, MusicControlsView) are pixel-laid
+    /// against this exact frame; honoring a content-driven width here makes
+    /// album art / lyrics-panel proportions drift.
+    var widthRange: WidthRange { .fixed(MusicLayoutTokens.expandedWidth) }
+    var heightRange: HeightRange { .fixed(MusicLayoutTokens.expandedHeight) }
 
     func makeCompactView() -> AnyView {
         AnyView(MusicCompactArtwork())
@@ -45,20 +31,6 @@ final class MusicPlayerWidget: NotchWidget {
 
     func activate() {}
     func deactivate() {}
-
-    /// Text-width helper using AppKit metrics. Same pattern as
-    /// `KBOWidget.inlineStarterSlotWidth` — keeps width derivation
-    /// deterministic without measuring the rendered SwiftUI tree.
-    @MainActor
-    private static func textWidth(_ string: String,
-                                  size: CGFloat,
-                                  weight: NSFont.Weight) -> CGFloat {
-        let font = NSFont.systemFont(ofSize: size, weight: weight)
-        let measured = (string as NSString)
-            .size(withAttributes: [.font: font])
-            .width
-        return ceil(measured)
-    }
 }
 
 // MARK: - Compact left-wing: album art square

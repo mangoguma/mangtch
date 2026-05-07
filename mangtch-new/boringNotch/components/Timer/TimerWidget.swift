@@ -16,7 +16,7 @@ final class TimerWidget: NotchWidget {
     var widthRange: WidthRange {
         WidthRange(min: TimerLayoutTokens.panelMinWidth,
                    ideal: TimerLayoutTokens.panelIdealWidth,
-                   max: LayoutTokens.openCanvasWidth)
+                   max: LayoutTokens.panelMaxWidth)
     }
     var heightRange: HeightRange {
         HeightRange(min: TimerLayoutTokens.panelMinHeight,

@@ -13,7 +13,12 @@ let downloadSneakSize: CGSize = .init(width: 65, height: 1)
 let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
 let shadowPadding: CGFloat = LayoutTokens.shadowPadding
-let openNotchSize: CGSize = .init(width: LayoutTokens.openCanvasWidth, height: LayoutTokens.openCanvasHeight)
+/// Initial-window-sizing canvas. Mirrors the Music widget's pixel-design
+/// frame because the NSPanel must boot large enough to host any widget
+/// before metrics are known; once a widget is active, `PanelLayoutMetrics`
+/// drives the actual content frame and (in 5b) the window itself.
+let openNotchSize: CGSize = .init(width: MusicLayoutTokens.expandedWidth,
+                                  height: MusicLayoutTokens.expandedHeight)
 /// Chrome above the widget content area inside the expanded panel —
 /// `Divider` (1pt) + `WidgetSwitcherBar` (22pt button + 3pt vertical
 /// padding × 2 = 28pt). Read by both `BoringViewModel.panelHeight` and

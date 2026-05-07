@@ -47,7 +47,7 @@ final class KBOWidget: NotchWidget {
         }
         return WidthRange(min: ideal * KBOLayoutTokens.panelMinScale,
                           ideal: ideal,
-                          max: LayoutTokens.openCanvasWidth)
+                          max: LayoutTokens.panelMaxWidth)
     }
 
     /// Dynamic height — header (24pt) + N game rows (50pt each) + row

@@ -155,6 +155,7 @@
 		1B049E5226542EA3A714B67D /* AnimationTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4172D61169276B47572E3AF3 /* AnimationTokens.swift */; };
 		129D0CEF2845D9C8534C095F /* WidgetSwitcherBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63EA60B0768F8D31240C4F44 /* WidgetSwitcherBar.swift */; };
 		FA001001FA001001FA001001 /* MusicPlayerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001000FA001000FA001000 /* MusicPlayerWidget.swift */; };
+		FA001003FA001003FA001003 /* MusicLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001002FA001002FA001002 /* MusicLayoutTokens.swift */; };
 		FA002001FA002001FA002001 /* TimerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002000FA002000FA002000 /* TimerWidget.swift */; };
 		FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002003FA002003FA002003 /* TimerViewModel.swift */; };
 		FA002004FA002004FA002004 /* TimerCompactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002005FA002005FA002005 /* TimerCompactView.swift */; };
@@ -346,6 +347,7 @@
 		8387B85DD7A1710ECE494A84 /* WingHitZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WingHitZone.swift; sourceTree = "<group>"; };
 		20B3DEBA8CB77041EFA17315 /* WingShapes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WingShapes.swift; sourceTree = "<group>"; };
 		FA001000FA001000FA001000 /* MusicPlayerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayerWidget.swift; sourceTree = "<group>"; };
+		FA001002FA001002FA001002 /* MusicLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLayoutTokens.swift; sourceTree = "<group>"; };
 		FA002000FA002000FA002000 /* TimerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerWidget.swift; sourceTree = "<group>"; };
 		FA002003FA002003FA002003 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
 		FA002005FA002005FA002005 /* TimerCompactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerCompactView.swift; sourceTree = "<group>"; };
@@ -846,6 +848,7 @@
 			isa = PBXGroup;
 			children = (
 				FA001000FA001000FA001000 /* MusicPlayerWidget.swift */,
+				FA001002FA001002FA001002 /* MusicLayoutTokens.swift */,
 			);
 			path = Music;
 			sourceTree = "<group>";
@@ -1163,6 +1166,7 @@
 				1B049E5226542EA3A714B67D /* AnimationTokens.swift in Sources */,
 				129D0CEF2845D9C8534C095F /* WidgetSwitcherBar.swift in Sources */,
 				FA001001FA001001FA001001 /* MusicPlayerWidget.swift in Sources */,
+				FA001003FA001003FA001003 /* MusicLayoutTokens.swift in Sources */,
 				FA002001FA002001FA002001 /* TimerWidget.swift in Sources */,
 				FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */,
 				FA002004FA002004FA002004 /* TimerCompactView.swift in Sources */,

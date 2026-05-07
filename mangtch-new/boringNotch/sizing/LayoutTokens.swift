@@ -7,13 +7,11 @@ import SwiftUI
 ///   - **Policy constants** — design assumptions (changeable, but document
 ///     the visual intent in the doc-comment).
 enum LayoutTokens {
-    // MARK: Canvas (boring.notch native pixel-design — locked)
-    static let openCanvasWidth: CGFloat = 640
-    static let openCanvasHeight: CGFloat = 190
+    // MARK: Chrome (shared across all widgets)
     static let shadowPadding: CGFloat = 20
 
     /// Divider (1pt) + WidgetSwitcherBar (22pt button + 3pt × 2 padY).
-    /// Read by both BoringViewModel.panelHeight and windowFrame(for:).
+    /// Read by both BoringViewModel.panelHeight and initialWindowFrame(for:).
     static let chromeTopHeight: CGFloat = 29
 
     // MARK: Wing geometry
@@ -21,6 +19,10 @@ enum LayoutTokens {
     static let panelCornerRadius: CGFloat = 14
     static let minWingWidth: CGFloat = 130           // visual floor
     static let absoluteMaxWingWidth: CGFloat = 480
+    /// Soft cap for `WidthRange.max` defaults — no widget should grow the
+    /// panel past this without a deliberate override. Matches the Music
+    /// pixel canvas width by coincidence; not a derived value.
+    static let panelMaxWidth: CGFloat = 640
 
     // MARK: Expanded content insets
     static let panelHorizontalInset: CGFloat = 12

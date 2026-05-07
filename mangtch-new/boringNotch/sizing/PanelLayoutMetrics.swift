@@ -2,16 +2,13 @@ import SwiftUI
 
 /// Single panel-sizing resolver. Pure, state-driven — no side effects.
 ///
-/// `.open` snaps to boring.notch's pixel-design canvas (640×190 + chrome) and
-/// intentionally ignores the widget; expanded views are pixel-laid against
-/// that fixed canvas, so honoring per-widget widths there causes overflow.
-/// `.closed` honors the widget's `widthRange.ideal` so compact wings size to
-/// their content (long song titles, dynamic KBO rows).
-struct PanelLayoutMetrics {
-    let closedWidth: CGFloat       // notch + wing*2 (closed state)
-    let openWidth: CGFloat         // canvas-fixed
-    let wingWidth: CGFloat         // 현재 state 기준
-    let panelWidth: CGFloat        // 현재 state 기준 (closedWidth or openWidth)
+/// Width and height are content-driven for both `.closed` and `.open`: the
+/// active widget's `widthRange.ideal` / `heightRange.ideal` are clamped into
+/// `[min, max]`. Music widgets opt into a fixed canvas via
+/// `WidthRange.fixed(_)` (see `MusicLayoutTokens`).
+struct PanelLayoutMetrics: Equatable {
+    let panelWidth: CGFloat        // notch + wing*2
+    let wingWidth: CGFloat
     let contentHeight: CGFloat     // 위젯 콘텐츠 영역 (chrome 제외)
     let chromeHeight: CGFloat
     var totalHeight: CGFloat { contentHeight + chromeHeight }
@@ -20,33 +17,24 @@ struct PanelLayoutMetrics {
     static func resolve(widget: (any NotchWidget)?,
                         notchSize: CGSize,
                         state: NotchState) -> PanelLayoutMetrics {
-        // Open: canvas snap (widget intentionally ignored)
-        let openWingW = clamp((LayoutTokens.openCanvasWidth - notchSize.width) / 2,
-                              min: LayoutTokens.minWingWidth,
-                              max: LayoutTokens.absoluteMaxWingWidth)
-        let openContentH = LayoutTokens.openCanvasHeight
+        let widthR = widget?.widthRange ?? .default
+        let heightR = widget?.heightRange ?? .default
 
-        // Closed: widget-driven
-        let range = widget?.widthRange ?? .default
-        let closedWingW = clamp((range.ideal - notchSize.width) / 2,
-                                min: LayoutTokens.minWingWidth,
-                                max: LayoutTokens.absoluteMaxWingWidth)
-        let closedContentH = widget?.heightRange.ideal ?? HeightRange.default.ideal
+        let panelW = clamp(widthR.ideal, min: widthR.min, max: widthR.max)
+        let wingW = clamp((panelW - notchSize.width) / 2,
+                          min: LayoutTokens.minWingWidth,
+                          max: LayoutTokens.absoluteMaxWingWidth)
+        let contentH = clamp(heightR.ideal, min: heightR.min, max: heightR.max)
 
-        let isOpen = (state == .open)
         return PanelLayoutMetrics(
-            closedWidth: notchSize.width + closedWingW * 2,
-            openWidth: notchSize.width + openWingW * 2,
-            wingWidth: isOpen ? openWingW : closedWingW,
-            panelWidth: notchSize.width + (isOpen ? openWingW : closedWingW) * 2,
-            contentHeight: isOpen ? openContentH : closedContentH,
+            panelWidth: notchSize.width + wingW * 2,
+            wingWidth: wingW,
+            contentHeight: contentH,
             chromeHeight: LayoutTokens.chromeTopHeight
         )
     }
 
     /// Convenience for the type-erased wrapper used by `WidgetRegistry`.
-    /// Delegates to the `any NotchWidget` overload via `.wrapped` so the
-    /// resolver body lives in exactly one place.
     @MainActor
     static func resolve(widget: AnyNotchWidget?,
                         notchSize: CGSize,

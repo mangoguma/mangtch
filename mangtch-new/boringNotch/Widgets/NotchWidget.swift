@@ -10,14 +10,21 @@ enum WidgetPosition: String, CaseIterable, Codable {
 
 // MARK: - Width / Height Ranges
 
-/// Closed-state preferred panel width range. `.open` is canvas-fixed and
-/// ignores this — see `PanelLayoutMetrics.resolve`.
+/// Widget-declared panel width range. `PanelLayoutMetrics.resolve` clamps
+/// the active widget's `ideal` into `[min, max]` for both closed and open
+/// states — there is no canvas snap.
 struct WidthRange {
     let min: CGFloat        // 절대 최소 (그 이하는 콘텐츠가 깨짐)
     let ideal: CGFloat      // 기본 폭
     let max: CGFloat        // 그 이상은 chrome 낭비
 
     static let `default` = WidthRange(min: 320, ideal: 480, max: 640)
+
+    /// Single-value range — `min == ideal == max`, so the metrics clamp is a
+    /// no-op. Used by widgets that own a fixed pixel-design canvas (Music).
+    static func fixed(_ value: CGFloat) -> WidthRange {
+        WidthRange(min: value, ideal: value, max: value)
+    }
 }
 
 struct HeightRange {
@@ -26,6 +33,10 @@ struct HeightRange {
     let max: CGFloat
 
     static let `default` = HeightRange(min: 180, ideal: 260, max: 400)
+
+    static func fixed(_ value: CGFloat) -> HeightRange {
+        HeightRange(min: value, ideal: value, max: value)
+    }
 }
 
 // MARK: - Widget Protocol
