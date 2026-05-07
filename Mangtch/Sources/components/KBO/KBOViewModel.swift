@@ -470,14 +470,26 @@ final class KBOViewModel {
                 self.viewingLinescore = result
             }
             self.isLoadingLinescore = false
-            // For the tracked game, liveState syncs with the queue
-            // runner so BSO matches ticker/TTS. But always apply
-            // immediately on first observation or when there are no
-            // new plays — otherwise BSO stays blank.
+            // Non-tracked: apply full liveState immediately.
+            // Tracked: only update pitcher/batter names; BSO/bases
+            // sync with the ticker via queue runner snapshots.
             let isTracked = self.trackedGame?.gameId == gameId
-            let isFirstObs = self.lastSeenGameID != gameId
-            if !isTracked || isFirstObs {
+            if !isTracked || self.liveStates[gameId] == nil {
                 self.liveStates[gameId] = result?.liveState
+            } else if isTracked, let fetched = result?.liveState {
+                var current = self.liveStates[gameId]!
+                self.liveStates[gameId] = KBOLinescore.LiveState(
+                    balls: current.balls,
+                    strikes: current.strikes,
+                    outs: current.outs,
+                    onFirst: current.onFirst,
+                    onSecond: current.onSecond,
+                    onThird: current.onThird,
+                    batterName: fetched.batterName,
+                    batOrder: fetched.batOrder,
+                    pitcherName: fetched.pitcherName,
+                    attackingSide: fetched.attackingSide
+                )
             }
             self.cacheStarters(from: result, gameId: gameId)
             if let r = result, let at = r.awayTotals, let ht = r.homeTotals {
