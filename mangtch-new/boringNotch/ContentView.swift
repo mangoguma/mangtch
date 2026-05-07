@@ -230,6 +230,12 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .top)
+            // Inset content from the panel chrome — boring.notch original
+            // does the same (`ContentView.swift:102` in the upstream repo).
+            // Without this the widget view extends to `panelWidth` and gets
+            // clipped by `ExpandedPanelShape`'s outer inset + bottom radius.
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
         }
     }
 

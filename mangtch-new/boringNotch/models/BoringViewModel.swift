@@ -56,10 +56,20 @@ class BoringViewModel: NSObject, ObservableObject {
     /// the panel off-screen on small displays.
     static let absoluteMaxWingWidth: CGFloat = 480
 
-    /// Wing width = (active widget's preferredPanelWidth − notch hole) / 2,
-    /// clamped to `[minWingWidth, absoluteMaxWingWidth]`. Computed (not
-    /// stored) so it always reflects the current widget state.
+    /// Wing width.
+    ///
+    /// - **Open** (expanded panel visible): snap to boring.notch's native
+    ///   `openNotchSize.width` (640pt). The expanded views (`MusicPlayerView`,
+    ///   settings, etc.) are pixel-designed against this fixed width, so any
+    ///   narrower panel causes content to overflow chrome.
+    /// - **Closed/hover**: honor the active widget's `preferredPanelWidth`
+    ///   so compact wings size to their content (long song titles, dynamic
+    ///   KBO rows). This is the Mangtch-style content-driven sizing.
     var wingWidth: CGFloat {
+        if notchState == .open {
+            let half = (openNotchSize.width - closedNotchSize.width) / 2
+            return min(max(half, Self.minWingWidth), Self.absoluteMaxWingWidth)
+        }
         let preferred = WidgetRegistry.shared
             .widget(for: currentExpandedWidgetID)?.preferredPanelWidth
             ?? Self.defaultPanelWidth
@@ -70,11 +80,21 @@ class BoringViewModel: NSObject, ObservableObject {
     /// Total panel width: notch bar + both wings.
     var panelWidth: CGFloat { notchSize.width + wingWidth * 2 }
 
-    /// Expanded panel content height — taken straight from the active
-    /// widget. Used by `ContentView` for the expanded-panel frame and
-    /// by `GestureHandler` for hit-zone extension while open.
+    /// Expanded panel content height.
+    ///
+    /// - **Open**: snap to boring.notch's native `openNotchSize.height`
+    ///   (190pt). The expanded views are pixel-designed against this — in
+    ///   particular `MusicPlayerView` sizes the album art via
+    ///   `aspectRatio(1, contentMode: .fit)`, so a taller panel makes the
+    ///   art square balloon to the panel height and overflow horizontally.
+    /// - **Closed**: honor the widget's preferred height (or default).
+    ///   Currently only used by `GestureHandler` hit-zone math; harmless to
+    ///   keep widget-driven here.
     var panelHeight: CGFloat {
-        WidgetRegistry.shared
+        if notchState == .open {
+            return openNotchSize.height
+        }
+        return WidgetRegistry.shared
             .widget(for: currentExpandedWidgetID)?.preferredPanelHeight
             ?? Self.defaultPanelHeight
     }
