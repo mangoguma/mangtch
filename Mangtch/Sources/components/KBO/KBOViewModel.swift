@@ -470,12 +470,15 @@ final class KBOViewModel {
                 self.viewingLinescore = result
             }
             self.isLoadingLinescore = false
-            // Always update the per-game live state map. Even non-tracked
-            // games funnel into here when their fast timer fires, so each
-            // row in the panel can render its own diamond/count.
-            // Subscript-with-nil removes the key, which is what we want
-            // when Naver clears the at-bat between innings.
-            self.liveStates[gameId] = result?.liveState
+            // For the tracked game, liveState syncs with the queue
+            // runner so BSO matches ticker/TTS. But always apply
+            // immediately on first observation or when there are no
+            // new plays — otherwise BSO stays blank.
+            let isTracked = self.trackedGame?.gameId == gameId
+            let isFirstObs = self.lastSeenGameID != gameId
+            if !isTracked || isFirstObs {
+                self.liveStates[gameId] = result?.liveState
+            }
             self.cacheStarters(from: result, gameId: gameId)
             if let r = result, let at = r.awayTotals, let ht = r.homeTotals {
                 self.liveScores[gameId] = (away: at.runs, home: ht.runs)
@@ -647,16 +650,16 @@ final class KBOViewModel {
         // outcomes if it all hits the queue at 5s pacing. Filter to medium+
         // for the ticker so users see at-bat results, baserunning, and
         // scoring without 6-pitch counts in between.
-        // TTS-only plays (substitution, batter intro) — read aloud
-        // immediately without entering the ticker queue.
-        if ttsEnabled {
-            for play in fresh where play.naverType == 2 || play.naverType == 8 {
-                Self.speak(play.text)
-            }
-        }
-        let displayable = fresh.filter { $0.importance >= .medium }
-        guard !displayable.isEmpty else { return }
-        playQueue.append(contentsOf: displayable)
+        // Include TTS-only plays (substitution, batter intro) in the
+        // queue so they play in correct sequence — not ahead of pending
+        // at-bat results. The queue runner skips ticker for .low plays
+        // but still reads them via TTS.
+        // Include TTS-only plays (substitution, batter intro) in the
+        // queue so they play in correct seqno order — not ahead of
+        // pending at-bat results.
+        let queued = fresh.filter { $0.importance >= .medium || $0.naverType == 2 || $0.naverType == 8 }
+        guard !queued.isEmpty else { return }
+        playQueue.append(contentsOf: queued)
         startQueueRunnerIfNeeded()
     }
 
@@ -675,7 +678,7 @@ final class KBOViewModel {
             while !playQueue.isEmpty {
                 if Task.isCancelled { break }
                 let play = playQueue.removeFirst()
-                if tickerEnabled {
+                if tickerEnabled && play.importance >= .medium {
                     latestPlayText = play.text
                 }
                 // TTS only narrates the events worth interrupting for —
@@ -689,6 +692,12 @@ final class KBOViewModel {
                    let sound = KBOSoundManager.shared.soundForPlay(
                     play.text, type: play.naverType, importance: play.importance) {
                     KBOSoundManager.shared.play(sound)
+                }
+                // Sync BSO/bases with this play's snapshot so the
+                // visual update matches the ticker/TTS timing.
+                if let snapshot = play.liveSnapshot,
+                   let gameId = self.trackedGame?.gameId {
+                    self.liveStates[gameId] = snapshot
                 }
                 try? await Task.sleep(for: Self.playDisplayInterval)
             }

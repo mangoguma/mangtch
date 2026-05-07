@@ -92,6 +92,9 @@ struct KBOLinescore: Equatable {
         /// queue while still surfacing scoring/at-bat outcomes, and lets
         /// TTS speak only the genuinely worth-narrating events.
         let importance: Importance
+        /// BSO/base snapshot at this play. Applied when the queue runner
+        /// shows this play so BSO updates in sync with the ticker/TTS.
+        let liveSnapshot: LiveState?
 
         enum AttackingSide: Equatable {
             case home
@@ -373,6 +376,13 @@ extension KBOLinescore {
             let seqno: Int?
             let text: String?
             let type: Int?
+            let currentGameState: OptionState?
+        }
+        struct OptionState: Decodable {
+            let ball, strike, out: String?
+            let base1, base2, base3: String?
+            let pitcher, batter: String?
+            let homeScore, awayScore: String?
         }
 
         guard let outer = try? JSONDecoder().decode(Outer.self, from: raw),
@@ -401,13 +411,29 @@ extension KBOLinescore {
                 if imp == .low, opt.type == 1, text.contains("파울") {
                     imp = .medium
                 }
+                let snapshot: LiveState? = {
+                    guard let s = opt.currentGameState else { return nil }
+                    return LiveState(
+                        balls: Int(s.ball ?? "0") ?? 0,
+                        strikes: Int(s.strike ?? "0") ?? 0,
+                        outs: Int(s.out ?? "0") ?? 0,
+                        onFirst: (Int(s.base1 ?? "0") ?? 0) != 0,
+                        onSecond: (Int(s.base2 ?? "0") ?? 0) != 0,
+                        onThird: (Int(s.base3 ?? "0") ?? 0) != 0,
+                        batterName: nil,
+                        batOrder: nil,
+                        pitcherName: nil,
+                        attackingSide: side
+                    )
+                }()
                 collected.append(Play(
                     seqno: seqno,
                     inning: inning,
                     text: text,
                     attackingSide: side,
                     naverType: opt.type ?? 0,
-                    importance: imp
+                    importance: imp,
+                    liveSnapshot: snapshot
                 ))
             }
         }
