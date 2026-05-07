@@ -24,7 +24,7 @@ struct KBOExpandedView: View {
             if viewModel.games.isEmpty {
                 emptyState
             } else {
-                gamesScroller
+                gamesList
             }
         }
         .padding(.horizontal, KBOLayoutTokens.bodyOuterHorizontalPadding)
@@ -37,45 +37,37 @@ struct KBOExpandedView: View {
         }
     }
 
+    /// Bare row stack — VStack returns its intrinsic height (sum of
+    /// rows + gaps), so the outer expandedContent measurement at
+    /// ContentView level naturally grows to fit. KBO regular season
+    /// caps at 5 games/day and the panel safely fits well under
+    /// `panelAbsoluteMaxHeight`, so no inner ScrollView is needed —
+    /// the earlier 9c ScrollView attempt got tangled with SwiftUI's
+    /// "ScrollView fills parent proposal" default and pinned the panel
+    /// to the formula bootstrap height instead of the real intrinsic.
+    /// Pathological mock data beyond `gamesListMaxHeight` clips rather
+    /// than scrolls — acceptable for a regular-season display.
     private var gamesList: some View {
         VStack(spacing: KBOLayoutTokens.rowGap) {
             ForEach(viewModel.games) { game in
                 gameRow(game)
             }
         }
+        .frame(maxHeight: gamesListMaxHeight, alignment: .top)
+        .clipped()
     }
 
-    /// ScrollView fallback for when computed `heightRange.ideal` gets
-    /// clamped by `panelAbsoluteMaxHeight` / `panelScreenSafeFraction`
-    /// (e.g. ≥7 games on a small display, or pathological mock data).
-    /// Sub-clamp the inner VStack's intrinsic height into the area the
-    /// panel chrome actually allocated for the games list — anything
-    /// over that scrolls. Phase 5c lesson: every child must declare an
-    /// explicit height so `Color.clear` slots inside live rows don't
-    /// expand to fill leftover ScrollView space (`gameRow` height-locks
-    /// its idle slots with `Color.clear.frame(height: 0)`).
-    private var gamesScroller: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            gamesList
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxHeight: availableGamesHeight)
-    }
-
-    /// Vertical room left for the games list after subtracting the
-    /// header row + body spacing + outer vertical padding. Reads
-    /// `vm.publishedMetrics.contentHeight` (Combine mirror so SwiftUI
-    /// re-renders on resize) and falls back to the synchronous
-    /// `vm.metrics` on first frame.
-    private var availableGamesHeight: CGFloat {
-        let total = vm.publishedMetrics?.contentHeight ?? vm.metrics.contentHeight
-        // panelOuterVerticalPadding (16) accounts for the .padding(.vertical, 8)
-        // applied at the body root; bodyOuterSpacing (6) is the gap between
-        // the header and the games list inside the outer VStack.
-        let chrome = KBOLayoutTokens.panelHeaderHeight
-            + KBOLayoutTokens.bodyOuterSpacing
-            + KBOLayoutTokens.panelOuterVerticalPadding
-        return max(0, total - chrome)
+    /// Screen-safe ceiling — `panelScreenSafeFraction × visibleFrame.height`
+    /// (capped at `panelAbsoluteMaxHeight=700`). Deliberately decoupled
+    /// from `vm.metrics`: the 9a two-axis model swaps the metrics
+    /// source between `wingOwnerID` (.closed) and `currentExpandedWidgetID`
+    /// (.open), so a vm.metrics-derived clamp would collapse mid-close
+    /// to (e.g.) Music's small default and reflow the list upward
+    /// before the outer panel close animation finished.
+    private var gamesListMaxHeight: CGFloat {
+        let safeMax = (NSScreen.main?.visibleFrame.height ?? 800)
+            * KBOLayoutTokens.panelScreenSafeFraction
+        return min(safeMax, KBOLayoutTokens.panelAbsoluteMaxHeight)
     }
 
     // MARK: - Header
@@ -285,15 +277,27 @@ struct KBOExpandedView: View {
             .buttonStyle(.plain)
 
             // Inline box score / placeholder, visible only when expanded.
+            // Transition: scale(0, anchor:.top) collapses the linescore
+            // **into the divider above its own slot** without translating
+            // upward past sibling row content (the previous
+            // `.move(edge: .top)` slid the grid over the totals row above
+            // during removal — visible as content overlap during fade-out).
             if isExpanded {
                 Divider()
                     .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
+                    .transition(.opacity)
                 inlineDetail(game)
                     .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
                     .padding(.vertical, KBOLayoutTokens.rowVerticalPadding)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(
+                        .scale(scale: 0.001, anchor: .top)
+                            .combined(with: .opacity)
+                    )
             }
         }
+        // Clip transition overflow so the collapsing grid never bleeds
+        // past the row's own bounds onto the totals row above.
+        .clipped()
         .background {
             RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
                 .fill(rowFill(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive))

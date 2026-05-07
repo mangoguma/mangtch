@@ -92,6 +92,40 @@ class BoringViewModel: NSObject, ObservableObject {
     ///     `withObservationTracking` recursion
     @Published private(set) var publishedMetrics: PanelLayoutMetrics?
 
+    /// Intrinsic content height measured by ContentView's PreferenceKey-
+    /// backed GeometryReader on the expanded panel content. Drives both
+    /// the inner `.frame(height:)` and NSPanel resize so the panel fits
+    /// real content rather than the widget's `heightRange.ideal` estimate.
+    ///
+    /// `nil` until first measurement settles (typically the first SwiftUI
+    /// layout pass after the panel mounts); consumers fall back to
+    /// `metrics.contentHeight` for that one frame.
+    @Published private(set) var measuredExpandedContentHeight: CGFloat?
+
+    /// Total expanded panel height (Divider + WidgetSwitcherBar + widget
+    /// body — i.e. everything inside `expandedContent`). The GR-backed
+    /// PreferenceKey on `expandedContent` already captures the whole
+    /// VStack, so this is treated as a TOTAL — no separate chrome added.
+    /// Falls back to the formula estimate (`metrics.totalHeight`) before
+    /// the first measurement settles.
+    @MainActor
+    var effectiveTotalHeight: CGFloat {
+        if let m = measuredExpandedContentHeight, m > 0 { return m }
+        return metrics.totalHeight
+    }
+
+    /// Called by ContentView's `onPreferenceChange` when the expanded
+    /// panel's intrinsic content height changes. Filters jitter (≤0.5pt
+    /// pixel-rounding ripples) to keep the NSPanel resize pipeline from
+    /// thrashing.
+    @MainActor
+    func updateMeasuredExpandedContentHeight(_ height: CGFloat) {
+        guard height > 0 else { return }
+        if let current = measuredExpandedContentHeight,
+           abs(current - height) < 0.5 { return }
+        measuredExpandedContentHeight = height
+    }
+
     @Published var dragDetectorTargeting: Bool = false
     @Published var generalDropTargeting: Bool = false
     @Published var dropZoneTargeting: Bool = false

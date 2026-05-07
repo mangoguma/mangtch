@@ -12,6 +12,22 @@ import SwiftUI
 // MARK: - Measured Wing Width PreferenceKey
 
 /// Reports the natural width of wing content for auto-sizing.
+
+// MARK: - Measured Expanded Panel Content Height PreferenceKey
+
+/// Carries the intrinsic height of the expanded panel content from a
+/// `GeometryReader` background up to `panelContent`, where it gets
+/// forwarded into `BoringViewModel.measuredExpandedContentHeight`. This
+/// is the source the panel `.frame(height:)` and the NSPanel resize
+/// pipeline both read — replaces the formula estimate
+/// (`metrics.contentHeight`) so the panel sizes to real content.
+private struct ExpandedContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 // MARK: - ContentView
 
 @MainActor
@@ -94,6 +110,20 @@ struct ContentView: View {
             wingsRow
             expandedContent
                 .frame(width: m.panelWidth, alignment: .top)
+                // Measure the **entire** expanded panel intrinsic height
+                // (Divider + WidgetSwitcherBar + widget body). The outer
+                // `.frame(height:)` below uses `.infinity` when open so it
+                // doesn't propose a smaller height back into this chain —
+                // breaks the feedback loop where GR would read whatever
+                // constrained height the formula bootstrap had proposed.
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: ExpandedContentHeightKey.self,
+                            value: proxy.size.height
+                        )
+                    }
+                )
                 .background(ThemeTokens.panelBackground(systemDark: vm.systemIsDark))
                 .clipShape(
                     ExpandedPanelShape(
@@ -101,7 +131,12 @@ struct ContentView: View {
                         bottomRadius: panelCornerRadius
                     )
                 )
-                .frame(height: vm.notchState == .open ? m.totalHeight : 0, alignment: .top)
+                .onPreferenceChange(ExpandedContentHeightKey.self) { h in
+                    Task { @MainActor in
+                        vm.updateMeasuredExpandedContentHeight(h)
+                    }
+                }
+                .frame(height: vm.notchState == .open ? vm.effectiveTotalHeight : 0, alignment: .top)
                 .clipped()
                 .allowsHitTesting(vm.notchState == .open)
                 .animation(.easeInOut(duration: 0.22), value: vm.notchState)

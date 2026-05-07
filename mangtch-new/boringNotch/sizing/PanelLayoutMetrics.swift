@@ -28,7 +28,14 @@ struct PanelLayoutMetrics: Equatable {
         let wingW = clamp((panelW - notchSize.width) / 2,
                           min: LayoutTokens.minWingWidth,
                           max: LayoutTokens.absoluteMaxWingWidth)
+        // `panelBottomInset` (applied in `ContentView.expandedContent` to the
+        // widget Group) is panel-level chrome that the widget's own
+        // `heightRange.ideal` doesn't model. Bake it in here so the formula
+        // bootstrap matches the rendered intrinsic before measurement
+        // settles — without it the outer `.frame(height:)` is short by 12pt
+        // on the first frame and the bottom rounded corner gets clipped.
         let contentH = clamp(heightR.ideal, min: heightR.min, max: heightR.max)
+            + LayoutTokens.panelBottomInset
 
         return PanelLayoutMetrics(
             panelWidth: notchSize.width + wingW * 2,

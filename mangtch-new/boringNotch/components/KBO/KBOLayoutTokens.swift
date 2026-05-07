@@ -71,10 +71,19 @@ enum KBOLayoutTokens {
 
     static let panelHeaderHeight: CGFloat = 24
     static let panelOuterVerticalPadding: CGFloat = 16   // .padding(.vertical, 8) ×2
-    static let panelHeightRowHeight: CGFloat = 50
+    /// Visual row height = teamLogoSize (22) + rowVerticalPadding × 2 (14)
+    /// = 36pt. The HStack inside `gameRow` is bounded by the team logo
+    /// (the tallest child); kboBigScore=16pt and the inline starter label
+    /// at 10.5pt are smaller. Was 50 historically — that estimate was
+    /// ~14pt over per row, so 5 rows added ~70pt of empty NSPanel below
+    /// the visible list.
+    static let panelHeightRowHeight: CGFloat = 36
     static let panelHeightLinescoreSection: CGFloat = 110
     static let panelHeightEmptyExtra: CGFloat = 60
-    static let panelHeightFooterSlack: CGFloat = 6
+    /// Tail breathing room below the last row before the panel's bottom
+    /// rounded corner. 0 means "panel ends flush with the row stack" —
+    /// the `bodyOuterVerticalPadding` (×2 = 16pt) already sits below.
+    static let panelHeightFooterSlack: CGFloat = 0
 
     // MARK: Sizing range scales
     static let panelMinScale: CGFloat = 0.8

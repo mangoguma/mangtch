@@ -204,16 +204,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // emission also fires after window creation, so the initial frame
         // (sized for Music's canvas) is immediately re-snapped to the active
         // widget's actual range.
+        //
+        // `$measuredExpandedContentHeight` is folded in so the resize tracks
+        // the *measured* intrinsic content height (set by ContentView's
+        // GeometryReader-backed PreferenceKey) rather than the widget's
+        // `heightRange.ideal` estimate. The formula stays as the first-frame
+        // default (before measurement settles).
         viewModel.$publishedMetrics
             .compactMap { $0 }
-            .combineLatest(viewModel.$notchState, viewModel.$closedNotchSize)
+            .combineLatest(viewModel.$notchState,
+                           viewModel.$closedNotchSize,
+                           viewModel.$measuredExpandedContentHeight)
             .removeDuplicates(by: { lhs, rhs in
-                lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2
+                lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2 && lhs.3 == rhs.3
             })
             .receive(on: RunLoop.main)
-            .sink { [weak window] m, state, closedNotch in
+            .sink { [weak window] m, state, closedNotch, measured in
                 guard let window = window as? BoringNotchWindow else { return }
-                window.resizeWindow(metrics: m,
+                // Measured = total expanded panel height (chrome + body),
+                // since the GR is on `expandedContent` outer. Synthesize
+                // metrics with chrome=0 so `totalHeight` == measured and
+                // the NSPanel doesn't double-count chrome.
+                let synthesized = (measured ?? 0) > 0
+                    ? PanelLayoutMetrics(panelWidth: m.panelWidth,
+                                         wingWidth: m.wingWidth,
+                                         contentHeight: measured!,
+                                         chromeHeight: 0)
+                    : m
+                window.resizeWindow(metrics: synthesized,
                                     notchHeight: closedNotch.height,
                                     isOpen: state == .open,
                                     animated: true)
