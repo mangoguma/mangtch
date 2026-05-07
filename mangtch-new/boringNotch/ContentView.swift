@@ -1,0 +1,306 @@
+//
+//  ContentView.swift
+//  boringNotchApp
+//
+//  Phase 3: Mangtch-style wings + WidgetSwitcherBar layout.
+//  No KBO/Timer/Music widget features yet — Phase 4 ports those.
+//
+
+import Defaults
+import SwiftUI
+
+// MARK: - Measured Wing Width PreferenceKey
+
+/// Reports the natural width of wing content for auto-sizing.
+/// Takes the max of all reported values so symmetric wings use
+/// the wider content's width.
+private struct MeasuredWingWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+// MARK: - ContentView
+
+@MainActor
+struct ContentView: View {
+    @EnvironmentObject var vm: BoringViewModel
+    @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @State private var widgetRegistry = WidgetRegistry.shared
+
+    @State private var anyDropDebounceTask: Task<Void, Never>?
+
+    /// The host window — injected by AppDelegate so WingHitZone can convert
+    /// SwiftUI-global rects to screen coordinates from *this* window.
+    var hostWindow: NSWindow? = nil
+
+    // MARK: - Panel corner radius (matches boring.notch defaults)
+    private let panelCornerRadius: CGFloat = 14
+
+    // MARK: - Outer boring-notch concave radius
+    private var wingTopOuterRadius: CGFloat { vm.wingWidth > 0 ? 8 : 0 }
+
+    var body: some View {
+        GeometryReader { _ in
+            ZStack(alignment: .top) {
+                panelContent
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .panGesture(direction: .down) { _, phase in
+                guard phase == .began, vm.notchState != .open else { return }
+                vm.open()
+            }
+            .panGesture(direction: .up) { _, phase in
+                guard phase == .began, vm.notchState == .open else { return }
+                vm.close()
+            }
+        }
+        .ignoresSafeArea()
+        .environment(\.notchHostWindow, hostWindow)
+        .background(dragDetector)
+        .preferredColorScheme(.dark)
+        .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
+            anyDropDebounceTask?.cancel()
+
+            if isTargeted {
+                if vm.notchState == .closed {
+                    coordinator.currentView = .shelf
+                    vm.open()
+                }
+                return
+            }
+
+            anyDropDebounceTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+
+                if vm.dropEvent {
+                    vm.dropEvent = false
+                    return
+                }
+
+                vm.dropEvent = false
+                if !SharingStateManager.shared.preventNotchClose {
+                    vm.close()
+                }
+            }
+        }
+    }
+
+    // MARK: - Panel Content
+
+    @ViewBuilder
+    private var panelContent: some View {
+        VStack(spacing: 0) {
+            wingsRow
+            expandedContent
+                .frame(width: vm.panelWidth, alignment: .top)
+                .background(Color(white: 0.14))
+                .clipShape(
+                    ExpandedPanelShape(
+                        outerInset: wingTopOuterRadius,
+                        bottomRadius: panelCornerRadius
+                    )
+                )
+                .frame(height: vm.notchState == .open ? 260 : 0, alignment: .top)
+                .clipped()
+                .allowsHitTesting(vm.notchState == .open)
+                .animation(.easeInOut(duration: 0.22), value: vm.notchState)
+        }
+        .frame(width: vm.panelWidth)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    // MARK: - Wings Row
+
+    @ViewBuilder
+    private var wingsRow: some View {
+        let wingBottomRadius: CGFloat = vm.wingsFlat ? 0 : panelCornerRadius
+        let wingTopOuterRadius = self.wingTopOuterRadius
+
+        HStack(spacing: 0) {
+            // Left wing
+            leftWingContent
+                .padding(.leading, wingTopOuterRadius)
+                .environment(\.colorScheme, .dark)
+                .frame(width: vm.wingWidth, height: vm.notchSize.height,
+                       alignment: .leading)
+                .background(Color.black)
+                .clipShape(
+                    WingShape(
+                        side: .left,
+                        bottomOuterRadius: wingBottomRadius,
+                        topOuterRadius: wingTopOuterRadius
+                    )
+                )
+                .clipped()
+                .animation(.easeInOut(duration: 0.22), value: vm.wingWidth)
+
+            // Notch bar (covers the hardware notch gap)
+            Color.black
+                .frame(width: vm.notchSize.width + 2,
+                       height: vm.notchSize.height)
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: vm.wingWidth > 0 ? 0 : panelCornerRadius,
+                        bottomTrailingRadius: vm.wingWidth > 0 ? 0 : panelCornerRadius,
+                        topTrailingRadius: 0
+                    )
+                )
+                .padding(.horizontal, -1)
+
+            // Right wing
+            rightWingContent
+                .padding(.trailing, wingTopOuterRadius)
+                .environment(\.colorScheme, .dark)
+                .frame(width: vm.wingWidth, height: vm.notchSize.height,
+                       alignment: .trailing)
+                .background(Color.black)
+                .clipShape(
+                    WingShape(
+                        side: .right,
+                        bottomOuterRadius: wingBottomRadius,
+                        topOuterRadius: wingTopOuterRadius
+                    )
+                )
+                .clipped()
+                .animation(.easeInOut(duration: 0.22), value: vm.wingWidth)
+        }
+        // Collect wing hit zones reported by child views.
+        .onPreferenceChange(WingHitZonesKey.self) { zones in
+            var seen: [WingButton: WingHitZone] = [:]
+            for z in zones { seen[z.button] = z }
+            vm.wingHitZones = Array(seen.values)
+        }
+        // Hidden measurement pass — render wing content at natural size
+        // off-screen to compute ideal compact width without feedback loops.
+        .background(
+            HStack(spacing: 0) {
+                leftWingContent
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: MeasuredWingWidthKey.self,
+                                               value: geo.size.width)
+                    })
+                rightWingContent
+                    .fixedSize(horizontal: true, vertical: false)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: MeasuredWingWidthKey.self,
+                                               value: geo.size.width)
+                    })
+            }
+            .frame(height: 0)
+            .hidden()
+        )
+        .onPreferenceChange(MeasuredWingWidthKey.self) { width in
+            vm.compactWingWidth = width
+        }
+    }
+
+    // MARK: - Wing Contents
+
+    /// Left wing: compact view of the currently-selected expanded widget.
+    @ViewBuilder
+    private var leftWingContent: some View {
+        if let widget = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
+           widget.isEnabled {
+            widget.makeCompactView()
+        } else if let first = widgetRegistry.enabledWidgets.first {
+            first.makeCompactView()
+        } else {
+            Color.clear.frame(width: 1)
+        }
+    }
+
+    /// Right wing: music info+controls by default; KBO live state when KBO is
+    /// the active widget and has a live pinned game.
+    @ViewBuilder
+    private var rightWingContent: some View {
+        if vm.currentExpandedWidgetID == "kbo",
+           let kboWidget = widgetRegistry.widget(for: "kbo")?.wrapped as? KBOWidget,
+           kboWidget.viewModel.selectedGame?.isLive == true {
+            KBORightWingContainer(viewModel: kboWidget.viewModel)
+        } else {
+            MusicCompactInfo()
+        }
+    }
+
+    // MARK: - Expanded Content
+
+    @ViewBuilder
+    private var expandedContent: some View {
+        VStack(spacing: 0) {
+            Divider()
+                .padding(.horizontal, 20)
+
+            WidgetSwitcherBar(
+                widgets: widgetRegistry.enabledWidgets,
+                currentID: Binding(
+                    get: { vm.currentExpandedWidgetID },
+                    set: { vm.currentExpandedWidgetID = $0 }
+                )
+            )
+
+            Group {
+                if let widget = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
+                   widget.isEnabled {
+                    widget.makeExpandedView()
+                        .id(widget.id)
+                        .transition(.opacity)
+                } else if let first = widgetRegistry.enabledWidgets.first {
+                    first.makeExpandedView()
+                        .id(first.id)
+                        .transition(.opacity)
+                        .onAppear { vm.currentExpandedWidgetID = first.id }
+                } else {
+                    Text("No widgets enabled")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 100)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+
+    // MARK: - Drag Detector (retained from Phase 2 stub)
+
+    @ViewBuilder
+    var dragDetector: some View {
+        if Defaults[.boringShelf] && vm.notchState == .closed {
+            Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data],
+                        isTargeted: $vm.dragDetectorTargeting) { providers in
+                    vm.dropEvent = true
+                    ShelfStateViewModel.shared.load(providers)
+                    return true
+                }
+        } else {
+            EmptyView()
+        }
+    }
+}
+
+// MARK: - Drop Delegates (retained from stub for ShelfView compatibility)
+
+struct FullScreenDropDelegate: DropDelegate {
+    @Binding var isTargeted: Bool
+    let onDrop: () -> Void
+
+    func dropEntered(info _: DropInfo) { isTargeted = true }
+    func dropExited(info _: DropInfo) { isTargeted = false }
+    func performDrop(info _: DropInfo) -> Bool { isTargeted = false; onDrop(); return true }
+}
+
+struct GeneralDropTargetDelegate: DropDelegate {
+    @Binding var isTargeted: Bool
+
+    func dropEntered(info: DropInfo) { isTargeted = true }
+    func dropExited(info: DropInfo) { isTargeted = false }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .cancel) }
+    func performDrop(info: DropInfo) -> Bool { false }
+}
