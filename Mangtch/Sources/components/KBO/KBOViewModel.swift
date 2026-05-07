@@ -647,6 +647,13 @@ final class KBOViewModel {
         // outcomes if it all hits the queue at 5s pacing. Filter to medium+
         // for the ticker so users see at-bat results, baserunning, and
         // scoring without 6-pitch counts in between.
+        // TTS-only plays (substitution, batter intro) — read aloud
+        // immediately without entering the ticker queue.
+        if ttsEnabled {
+            for play in fresh where play.naverType == 2 || play.naverType == 8 {
+                Self.speak(play.text)
+            }
+        }
         let displayable = fresh.filter { $0.importance >= .medium }
         guard !displayable.isEmpty else { return }
         playQueue.append(contentsOf: displayable)
