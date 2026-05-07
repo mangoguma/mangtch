@@ -35,9 +35,6 @@ struct SettingsView: View {
                 NavigationLink(value: "Media") {
                     Label("Media", systemImage: "play.laptopcomputer")
                 }
-                NavigationLink(value: "Calendar") {
-                    Label("Calendar", systemImage: "calendar")
-                }
                 NavigationLink(value: "HUD") {
                     Label("HUDs", systemImage: "dial.medium.fill")
                 }
@@ -76,8 +73,6 @@ struct SettingsView: View {
                     Appearance()
                 case "Media":
                     Media()
-                case "Calendar":
-                    CalendarSettings()
                 case "HUD":
                     HUD()
                 case "Battery":
@@ -666,17 +661,6 @@ struct Media: View {
         } else {
             return MediaControllerType.allCases
         }
-    }
-}
-
-struct CalendarSettings: View {
-    var body: some View {
-        Form {
-            Text("Calendar features have been removed.")
-                .foregroundStyle(.secondary)
-        }
-        .accentColor(.effectiveAccent)
-        .navigationTitle("Calendar")
     }
 }
 
