@@ -179,7 +179,7 @@ struct LyricsPanel: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(MusicThemeTokens.lyricsCardSurface)
         )
     }
 
@@ -187,7 +187,7 @@ struct LyricsPanel: View {
     private func placeholder(_ label: String) -> some View {
         Text(label)
             .font(TypographyTokens.lyricsPlaceholder)
-            .foregroundStyle(.secondary.opacity(0.6))
+            .foregroundStyle(MusicThemeTokens.lyricsPlaceholder)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
@@ -222,7 +222,7 @@ struct LyricsPanel: View {
                                     : TypographyTokens.lyricsBody)
                                 .foregroundStyle(idx == activeIdx
                                     ? highlight
-                                    : .secondary.opacity(0.55))
+                                    : MusicThemeTokens.inactiveLyric)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .id(idx)

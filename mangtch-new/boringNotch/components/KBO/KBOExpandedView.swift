@@ -357,7 +357,7 @@ struct KBOExpandedView: View {
     private func resultBadge(_ text: String) -> some View {
         Text(text)
             .font(TypographyTokens.expandedSmallBold)
-            .foregroundStyle(text == "승" ? Color.blue : Color.secondary)
+            .foregroundStyle(text == "승" ? KBOThemeTokens.win : Color.secondary)
     }
 
     /// "승"/"패" for a finished game's losing/winning side, "선발" for
@@ -438,7 +438,7 @@ struct KBOExpandedView: View {
                 LivePulseDot()
                 Text(game.statusInfo.isEmpty ? "LIVE" : game.statusInfo)
                     .font(TypographyTokens.expandedSemibold)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(KBOThemeTokens.live)
                     .lineLimit(1)
             }
         } else if game.isFinished {
@@ -675,7 +675,7 @@ private struct LivePulseDot: View {
 
     var body: some View {
         Circle()
-            .fill(Color.red)
+            .fill(KBOThemeTokens.live)
             .frame(width: KBOLayoutTokens.livePulseDotSize,
                    height: KBOLayoutTokens.livePulseDotSize)
             .scaleEffect(pulse ? 1.35 : 1.0)

@@ -80,6 +80,9 @@
 		1443E7F52C609DCE0027C1FC /* LayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1443E7F42C609DCE0027C1FC /* LayoutTokens.swift */; };
 		FA007A01FA007A01FA007A01 /* ThemeTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA007A00FA007A00FA007A00 /* ThemeTokens.swift */; };
 		FA007B01FA007B01FA007B01 /* TypographyTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA007B00FA007B00FA007B00 /* TypographyTokens.swift */; };
+		FA007C01FA007C01FA007C01 /* MusicThemeTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA007C00FA007C00FA007C00 /* MusicThemeTokens.swift */; };
+		FA007C03FA007C03FA007C03 /* KBOThemeTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA007C02FA007C02FA007C02 /* KBOThemeTokens.swift */; };
+		FA007C05FA007C05FA007C05 /* TimerThemeTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA007C04FA007C04FA007C04 /* TimerThemeTokens.swift */; };
 		1443E7F72C609DCE0027C1FC /* PanelLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1443E7F62C609DCE0027C1FC /* PanelLayoutMetrics.swift */; };
 		147163982C5D35B70068B555 /* MusicVisualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147163972C5D35B70068B555 /* MusicVisualizer.swift */; };
 		1471639A2C5D35FF0068B555 /* MusicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147163992C5D35FF0068B555 /* MusicManager.swift */; };
@@ -253,6 +256,9 @@
 		1443E7F42C609DCE0027C1FC /* LayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutTokens.swift; sourceTree = "<group>"; };
 		FA007A00FA007A00FA007A00 /* ThemeTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTokens.swift; sourceTree = "<group>"; };
 		FA007B00FA007B00FA007B00 /* TypographyTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypographyTokens.swift; sourceTree = "<group>"; };
+		FA007C00FA007C00FA007C00 /* MusicThemeTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicThemeTokens.swift; sourceTree = "<group>"; };
+		FA007C02FA007C02FA007C02 /* KBOThemeTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOThemeTokens.swift; sourceTree = "<group>"; };
+		FA007C04FA007C04FA007C04 /* TimerThemeTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerThemeTokens.swift; sourceTree = "<group>"; };
 		1443E7F62C609DCE0027C1FC /* PanelLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutMetrics.swift; sourceTree = "<group>"; };
 		1443E7F42C609E650027C1FC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		147163972C5D35B70068B555 /* MusicVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicVisualizer.swift; sourceTree = "<group>"; };
@@ -793,6 +799,7 @@
 			children = (
 				FA001000FA001000FA001000 /* MusicPlayerWidget.swift */,
 				FA001002FA001002FA001002 /* MusicLayoutTokens.swift */,
+				FA007C00FA007C00FA007C00 /* MusicThemeTokens.swift */,
 			);
 			path = Music;
 			sourceTree = "<group>";
@@ -805,6 +812,7 @@
 				FA002005FA002005FA002005 /* TimerCompactView.swift */,
 				FA002007FA002007FA002007 /* TimerExpandedView.swift */,
 				FA002008FA002008FA002008 /* TimerLayoutTokens.swift */,
+				FA007C04FA007C04FA007C04 /* TimerThemeTokens.swift */,
 			);
 			path = Timer;
 			sourceTree = "<group>";
@@ -822,6 +830,7 @@
 				FA003015FA003015FA003015 /* KBOTeamColors.swift */,
 				FA003017FA003017FA003017 /* KBOTeamLogo.swift */,
 				FA003018FA003018FA003018 /* KBOLayoutTokens.swift */,
+				FA007C02FA007C02FA007C02 /* KBOThemeTokens.swift */,
 			);
 			path = KBO;
 			sourceTree = "<group>";
@@ -1015,6 +1024,9 @@
 				1443E7F52C609DCE0027C1FC /* LayoutTokens.swift in Sources */,
 				FA007A01FA007A01FA007A01 /* ThemeTokens.swift in Sources */,
 				FA007B01FA007B01FA007B01 /* TypographyTokens.swift in Sources */,
+				FA007C01FA007C01FA007C01 /* MusicThemeTokens.swift in Sources */,
+				FA007C03FA007C03FA007C03 /* KBOThemeTokens.swift in Sources */,
+				FA007C05FA007C05FA007C05 /* TimerThemeTokens.swift in Sources */,
 				1443E7F72C609DCE0027C1FC /* PanelLayoutMetrics.swift in Sources */,
 				11C5E3162DFE88510065821E /* SettingsView.swift in Sources */,
 				1153BD932D986E4300979FB0 /* AppleMusicController.swift in Sources */,

@@ -7,8 +7,8 @@ struct TimerExpandedView: View {
     private let accentColor: Color = .accentColor
     private let textSecondary: Color = .secondary
     private let textPrimary: Color = .primary
-    private let backgroundSecondary: Color = Color(white: 0.22)
-    private let trackColor: Color = Color(white: 0.28)
+    private let backgroundSecondary: Color = TimerThemeTokens.surfaceMedium
+    private let trackColor: Color = TimerThemeTokens.trackBackground
 
     var body: some View {
         VStack(spacing: TimerLayoutTokens.expandedSpacing) {
@@ -138,7 +138,7 @@ struct TimerExpandedView: View {
                 icon: startPauseIcon,
                 label: startPauseLabel,
                 color: viewModel.state == .running
-                    ? .yellow
+                    ? TimerThemeTokens.pausedAccent
                     : accentColor
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {

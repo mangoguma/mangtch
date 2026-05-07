@@ -26,7 +26,7 @@ struct KBOCompactView: View {
             .background(
                 RoundedRectangle(cornerRadius: KBOLayoutTokens.compactBackgroundCornerRadius,
                                  style: .continuous)
-                    .fill(Color.accentColor.opacity(isHovering ? 0.18 : 0))
+                    .fill(KBOThemeTokens.accentSurface.opacity(isHovering ? 0.18 : 0))
                     .padding(.horizontal, KBOLayoutTokens.compactBackgroundHorizontalInset)
                     .padding(.vertical, KBOLayoutTokens.compactBackgroundVerticalInset)
             )
@@ -49,7 +49,7 @@ struct KBOCompactView: View {
             VStack(alignment: .leading, spacing: KBOLayoutTokens.compactInnerVerticalSpacing) {
                 HStack(spacing: KBOLayoutTokens.compactLiveBadgeSpacing) {
                     Circle()
-                        .fill(Color.red)
+                        .fill(KBOThemeTokens.live)
                         .frame(width: KBOLayoutTokens.compactLiveDotSize,
                                height: KBOLayoutTokens.compactLiveDotSize)
                         .opacity(pulse ? 0.5 : 1.0)
@@ -57,7 +57,7 @@ struct KBOCompactView: View {
                                    value: pulse)
                     Text("LIVE")
                         .font(TypographyTokens.microBadge)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(KBOThemeTokens.live)
                 }
                 Text(game.statusInfo.isEmpty ? "—" : game.statusInfo)
                     .font(TypographyTokens.tinyLabelMedium)
@@ -125,7 +125,7 @@ struct KBOCompactView: View {
             .background(
                 RoundedRectangle(cornerRadius: KBOLayoutTokens.compactToggleCornerRadius,
                                  style: .continuous)
-                    .fill(isOn ? Color.accentColor : Color.secondary.opacity(0.22))
+                    .fill(isOn ? KBOThemeTokens.accentSurface : Color.secondary.opacity(0.22))
             )
     }
 }

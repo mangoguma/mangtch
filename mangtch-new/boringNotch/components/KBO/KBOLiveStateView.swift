@@ -84,10 +84,10 @@ struct KBOLiveStateView: View {
             ForEach(0..<2, id: \.self) { i in
                 let isFilled = i < value
                 Circle()
-                    .fill(isFilled ? Color.red : Color.clear)
+                    .fill(isFilled ? KBOThemeTokens.live : Color.clear)
                     .overlay(
                         Circle().strokeBorder(
-                            isFilled ? Color.red : Color.secondary.opacity(0.6),
+                            isFilled ? KBOThemeTokens.live : Color.secondary.opacity(0.6),
                             lineWidth: 0.8
                         )
                     )
@@ -109,9 +109,9 @@ struct KBOLiveStateView: View {
                        height: KBOLayoutTokens.liveWingDiamondSize)
 
             VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
-                countRow(value: state.balls, total: 3, label: "B", filledColor: .green)
-                countRow(value: state.strikes, total: 2, label: "S", filledColor: .yellow)
-                countRow(value: state.outs, total: 2, label: "O", filledColor: .red)
+                countRow(value: state.balls, total: 3, label: "B", filledColor: KBOThemeTokens.ballsFilled)
+                countRow(value: state.strikes, total: 2, label: "S", filledColor: KBOThemeTokens.strikesFilled)
+                countRow(value: state.outs, total: 2, label: "O", filledColor: KBOThemeTokens.outsFilled)
             }
 
             ZStack {
@@ -134,7 +134,7 @@ struct KBOLiveStateView: View {
                     // the 5s ticker display interval.
                     Text(playText)
                         .font(TypographyTokens.expandedSmallMedium)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(KBOThemeTokens.liveText)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
@@ -153,7 +153,7 @@ struct KBOLiveStateView: View {
         HStack(spacing: KBOLayoutTokens.liveWingCountRowSpacing) {
             Text(label)
                 .font(TypographyTokens.microBadge)
-                .foregroundStyle(.white)
+                .foregroundStyle(KBOThemeTokens.liveText)
             countDots(value: value, total: total, filledColor: filledColor)
         }
     }
@@ -178,7 +178,7 @@ struct KBOLiveStateView: View {
             }
             Text(name ?? "—")
                 .font(TypographyTokens.tinyLabel)
-                .foregroundStyle(.white)
+                .foregroundStyle(KBOThemeTokens.liveText)
                 .fixedSize(horizontal: true, vertical: false)
         }
     }
@@ -233,10 +233,10 @@ private struct BasesDiamond: View {
 
     private func base(filled: Bool, size: CGFloat) -> some View {
         RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-            .fill(filled ? Color.yellow : Color.clear)
+            .fill(filled ? KBOThemeTokens.baseFilled : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .strokeBorder(filled ? Color.yellow : Color.white.opacity(0.7), lineWidth: 1)
+                    .strokeBorder(filled ? KBOThemeTokens.baseFilled : Color.white.opacity(0.7), lineWidth: 1)
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))

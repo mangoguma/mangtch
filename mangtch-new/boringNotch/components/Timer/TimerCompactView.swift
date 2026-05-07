@@ -8,7 +8,7 @@ struct TimerCompactView: View {
             // Circular progress
             ZStack {
                 Circle()
-                    .stroke(Color.white.opacity(0.15), lineWidth: TimerLayoutTokens.compactRingStroke)
+                    .stroke(TimerThemeTokens.compactRingTrack, lineWidth: TimerLayoutTokens.compactRingStroke)
 
                 Circle()
                     .trim(from: 0, to: viewModel.progress)
