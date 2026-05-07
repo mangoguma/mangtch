@@ -48,9 +48,19 @@ final class KBOWidget: NotchWidget {
                 + outerPadding
                 + LayoutTokens.panelCornerRadius
         }
-        return HeightRange(min: ideal * KBOLayoutTokens.panelMinScale,
-                           ideal: ideal,
-                           max: ideal * KBOLayoutTokens.panelMaxHeightScale)
+        // Defensive cap so the panel can't outgrow the viewport on small
+        // displays — KBO regular season tops out at 5 games/day so this
+        // is a no-op in normal use; matters only if the formula's per-row
+        // estimate drifts upward later.
+        let safeMax = (NSScreen.main?.visibleFrame.height ?? 800)
+            * KBOLayoutTokens.panelScreenSafeFraction
+        let absoluteMax = min(safeMax, KBOLayoutTokens.panelAbsoluteMaxHeight)
+        let clampedIdeal = min(ideal, absoluteMax)
+        let clampedMax = min(ideal * KBOLayoutTokens.panelMaxHeightScale,
+                             absoluteMax)
+        return HeightRange(min: clampedIdeal * KBOLayoutTokens.panelMinScale,
+                           ideal: clampedIdeal,
+                           max: clampedMax)
     }
 
     let viewModel = KBOViewModel()

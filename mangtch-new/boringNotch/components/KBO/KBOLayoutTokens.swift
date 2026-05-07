@@ -79,6 +79,12 @@ enum KBOLayoutTokens {
     // MARK: Sizing range scales
     static let panelMinScale: CGFloat = 0.8
     static let panelMaxHeightScale: CGFloat = 1.5
+    /// Fraction of the visible screen the KBO panel may occupy at most.
+    /// Together with `panelAbsoluteMaxHeight` keeps the panel from
+    /// growing past the viewport on small displays / many-game days;
+    /// the ScrollView fallback inside KBOExpandedView activates beyond.
+    static let panelScreenSafeFraction: CGFloat = 0.7
+    static let panelAbsoluteMaxHeight: CGFloat = 700
 
     // MARK: Live state — wing form
     static let liveWingHStackSpacing: CGFloat = 6

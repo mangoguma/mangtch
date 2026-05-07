@@ -23,15 +23,13 @@ struct KBOExpandedView: View {
             if viewModel.games.isEmpty {
                 emptyState
             } else {
-                // Bare VStack — no ScrollView wrapper. Five games + one
-                // expanded row fit naturally inside the panel, and a
-                // ScrollView would defeat the dynamic-height measurement
-                // below (it reports the available space, not content size).
-                VStack(spacing: KBOLayoutTokens.rowGap) {
-                    ForEach(viewModel.games) { game in
-                        gameRow(game)
-                    }
-                }
+                // Bare VStack — KBO regular season is ≤5 games/day and
+                // safeMax-clamped panel comfortably fits 5 rows + one
+                // expanded linescore. ViewThatFits + ScrollView wrapping
+                // was tried but proposed full container height down to
+                // the inner VStack, which made one row balloon to fill
+                // the leftover space.
+                gamesList
             }
         }
         .padding(.horizontal, KBOLayoutTokens.bodyOuterHorizontalPadding)
@@ -41,6 +39,14 @@ struct KBOExpandedView: View {
             // expanded row / pinned game intact so the live broadcast
             // the user was watching survives close/reopen.
             viewModel.rewindDateOnly()
+        }
+    }
+
+    private var gamesList: some View {
+        VStack(spacing: KBOLayoutTokens.rowGap) {
+            ForEach(viewModel.games) { game in
+                gameRow(game)
+            }
         }
     }
 
@@ -192,7 +198,13 @@ struct KBOExpandedView: View {
                     // side Naver puts it on their relay strip).
                     Group {
                         if game.isLive {
-                            Color.clear
+                            // Height-locked to 0 — Color.clear is greedy in
+                            // both dimensions, and an unlocked left slot was
+                            // absorbing all the spare vertical space the
+                            // panel chrome reserved (panelHeightRowHeight=50
+                            // vs ~36pt actual intrinsic), bloating live-only
+                            // rows to ~120pt while non-live rows stayed ~50pt.
+                            Color.clear.frame(height: 0)
                         } else {
                             inlineStarterLabel(name: starters?.away,
                                                resultPrefix: resultPrefix(game: game, side: .away),
@@ -446,7 +458,8 @@ struct KBOExpandedView: View {
         if game.isLive, let state = viewModel.liveStates[game.gameId] {
             KBOLiveStateView(state: state, compact: true)
         } else {
-            Color.clear
+            // Same height-lock as the left slot — see the comment there.
+            Color.clear.frame(height: 0)
         }
     }
 
