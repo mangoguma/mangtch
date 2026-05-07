@@ -156,6 +156,9 @@ final class KBOViewModel {
     private var trackedTimerGameId: String?
     private var fetchTask: Task<Void, Never>?
     private var linescoreTask: Task<Void, Never>?
+    /// Timestamp of the last play-triggered refetch. Used to enforce a
+    /// 2s cooldown so rapid play events don't spam the relay API.
+    private var lastPlayRefetchTime: Date = .distantPast
     private var cancellables = Set<AnyCancellable>()
 
     private static let trackedPollSeconds: TimeInterval = 10
@@ -570,6 +573,14 @@ final class KBOViewModel {
         // Advance the seen-marker even for plays we drop below — otherwise
         // a flurry of low-importance pitches would re-evaluate every poll.
         lastSeenSeqno = fresh.last!.seqno
+
+        // Immediately refetch to pick up BSO/score changes that arrived
+        // with or just after this play. 2s cooldown to avoid spamming.
+        if Date().timeIntervalSince(lastPlayRefetchTime) >= 2,
+           let tracked = trackedGame, tracked.isLive {
+            lastPlayRefetchTime = Date()
+            fetchLinescoreNow(for: tracked)
+        }
         // Per-pitch chatter (type 1) drowns out the actually-interesting
         // outcomes if it all hits the queue at 5s pacing. Filter to medium+
         // for the ticker so users see at-bat results, baserunning, and
@@ -635,7 +646,10 @@ final class KBOViewModel {
     /// Read the play aloud. Korean voice since plays are written in Korean.
     private static func speak(_ text: String) {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
+        // Prefer Yuna Premium for natural Korean speech; fall back to
+        // the default ko-KR voice if the user hasn't downloaded it.
+        utterance.voice = AVSpeechSynthesisVoice(identifier: "com.apple.voice.premium.ko-KR.Yuna")
+            ?? AVSpeechSynthesisVoice(language: "ko-KR")
         synthesizer.speak(utterance)
     }
 

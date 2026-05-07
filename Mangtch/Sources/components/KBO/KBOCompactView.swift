@@ -114,7 +114,6 @@ struct KBOCompactView: View {
             )
             .wingHitZone(.kboTTSToggle)
         }
-        .frame(alignment: .center)
     }
 
     /// Both ON and OFF states render with a filled background pill —

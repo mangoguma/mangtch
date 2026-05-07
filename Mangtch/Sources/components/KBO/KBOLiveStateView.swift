@@ -99,7 +99,7 @@ struct KBOLiveStateView: View {
         // Three columns: diamond | B/S/O dots | pitcher/batter names.
         // Stretches to fill the full wing width so the right side doesn't
         // sit empty when names are present.
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             BasesDiamond(onFirst: state.onFirst,
                          onSecond: state.onSecond,
                          onThird: state.onThird)
@@ -134,6 +134,7 @@ struct KBOLiveStateView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
+            .frame(minWidth: 50, maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 4)

@@ -143,7 +143,7 @@ struct NotchContentView: View {
                 .padding(.leading, wingTopOuterRadius)
                 .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
-                       alignment: .leading)
+                       alignment: .trailing)
                 .background(Color.black)
                 .clipShape(
                     WingShape(
@@ -182,7 +182,7 @@ struct NotchContentView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth,
                        height: viewModel.notchGeometry.notchHeight,
-                       alignment: .trailing)
+                       alignment: .leading)
                 .background(Color.black)
                 .clipShape(
                     WingShape(
