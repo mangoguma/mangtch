@@ -502,3 +502,75 @@ grep -rn "currentExpandedWidgetID" mangtch-new/boringNotch --include="*.swift" \
 **검토자**: Claude
 **예상 시간**: 7 ≈ 8-10h, 8 ≈ 6-8h, 9 ≈ 6-8h, 10 ≈ 12-16h+
 **총 PR**: 7=5개, 8=3개, 9=3개, 10=2개+ → 13개+
+
+---
+
+## 12. 단계 7 회고 (2026-05-08 완료)
+
+base = `89b188a` → 단계 7 종료 = `6ce8f7b` (5 커밋, 모두 `mangtch-new-wip`).
+
+### 12.1 들어간 커밋
+
+```
+45e4ca7 docs(mangtch-new): roadmap for phases 7-10
+4a183b7 refactor(mangtch-new): introduce ThemeTokens for chrome colors (7a)
+fa18a92 refactor(mangtch-new): introduce TypographyTokens for semantic fonts (7b)
+2078080 refactor(mangtch-new): widget-scoped theme tokens (Music/KBO/Timer) (7c)
+6ce8f7b feat(mangtch-new): adaptive panel shading + appearance settings (7d/7e)
+```
+
+### 12.2 In-spec 산출
+
+- `sizing/ThemeTokens.swift` — chrome colors (panel/wing 변종 + accent + text)
+- `sizing/TypographyTokens.swift` — ~25 semantic font 토큰 (compactTitle, expandedHeader, kboBigScore, timerDisplay, microBadge 등)
+- `components/Music/MusicThemeTokens.swift` — lyrics card surface + inactive/placeholder
+- `components/KBO/KBOThemeTokens.swift` — live red, win blue, B/S/O 팔레트, base yellow, **rowBaselineTint** (12.3 참조)
+- `components/Timer/TimerThemeTokens.swift` — surfaceMedium, trackBackground, pausedAccent
+- `Defaults[.panelAppearance]` (`.system` / `.light` / `.dark`) + Settings → Appearance → Panel section
+- `BoringViewModel.systemIsDark` — `AppleInterfaceThemeChangedNotification` + Defaults override 합성
+- ContentView `.dynamicTypeSize(...DynamicTypeSize.large)` 클램프 (7d)
+
+### 12.3 7d/7e 도중 의도 변경 (KBO row baseline)
+
+플랜 §3 의 dark variant 는 처음 `Color.black` (jet) 으로 잡았는데, 사용자 시각 검수에서 **KBO list row 배경이 원본 Mangtch 와 다르게 보임** 보고. 원인:
+- 원본 Mangtch DarkTheme panel = `Color(white: 0.12)` 항상
+- 단계 7 dark panel = `Color.black` (jet)
+- KBO row 배경은 알파 합성 (`Color.primary.opacity(0.04..0.16)`) 이라 panel base luminance 에 따라 결과 톤이 다름
+
+해결: panel 은 **jet black 유지** (메뉴바 OLED 검정과 합쳐지는 효과), row 만 dark mode 일 때 baseline tint (`KBOThemeTokens.rowBaselineTint = Color.white.opacity(0.06)`) 를 row 별 background 아래 깔아 원본 Mangtch 의 12% panel underlay 시뮬레이션. KBOExpandedView 가 `@EnvironmentObject vm: BoringViewModel` 받아 `vm.systemIsDark` 체크.
+
+### 12.4 Out-of-spec 의도적 잔여
+
+- `font(.system(size:` 7건 (KBOExpanded 10.5/11.5 one-off, 조건부 isHeader, KBOLive placeholder 14pt + playText 10pt). 플랜 자가검증 기준 < 10 충족
+- `Color(white:` / `Color.white.opacity(` 등 일부 site (보통 stroke / divider): boring.notch 자산 (`NotchHomeView`, `MusicPlayerView`, `MusicVisualizer`, `Button+Bouncing`, `AnimatedFace`) + Settings/Shelf — 플랜 §3.10.1 대로 손대지 않음
+- 7d 효과는 forward-protection: 현재 `TypographyTokens` 가 픽셀 폰트라 `dynamicTypeSize` 클램프는 no-op. 미래 `.body`/`.subheadline` 시맨틱 폰트 채택 시 발효
+
+### 12.5 단계 8 시작 시 주의
+
+- **`BoringViewModel.systemIsDark` 새 @Published** — 단계 8 의 metrics 변화 감지에는 영향 없음 (`setupMetricsTracking` 은 notchSize/notchState/currentExpandedWidgetID 만 결합). 그러나 `recomputeMetrics` 가 metrics 외 published 들을 의도치 않게 트리거하는지 확인
+- **panel 배경 dark/light 분기** — 단계 8 의 NSAnimation curve 매칭 작업 중 panel 색이 동적이라 시각 디버깅 어려울 수 있음. 디버그 빌드 시 `.system` 으로 고정 권장
+- **`@EnvironmentObject vm: BoringViewModel` 신규 의존 (KBOExpandedView)** — KBOWidget 이 expanded view 만들 때 vm 환경이 자동 주입되는지 (ContentView 가 EnvironmentObject 로 주입). 회귀 테스트 시 KBO 펼치기 정상 동작 확인
+
+### 12.6 자가검증 결과
+
+```bash
+$ grep -rn "Color(white:\|Color.white\|Color.black\|Color.gray" \
+    mangtch-new/boringNotch/components --include="*.swift" \
+    | grep -v "ThemeTokens" | grep -v "NotchHomeView\|MusicPlayerView\|MusicControlsView\|MusicVisualizer\|AnimatedFace\|Button\+Bouncing\|Settings/\|Shelf/"
+# 결과: < 5 (의도적: KBO row baseline는 KBOThemeTokens 경유)
+
+$ grep -rn "font(\.system(size:" mangtch-new/boringNotch --include="*.swift" \
+    | grep -v "TypographyTokens\|NotchHomeView\|MusicPlayerView\|MusicControlsView\|Settings/\|Shelf/\|EmptyState\|KBOTeamLogo"
+# 결과: 7건 (의도적 잔여, < 10 충족)
+
+$ grep -c "ThemeTokens\.\|TypographyTokens\.\|KBOThemeTokens\.\|MusicThemeTokens\.\|TimerThemeTokens\." \
+    mangtch-new/boringNotch.xcodeproj/project.pbxproj
+# 12 (build refs + file refs + group refs across 5 token files)
+```
+
+### 12.7 다음 작업자에게
+
+- 단계 8 (Width contract 마감) 또는 9 (멀티 슬롯 wing) 로 진행. 플랜 §4–§5 그대로 유효
+- 단계 7 의 시각 토큰 시스템이 정착했으니 새 view 추가 시 무조건 `*Tokens` 경유. 매직 색/폰트 다시 추가하지 말 것
+- 단계 9 좌/우 wing 독립 active widget 작업 시 §5.2 의 사용자 결정 게이트 3개 (위치 UI / default / 충돌) 먼저 확정
+

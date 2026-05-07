@@ -1,6 +1,6 @@
 # mangtch-new — Handoff
 
-> Status: builds + runs as a `.nonactivatingPanel` accessory app. Fold/expand works; click dispatch reaches `MusicManager`. Wing/panel sizing was refactored to a widget-declared `widthRange`/`heightRange` contract (see §6); needs visual reverify on user's display.
+> Status (2026-05-08, branch `mangtch-new-wip`, tip `6ce8f7b`): phases 1–7 complete. Builds + runs as a `.nonactivatingPanel` accessory app. Wing/panel sizing on widget-declared `widthRange`/`heightRange` contract (§6). Visual token system (`ThemeTokens` / `TypographyTokens` / per-widget `*ThemeTokens`) covers chrome + Music/KBO/Timer. Adaptive panel shading + `Defaults[.panelAppearance]` setting. Phase 8 (Width contract closure) and 9 (multi-slot wing) are next; see `PLAN-roadmap-7-to-10.md`.
 
 `mangtch-new/` is a fork of `boring.notch/` (open-source upstream) with non-product features stripped and Mangtch's widget machinery + KBO/Timer/Music widgets grafted in.
 
@@ -192,10 +192,28 @@ When `SUFeedURL` was deleted from Info.plist, `SUPublicEDKey` went with it. If w
 
 ## 8. Recommended next steps (priority order)
 
-1. **Visually reverify wing/panel sizing on the user's display** (Known issue 🟡 above). The static-clamp design that originally caused mis-sizing was replaced by the widget-declared `widthRange`/`heightRange` resolver in `PanelLayoutMetrics.swift`. Hover the notch, switch between Music / Timer / KBO, and confirm wings render at sensible widths. If still off, instrument `BoringViewModel.recomputeMetrics()` to print `publishedMetrics` and trace from there — the resolver is the single source.
-2. **Manual smoke test the rest of the user checklist** (from `/Users/sarang/.claude/plans/boring-notch-dreamy-dragonfly.md` § Verification): hover-expand timing, music wing-button click, widget switching, KBO data fetch (Korean baseball season; service may return "no games" off-season), Timer countdown + numpad, file drag → Shelf, multi-display, fullscreen-hide.
-3. **Clean up the `XPCHelperClient.swift` stub** along with the Calendar Settings stub when next touching SettingsView.
-4. **Decide on the `BoringNotchXPCHelper` target.** Either delete it from pbxproj or restore the helper sources if you ever bring back media-key interception. Currently it's dead weight.
-5. **`mediaremote-adapter/` is in use** — `NowPlayingController.swift:193` and `MediaChecker.swift:20` both reference it at runtime. Do not delete. (Earlier handoff suggested it might be droppable; that was wrong.)
+Phases 1–7 complete (base `89b188a` → tip `6ce8f7b`, all on `mangtch-new-wip`). See `PLAN-roadmap-7-to-10.md §12` for the phase 7 retrospective and `§4–§5` for the phase 8/9 specs that are still in scope.
+
+1. **Phase 8 — Width contract closure** (~6-8h). NSAnimation ↔ SwiftUI ease sync (or option B: window jumps instant, SwiftUI eases content). Restore content-driven widthRange for KBO + Music. See roadmap §4.
+2. **Phase 9 — Multi-slot wing** (~6-8h). Independent left/right active widget per `BoringViewModel.{leftActiveWidgetID, rightActiveWidgetID}`. **Blocked on three user decisions** (roadmap §5.2): per-wing active widget UI location, default behaviour, conflict resolution. Don't start without these.
+3. **Phase 10a — Widget contributor guide** (docs only, ~1-2h). `docs/ADDING_A_WIDGET.md` + Widget template. Cheapest sub-PR.
+4. Visually reverify wing/panel sizing per user's display setup.
+5. Smoke test the user checklist (`/Users/sarang/.claude/plans/boring-notch-dreamy-dragonfly.md` § Verification).
+6. **`mediaremote-adapter/` is in use** — `NowPlayingController.swift:193` and `MediaChecker.swift:20` reference it at runtime. Do not delete.
+
+### Phase 7 deliverables already in tree (don't re-do)
+
+- `sizing/ThemeTokens.swift` — chrome colours, light/dark variants, `panelBackground(systemDark:)` / `wingFill(systemDark:)` selectors
+- `sizing/TypographyTokens.swift` — ~25 semantic fonts
+- `components/{Music,KBO,Timer}/*ThemeTokens.swift` — widget-scoped colour tokens (KBO has `rowBaselineTint` for row composition under jet-black panel)
+- `BoringViewModel.systemIsDark` (@Published) + `AppleInterfaceThemeChangedNotification` observer + `Defaults[.panelAppearance]` override
+- Settings → Appearance → Panel section (system / light / dark picker)
+- ContentView `.dynamicTypeSize(...DynamicTypeSize.large)` clamp
+
+### Conventions for new view code (post-phase 7)
+
+- Never write `Color(white: …)`, `.foregroundStyle(.secondary.opacity(N))`, `font(.system(size: N))` inline. Add to the relevant `*Tokens.swift` first, then use the token. Plan §3.10.1 still applies — leave boring.notch upstream files (`NotchHomeView`, `MusicPlayerView`, `MusicControlsView`, `MusicVisualizer`, `AnimatedFace`, `Button+Bouncing`) alone.
+- KBO/Music/Timer-specific colours go in their respective `*ThemeTokens.swift`, not in global `ThemeTokens`.
+- Panel-shade-aware colour decisions read `vm.systemIsDark` (already injected as @EnvironmentObject in widget views).
 
 When in doubt about scope, re-read § 1 of this document and the architectural-rule memory file.
