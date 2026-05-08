@@ -327,6 +327,9 @@ struct GeneralSettings: View {
                     Text("Enable haptic feedback")
             }
             Toggle("Remember last tab", isOn: $coordinator.openLastTabByDefault)
+            Defaults.Toggle(key: .debugOverlay) {
+                Text("Debug zone overlay")
+            }
             if openNotchOnHover {
                 Slider(value: $minimumHoverDuration, in: 0...1, step: 0.1) {
                     HStack {

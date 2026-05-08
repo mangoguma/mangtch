@@ -111,6 +111,7 @@ struct ContentView: View {
         let m = vm.metrics
         VStack(spacing: 0) {
             wingsRow
+                .overlay(alignment: .topLeading) { debugZonesOverlay }
             expandedContent
                 .frame(width: m.panelWidth, alignment: .top)
                 // Measure the **entire** expanded panel intrinsic height
@@ -303,6 +304,74 @@ struct ContentView: View {
             // clipped by `ExpandedPanelShape`'s outer inset + bottom radius.
             .padding(.horizontal, LayoutTokens.panelHorizontalInset)
             .padding(.bottom, LayoutTokens.panelBottomInset)
+        }
+    }
+
+    // MARK: - Debug Zones Overlay
+
+    /// Mirrors the four rects that `GestureHandler.handleMouseMoved`
+    /// computes in screen coords — drawn here in window-local coords
+    /// because the window is sized to `panelWidth × (notchHeight + …)`,
+    /// so the zones map 1:1 to the wings/notch HStack origin.
+    ///
+    /// Zones use the same definitions as GestureHandler:
+    /// - hover (yellow): full panel width × `notchH + 5 + extraOpen`
+    /// - left wing (cyan): `wingW × notchH + 5`
+    /// - right wing (purple): mirror of left, anchored trailing
+    /// - notch (green): centered, hardware notch size
+    @ViewBuilder
+    private var debugZonesOverlay: some View {
+        if Defaults[.debugOverlay] {
+            let m = vm.metrics
+            let wingW = m.wingWidth
+            let notchW = vm.notchSize.width
+            let notchH = vm.notchSize.height
+            let panelW = m.panelWidth
+            let extraOpen: CGFloat = vm.notchState == .open ? m.totalHeight : 0
+
+            ZStack(alignment: .topLeading) {
+                Rectangle()
+                    .stroke(Color.yellow.opacity(0.9), lineWidth: 1)
+                    .frame(width: panelW, height: notchH + 5 + extraOpen)
+                Rectangle()
+                    .stroke(Color.cyan.opacity(0.9), lineWidth: 1)
+                    .frame(width: wingW, height: notchH + 5)
+                Rectangle()
+                    .stroke(Color.purple.opacity(0.9), lineWidth: 1)
+                    .frame(width: wingW, height: notchH + 5)
+                    .offset(x: panelW - wingW, y: 0)
+                Rectangle()
+                    .stroke(Color.green.opacity(0.9), lineWidth: 1)
+                    .frame(width: notchW, height: notchH)
+                    .offset(x: wingW, y: 0)
+
+                // Wing-button hit zones come from PreferenceKey reports —
+                // those are stored in `vm.wingHitZones` as **screen** rects.
+                // Convert to window-local via the host window's frame.
+                //
+                // Skip in `.closed`: compact wings show title/artist text
+                // (Music) or summary glyph (KBO) instead of buttons, so
+                // the published button rects sit under invisible
+                // `opacity:0` siblings — drawing them just clutters the
+                // overlay with rects that don't correspond to anything
+                // the user can click yet.
+                if vm.notchState != .closed, let host = hostWindow {
+                    ForEach(vm.wingHitZones, id: \.button) { z in
+                        let local = NSRect(
+                            x: z.rect.minX - host.frame.minX,
+                            y: host.frame.maxY - z.rect.maxY,
+                            width: z.rect.width,
+                            height: z.rect.height
+                        )
+                        Rectangle()
+                            .stroke(Color.orange.opacity(0.9), lineWidth: 1)
+                            .frame(width: local.width, height: local.height)
+                            .offset(x: local.minX, y: local.minY)
+                    }
+                }
+            }
+            .frame(width: panelW, height: notchH + 5 + extraOpen, alignment: .topLeading)
+            .allowsHitTesting(false)
         }
     }
 

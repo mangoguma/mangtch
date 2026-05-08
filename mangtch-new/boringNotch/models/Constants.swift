@@ -101,6 +101,10 @@ extension Defaults.Keys {
     static let enableHaptics = Key<Bool>("enableHaptics", default: true)
     static let openNotchOnHover = Key<Bool>("openNotchOnHover", default: true)
     static let extendHoverArea = Key<Bool>("extendHoverArea", default: false)
+    /// Renders colored rect outlines for hover/notch/left-wing/right-wing
+    /// zones used by `GestureHandler` so geometry mismatches show up
+    /// visually instead of through cursor-tracking guesswork. Off by default.
+    static let debugOverlay = Key<Bool>("debugOverlay", default: false)
     static let notchHeightMode = Key<WindowHeightMode>(
         "notchHeightMode",
         default: WindowHeightMode.matchRealNotchSize
