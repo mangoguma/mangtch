@@ -63,7 +63,7 @@ final class NotchWindow: NSPanel {
         // behind the menu bar.
         self.isFloatingPanel = true
         self.level = .mainMenu + 3
-        self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
+        self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle, .transient]
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = false

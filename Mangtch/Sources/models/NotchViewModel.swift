@@ -96,7 +96,7 @@ final class NotchViewModel {
 
     // MARK: - Configuration
 
-    let maxExpandedHeight: CGFloat = 260
+    let maxExpandedHeight: CGFloat = 320
 
     /// Current target height for the expanded panel — base height plus
     /// whatever extra room the active widget asked for. Used by gesture
@@ -148,7 +148,7 @@ final class NotchViewModel {
         // Expanded — always show wings so the panel chrome is consistent.
         if currentState == .expanded { return true }
 
-        // Any non-music widget claiming the wing?
+        // Check if any widget actually has live content to show.
         let widgetID = effectiveWingWidgetID(fallback: currentExpandedWidgetID)
         if widgetID != "music-player" { return true }
 

@@ -99,19 +99,19 @@ struct KBOLiveStateView: View {
         // Three columns: diamond | B/S/O dots | pitcher/batter names.
         // Stretches to fill the full wing width so the right side doesn't
         // sit empty when names are present.
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             BasesDiamond(onFirst: state.onFirst,
                          onSecond: state.onSecond,
                          onThird: state.onThird)
                 .frame(width: 22, height: 22)
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 0) {
                 countRow(value: state.balls, total: 3, label: "B", filledColor: .green)
                 countRow(value: state.strikes, total: 2, label: "S", filledColor: .yellow)
                 countRow(value: state.outs, total: 2, label: "O", filledColor: .red)
             }
 
-            ZStack {
+            ZStack(alignment: .leading) {
                 VStack(alignment: .leading, spacing: 1) {
                     playerRow(icon: "p.circle.fill",
                               name: state.pitcherName,
@@ -121,23 +121,24 @@ struct KBOLiveStateView: View {
                               order: state.batOrder,
                               tint: batterTeamColor)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(playText == nil ? 1 : 0)
 
                 if let playText {
                     MarqueeText(playText,
                                 font: .system(size: 10, weight: .medium),
                                 speed: 28,
-                                isActive: true)
+                                isActive: true,
+                                oneShot: true)
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
+            .frame(minWidth: 50, maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 4)
         .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
         // No inner pill — the wing's own dark panel background already
         // provides the contrast surface. An extra rounded rect inside it
         // would visibly disagree with the wing's edge curvature.
@@ -148,6 +149,7 @@ struct KBOLiveStateView: View {
             Text(label)
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.white)
+                .frame(width: 8, alignment: .center)
             countDots(value: value, total: total, filledColor: filledColor)
         }
     }
@@ -156,10 +158,6 @@ struct KBOLiveStateView: View {
     /// pitcher batting order is meaningless. Falls back to "—" when the
     /// lineup lookup didn't resolve a name.
     private func playerRow(icon: String, name: String?, order: Int? = nil, tint: Color? = nil) -> some View {
-        // Palette rendering paints the disc in the team colour while the
-        // letter glyph stays white — the conventional "club badge" look.
-        // Falls back to a flat white symbol when no tint resolved (e.g.
-        // attackingSide unknown), preserving the prior appearance.
         HStack(spacing: 3) {
             Image(systemName: icon)
                 .font(.system(size: 9, weight: .bold))
@@ -169,11 +167,15 @@ struct KBOLiveStateView: View {
                 Text("\(order)")
                     .font(.system(size: 8, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.7))
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.25), value: order)
             }
             Text(name ?? "—")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: true, vertical: false)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.25), value: name)
         }
     }
 
@@ -188,11 +190,12 @@ struct KBOLiveStateView: View {
                     .fill(isFilled ? filledColor : Color.clear)
                     .overlay(
                         Circle().strokeBorder(
-                            isFilled ? filledColor : Color.white.opacity(0.7),
+                            isFilled ? filledColor : Color.secondary,
                             lineWidth: 0.8
                         )
                     )
                     .frame(width: 6, height: 6)
+                    .animation(.easeInOut(duration: 0.3), value: isFilled)
             }
         }
     }
@@ -229,9 +232,10 @@ private struct BasesDiamond: View {
             .fill(filled ? Color.yellow : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .strokeBorder(filled ? Color.yellow : Color.white.opacity(0.7), lineWidth: 1)
+                    .strokeBorder(filled ? Color.yellow : Color.secondary, lineWidth: 1)
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))
+            .animation(.easeInOut(duration: 0.3), value: filled)
     }
 }

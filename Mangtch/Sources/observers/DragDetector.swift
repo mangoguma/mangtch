@@ -2,87 +2,67 @@ import AppKit
 import UniformTypeIdentifiers
 
 /// Watches for a system-wide file drag and surfaces the FileShelf as soon
-/// as the cursor enters the notch's hit zone — so the user gets a visible
-/// drop target without having to first hover the notch into the open state.
+/// as the cursor enters the notch's hit zone.
 ///
-/// macOS doesn't publish "a file drag is in progress" directly. We infer it
-/// by snapshotting the drag pasteboard's changeCount on mouse-down: if it
-/// has incremented by the time we see mouse-dragged events, AppKit started
-/// a drag session in another app and put a payload on the drag board.
+/// Uses pasteboard polling instead of global mouse monitors — macOS 26
+/// doesn't reliably deliver leftMouseDragged to global monitors during
+/// cross-app file drags. Polling the drag pasteboard's changeCount at
+/// 20Hz is lightweight and catches drags from any app.
 @MainActor
 final class DragDetector {
     static let shared = DragDetector()
 
-    private var mouseDownMonitor: Any?
-    private var mouseDraggedMonitor: Any?
-    private var mouseUpMonitor: Any?
-
+    private var pollTimer: Timer?
     private let dragPasteboard = NSPasteboard(name: .drag)
-    private var pasteboardSnapshot = 0
-    private var sessionActive = false
-    private var contentDragConfirmed = false
+    private var lastChangeCount = 0
     private var insideNotchHotzone = false
 
     private init() {}
 
     func start() {
         stop()
-        mouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.beginSession() }
-        }
-        mouseDraggedMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] event in
-            Task { @MainActor [weak self] in self?.handleDrag(event) }
-        }
-        mouseUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.endSession() }
+        lastChangeCount = dragPasteboard.changeCount
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.poll() }
         }
     }
 
     func stop() {
-        for token in [mouseDownMonitor, mouseDraggedMonitor, mouseUpMonitor].compactMap({ $0 }) {
-            NSEvent.removeMonitor(token)
+        pollTimer?.invalidate()
+        pollTimer = nil
+        insideNotchHotzone = false
+    }
+
+    private func poll() {
+        let current = dragPasteboard.changeCount
+        // Pasteboard changed → a drag started or updated
+        if current != lastChangeCount {
+            lastChangeCount = current
+            // Verify it contains droppable content
+            guard hasShelfCompatibleContent() else { return }
         }
-        mouseDownMonitor = nil
-        mouseDraggedMonitor = nil
-        mouseUpMonitor = nil
-        sessionActive = false
-        contentDragConfirmed = false
-        insideNotchHotzone = false
-    }
 
-    private func beginSession() {
-        pasteboardSnapshot = dragPasteboard.changeCount
-        sessionActive = true
-        contentDragConfirmed = false
-        insideNotchHotzone = false
-    }
-
-    private func endSession() {
-        sessionActive = false
-        contentDragConfirmed = false
-        insideNotchHotzone = false
-    }
-
-    private func handleDrag(_ event: NSEvent) {
-        guard sessionActive else { return }
-
-        if !contentDragConfirmed {
-            // Content lands on the drag pasteboard a moment after the user
-            // starts moving — keep checking until the changeCount bumps.
-            guard dragPasteboard.changeCount != pasteboardSnapshot else { return }
-            guard hasShelfCompatibleContent() else {
-                sessionActive = false
-                return
+        // Check if a drag with compatible content is active by seeing
+        // if the pasteboard still has file URLs. Once the drag ends,
+        // the pasteboard may clear or the mouse button is up — we
+        // detect "drag ended" when the cursor leaves the hotzone.
+        guard hasShelfCompatibleContent() else {
+            if insideNotchHotzone {
+                insideNotchHotzone = false
             }
-            contentDragConfirmed = true
+            return
         }
 
         let cursor = NSEvent.mouseLocation
-        // Resolve to the panel under the cursor so a drag onto an
-        // external display surfaces *that* panel's shelf, not the
-        // primary's. Falls back to the primary when the cursor is on a
-        // screen with no panel (e.g. `showOnAllDisplays` off and the
-        // user is dragging across a non-target display).
+        // Only check hotzone while the mouse is pressed (dragging).
+        // NSEvent.pressedMouseButtons bit 0 = left button.
+        guard NSEvent.pressedMouseButtons & 1 != 0 else {
+            if insideNotchHotzone {
+                insideNotchHotzone = false
+            }
+            return
+        }
+
         let targetWindow = NotchWindowManager.shared.window(under: cursor)
         let inHotzone = (targetWindow != nil) && isInsideNotchHotzone(cursor, window: targetWindow!)
 
@@ -106,17 +86,14 @@ final class DragDetector {
         return types.contains(where: accepted.contains)
     }
 
-    /// The hit zone is the panel's notch footprint plus a small lead-in
-    /// below so users approaching from the screen don't have to thread
-    /// the needle. Geometry comes from the per-window VM so multi-display
-    /// setups use each screen's actual notch dimensions.
     private func isInsideNotchHotzone(_ point: CGPoint, window: NotchWindow) -> Bool {
         let screen = window.attachedScreen
         let viewModel = window.viewModel
         let geometry = viewModel.notchGeometry
-        let panelWidth = geometry.notchWidth + (viewModel.wingWidth * 2)
+        let minWidth = geometry.notchWidth + (NotchViewModel.minWingWidth * 2)
+        let panelWidth = max(geometry.notchWidth + (viewModel.wingWidth * 2), minWidth)
         let topY = screen.frame.maxY
-        let leadIn: CGFloat = 24
+        let leadIn: CGFloat = 40
         let hotzone = CGRect(
             x: screen.frame.midX - panelWidth / 2,
             y: topY - geometry.notchHeight - leadIn,

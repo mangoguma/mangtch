@@ -147,17 +147,10 @@ final class GestureHandler {
         )
 
         // Auto-expand dwell trigger — notch body only. Hovering a wing
-        // must NOT auto-open the panel: the user is interacting with
-        // wing controls (music transport, KBO toggles), and a dwell-
-        // expand would steal focus before they can click anything (wing
-        // click dispatch only runs in `.hovering` state — see
-        // handleGlobalClick).
-        let expandZone = NSRect(
-            x: screen.frame.midX - geo.notchWidth / 2,
-            y: screen.frame.maxY - geo.notchHeight - 5,
-            width: geo.notchWidth,
-            height: geo.notchHeight + 5
-        )
+        // Wing hover also triggers expand — wing clicks now dispatch
+        // in both hovering and expanded states, so the dwell-expand
+        // no longer blocks control interaction.
+        let expandZone = hoverZone
 
         // Per-wing hover detection — fed to wing views so they can flip
         // between info/artwork and hover-controls. Active in any state
@@ -269,6 +262,10 @@ final class GestureHandler {
 
         switch viewModel.currentState {
         case .expanded:
+            // Dispatch wing button clicks even while expanded (e.g.
+            // KBO ticker/TTS toggles on the hovering wing).
+            handleWingClick(at: point, viewModel: viewModel)
+
             let geo = viewModel.notchGeometry
             let panelRect = NSRect(
                 x: screen.frame.midX - viewModel.panelWidth / 2,
@@ -322,6 +319,9 @@ final class GestureHandler {
         case .kboTTSToggle:
             (registry.widget(for: "kbo")?.wrapped as? KBOWidget)?
                 .viewModel.ttsEnabled.toggle()
+        case .kboSoundToggle:
+            (registry.widget(for: "kbo")?.wrapped as? KBOWidget)?
+                .viewModel.soundEffectsEnabled.toggle()
         }
     }
 

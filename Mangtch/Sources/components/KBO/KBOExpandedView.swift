@@ -172,54 +172,49 @@ struct KBOExpandedView: View {
                 }
             }) {
                 HStack(spacing: 10) {
-                    let starters = viewModel.startingPitchers[game.gameId]
+                    // Prefer schedule API starter names (instant); fall
+                    // back to linescore-cached starters for edge cases.
+                    let cached = viewModel.startingPitchers[game.gameId]
+                    let starters = KBOStarters(
+                        away: game.awayStarterName ?? cached?.away,
+                        home: game.homeStarterName ?? cached?.home
+                    )
                     let slotW = rowSlotWidth
 
                     // Left slot: away starter on non-live rows, blank on
                     // live rows (the diamond/count goes on the right slot
                     // so the live read sits next to the home team — same
                     // side Naver puts it on their relay strip).
-                    Group {
-                        if game.isLive {
-                            Color.clear
-                        } else {
-                            inlineStarterLabel(name: starters?.away,
-                                               resultPrefix: resultPrefix(game: game, side: .away),
-                                               trailing: false,
-                                               slotWidth: slotW)
-                        }
-                    }
-                    .frame(width: slotW)
+                    Text(Self.stadium(for: game.homeTeamCode))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: slotW)
 
                     teamSide(name: game.awayTeamName,
                              code: game.awayTeamCode,
                              logoURL: game.awayEmblemURL,
                              alignment: .trailing,
                              isLoser: game.winnerSide == .home,
-                             isBatting: attacking == .away)
+                             isBatting: attacking == .away,
+                             starter: starters.away)
 
                     scoreColumn(game)
-                        .frame(width: 64)
+                        .fixedSize()
+                        .frame(minWidth: 64)
 
                     teamSide(name: game.homeTeamName,
                              code: game.homeTeamCode,
                              logoURL: game.homeEmblemURL,
                              alignment: .leading,
                              isLoser: game.winnerSide == .away,
-                             isBatting: attacking == .home)
+                             isBatting: attacking == .home,
+                             starter: starters.home)
 
-                    // Right slot: live read replaces home starter when
-                    // the game is in progress — bases/count is the
-                    // single most useful glance for a live game, more so
-                    // than a starter who may already be out of the game.
                     Group {
                         if game.isLive {
                             liveStateCell(for: game)
                         } else {
-                            inlineStarterLabel(name: starters?.home,
-                                               resultPrefix: resultPrefix(game: game, side: .home),
-                                               trailing: true,
-                                               slotWidth: slotW)
+                            EmptyView()
                         }
                     }
                     .frame(width: slotW)
@@ -266,9 +261,10 @@ struct KBOExpandedView: View {
     /// inner edge of the slot, giving every row a consistent W/L column.
     @MainActor
     private var rowSlotWidth: CGFloat {
-        let names = viewModel.startingPitchers.values
-            .flatMap { [$0.away, $0.home] }
-            .compactMap { $0 }
+        // Combine schedule API starters with cached linescore starters
+        let scheduleNames = viewModel.games.flatMap { [$0.awayStarterName, $0.homeStarterName] }
+        let cachedNames = viewModel.startingPitchers.values.flatMap { [$0.away, $0.home] }
+        let names = (scheduleNames + cachedNames).compactMap { $0 }
         let font = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
         let widest = names
             .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
@@ -348,21 +344,26 @@ struct KBOExpandedView: View {
                           logoURL: URL?,
                           alignment: HorizontalAlignment,
                           isLoser: Bool,
-                          isBatting: Bool) -> some View {
+                          isBatting: Bool,
+                          starter: String? = nil) -> some View {
         let isLeading = alignment == .leading
         HStack(spacing: 6) {
             if isLeading {
                 KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
             }
-            Text(name)
-                // Bat side gets an underline rather than a colour shift —
-                // the row already mixes accent (pinned), red (LIVE chip),
-                // and primary text, so adding another red would muddy
-                // the hierarchy. Loser dimming still applies independently.
-                .font(.system(size: 11.5, weight: isBatting ? .bold : .semibold))
-                .fixedSize()
-                .foregroundStyle(isLoser ? Color.secondary : Color.primary)
+            VStack(alignment: isLeading ? .leading : .trailing, spacing: 1) {
+                Text(name)
+                    .font(.system(size: 11.5, weight: isBatting ? .bold : .semibold))
+                    .fixedSize()
+                    .foregroundStyle(isLoser ? Color.secondary : Color.primary)
                 .underline(isBatting, color: isLoser ? .secondary : .primary)
+                if let starter {
+                    Text(starter)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
             if !isLeading {
                 KBOTeamLogo(url: logoURL, teamCode: code, size: 22)
             }
@@ -381,13 +382,18 @@ struct KBOExpandedView: View {
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
         } else {
+            // Prefer linescore-derived scores (10s cadence) over schedule
+            // scores (60s) so the display updates as soon as runs cross.
+            let live = viewModel.liveScores[game.gameId]
+            let away = live?.away ?? game.awayTeamScore
+            let home = live?.home ?? game.homeTeamScore
             HStack(spacing: 6) {
-                scoreNumber(game.awayTeamScore,
+                scoreNumber(away,
                             isLoser: game.winnerSide == .home)
                 Text("·")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
-                scoreNumber(game.homeTeamScore,
+                scoreNumber(home,
                             isLoser: game.winnerSide == .away)
             }
         }
@@ -397,7 +403,10 @@ struct KBOExpandedView: View {
         Text("\(value)")
             .font(.system(size: 16, weight: .bold, design: .rounded))
             .monospacedDigit()
+            .fixedSize()
             .foregroundStyle(isLoser ? .secondary : .primary)
+            .contentTransition(.numericText())
+            .animation(.easeInOut(duration: 0.3), value: value)
     }
 
     @ViewBuilder
@@ -530,18 +539,22 @@ struct KBOExpandedView: View {
                 .strokeBorder(.secondary.opacity(0.15), lineWidth: 0.5)
         }
 
-        // Starting pitchers flank the grid: away on the left (matches the
-        // header row's "{away} · {home}" left/right ordering), home on the
-        // right. Slot stays reserved even when a name isn't published yet
-        // so the grid doesn't jump horizontally once lineups arrive.
-        return HStack(alignment: .center, spacing: 8) {
-            starterLabel(name: line.awayStartingPitcher,
-                         teamCode: game.awayTeamCode,
-                         alignment: .leading)
-            grid
-            starterLabel(name: line.homeStartingPitcher,
-                         teamCode: game.homeTeamCode,
-                         alignment: .trailing)
+        return grid
+    }
+
+    private static func stadium(for homeTeamCode: String) -> String {
+        switch homeTeamCode {
+        case "OB": return "잠실"
+        case "LG": return "잠실"
+        case "SS": return "대구"
+        case "HH": return "대전"
+        case "HT": return "광주"
+        case "LT": return "사직"
+        case "SK", "SSG": return "인천"
+        case "WO": return "고척"
+        case "NC": return "창원"
+        case "KT": return "수원"
+        default: return ""
         }
     }
 

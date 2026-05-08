@@ -143,7 +143,7 @@ struct NotchContentView: View {
                 .padding(.leading, wingTopOuterRadius)
                 .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth, height: viewModel.notchGeometry.notchHeight,
-                       alignment: .leading)
+                       alignment: .trailing)
                 .background(Color.black)
                 .clipShape(
                     WingShape(
@@ -165,7 +165,7 @@ struct NotchContentView: View {
             // Extend 1pt on each side to cover sub-pixel anti-aliasing
             // seams between the wings and the notch bar.
             Color.black
-                .frame(width: viewModel.notchGeometry.notchWidth + 2,
+                .frame(width: viewModel.notchGeometry.notchWidth + (viewModel.wingWidth > 0 ? 2 : -4),
                        height: viewModel.notchGeometry.notchHeight)
                 .clipShape(
                     UnevenRoundedRectangle(
@@ -182,7 +182,7 @@ struct NotchContentView: View {
                 .environment(\.colorScheme, .dark)
                 .frame(width: viewModel.wingWidth,
                        height: viewModel.notchGeometry.notchHeight,
-                       alignment: .trailing)
+                       alignment: .leading)
                 .background(Color.black)
                 .clipShape(
                     WingShape(
@@ -285,9 +285,8 @@ struct NotchContentView: View {
         // thing on the notch — losing it for a Timer/FileShelf isn't worth it.
         if viewModel.currentExpandedWidgetID != "music-player",
            let active = widgetRegistry.widget(for: viewModel.currentExpandedWidgetID),
-           active.isEnabled,
-           hasContentToShow(active) {
-            // Selected widget has live content — show it
+           active.isEnabled {
+            // User's selected widget — always show, even without live content
             active.makeCompactView()
                 .transition(.opacity)
         } else if let timerWidget = widgetRegistry.widget(for: "timer"),

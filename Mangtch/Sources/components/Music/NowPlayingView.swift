@@ -37,11 +37,6 @@ struct CompactArtworkView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        // Outer alignment: the left wing is on the user's left, so its
-        // content sits at the leading edge — away from the notch — so
-        // the panel doesn't look like everything is huddled around the
-        // hardware cutout when expanded.
-        .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.easeInOut(duration: 0.18), value: isHovering)
     }
 
@@ -124,12 +119,10 @@ struct CompactInfoView: View {
                     MarqueeText(info.artist, font: .system(size: 10), isActive: viewModel.isPlaying)
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
             } else {
                 Text("No music")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .padding(.horizontal, 8)
