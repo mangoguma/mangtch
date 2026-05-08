@@ -1,0 +1,10 @@
+{
+  "result": {
+    "textRelayData": {
+      "inningScore": { "home": {}, "away": {} },
+      "homeLineup": { "batter": [], "pitcher": [] },
+      "awayLineup": { "batter": [], "pitcher": [] },
+      "textRelays": []
+    }
+  }
+}

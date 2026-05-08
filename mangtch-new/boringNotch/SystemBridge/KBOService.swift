@@ -7,13 +7,21 @@ enum KBOService {
     /// URLSession requests with no User-Agent.
     private static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
+    /// When set, redirects all Naver Sports calls to a local mock server.
+    /// Used by `scripts/mock-kbo/run.sh` for testing during off-season /
+    /// no-live-game windows. Unset in normal builds → real endpoint.
+    private static var baseURL: String {
+        ProcessInfo.processInfo.environment["MANGTCH_KBO_MOCK_BASE"]
+            ?? "https://api-gw.sports.naver.com"
+    }
+
     /// Fetch all KBO games for the given date in Asia/Seoul.
     /// Returns `nil` on transport/decode failure (caller surfaces an error
     /// state) and `[]` for a successful response with no scheduled games
     /// (caller renders the no-games empty state).
     static func fetchGames(date: Date) async -> [KBOGame]? {
         let dateString = Self.kboDateFormatter.string(from: date)
-        var components = URLComponents(string: "https://api-gw.sports.naver.com/schedule/games")!
+        var components = URLComponents(string: "\(baseURL)/schedule/games")!
         components.queryItems = [
             URLQueryItem(name: "fields", value: "basic,baseball"),
             URLQueryItem(name: "upperCategoryId", value: "kbaseball"),
@@ -46,7 +54,7 @@ enum KBOService {
     /// Naver gives us a usable detail view in real time.
     /// Returns nil on any error.
     static func fetchLinescore(gameId: String, season: Int) async -> KBOLinescore? {
-        let url = URL(string: "https://api-gw.sports.naver.com/schedule/games/\(gameId)/relay")!
+        let url = URL(string: "\(baseURL)/schedule/games/\(gameId)/relay")!
         var request = URLRequest(url: url)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 8
