@@ -513,18 +513,6 @@ grep -rn "currentExpandedWidgetID" mangtch-new/boringNotch --include="*.swift" \
 
 ---
 
-## 11. 단계 11+ 후보 (참고)
-
-- 사용자 정의 테마 (light pink, neon, custom hex)
-- 위젯 마다 색 override
-- 다국어 (Korean only → English / JP / ZH)
-- 키보드 단축키 globally configurable
-- 다른 스포츠 (MLB, EPL, NBA) 위젯
-- macOS 멀티 디스플레이 / 외부 모니터 사용성 정련
-- 대용량 trace logging 옵션 (디버그용)
-
----
-
 **검토자**: Claude
 **예상 시간**: 7 ≈ 8-10h, 8 ≈ 6-8h, 9 ≈ 6-8h, 10 ≈ 12-16h+
 **총 PR**: 7=5개, 8=3개, 9=3개, 10=2개+ → 13개+
@@ -845,6 +833,126 @@ $ xcodebuild ... build 2>&1 | tail -3
 
 ### 16.8 다음 작업자에게
 
-- **단계 7–10a 마감.** 다음 자연스러운 후속은 (a) 10b 결정 세션 또는 (b) 단계 11+ (사용자 정의 테마, 다국어 등)
+- **단계 7–10a 마감.** 다음 자연스러운 후속은 10b (plugin loader). §17 참조
 - 신규 위젯 추가 시 `docs/ADDING_A_WIDGET.md` 따를 것. 가이드가 stale 해지면 그 자체가 결함 — 즉시 수정
 - `NotchWidget` 프로토콜 변경 시 docstring 우선 갱신 → 가이드 동기화. 둘 사이 drift 가 가장 큰 함정
+
+---
+
+## 17. 단계 10b — Plugin loader (실착수 계획)
+
+§6.2 의 4개 결정 게이트를 합리적 default 로 박고 진입. 사용자가 다른 답을 원하면 sub 진입 전에 rerouting.
+
+### 17.1 결정 (default)
+
+| # | 게이트 | 결정 | 근거 |
+|---|---|---|---|
+| 1 | Plugin 형식 | **Swift dynamic library bundle (`.bundle`)** | 기존 위젯이 Swift + SwiftUI. `NotchWidget` 프로토콜 그대로 재사용 가능. WebView/JS 는 SwiftUI 뷰 브리징 비용이 큼. Lua 는 렌더링 계층을 별도 정의 필요 |
+| 2 | Sandbox | **App Sandbox OFF (현 상태 유지). 플러그인 별도 sandbox 없음** | Mangtch 가 이미 MediaRemoteAdapter 등 private API 의존이라 sandbox 못 켬. 플러그인도 같은 trust boundary. Trust model: "사용자가 신뢰하는 작성자 플러그인만 설치". 향후 manifest 의 `sandboxed: true` 플래그로 안전 subset 모드 추가 가능 |
+| 3 | API surface | **최소 v1 — 위젯 렌더링 + theme/geometry read-only.** 네트워크/FS/노티 X | KBO 의 HTTP 같은 활성 기능은 모두 빌트인 위젯에 머무르고, 플러그인은 "표시 전용" 으로 시작. 보안 표면 최소화 + ABI 안정성 확보 후 확장 |
+| 4 | Distribution | **Side-load 전용.** App Store 호환 명시적 포기 | 외부 코드 로드 = App Store 거부 사유. 빌트인만으로 App Store 진입 가능성은 단계 11+ 별도 결정 |
+
+위 결정을 PR descriptions 에 명시. 결정 변경 시 §17 부터 재작성.
+
+### 17.2 In scope (v1 API)
+
+```swift
+// Plugin API module — host 와 플러그인 둘 다 import.
+// 공식 ABI 라인. 변경 시 apiVersion 증가 + 마이그레이션 가이드.
+
+public protocol MangtchPlugin: AnyObject {
+    static var manifest: PluginManifest { get }
+    init(context: PluginContext)
+    @MainActor func makeWidget() -> any NotchWidget
+}
+
+public struct PluginManifest {
+    public let id: String              // reverse-DNS: "com.acme.weather"
+    public let displayName: String
+    public let icon: String            // SF Symbol
+    public let apiVersion: Int         // host 가 비교, mismatch 면 로드 거부
+    public let wingPriority: Int       // 등록 시 충돌 체크
+}
+
+public struct PluginContext {
+    public let appearance: AnyPublisher<ColorScheme, Never>
+    public let geometry: AnyPublisher<PluginPanelGeometry, Never>
+    // v1 끝. network/FS/notification 없음
+}
+
+public struct PluginPanelGeometry {
+    public let panelWidth: CGFloat
+    public let wingWidth: CGFloat
+    public let contentHeight: CGFloat
+    public let isOpen: Bool
+}
+```
+
+플러그인이 반환하는 `NotchWidget` 은 빌트인과 동일 프로토콜. wing pair 의무, two-axis ownership, sizing rules 모두 동일 적용.
+
+### 17.3 Out of scope (v2+ 후보)
+
+- 네트워크 / 파일시스템 / 노티피케이션 권한
+- 플러그인 간 통신 / shared state
+- 플러그인 자체 settings UI (호스트가 enable/disable 만 노출)
+- 자동 업데이트 / 레지스트리
+- Sandbox 모드 (`sandboxed: true` flag)
+
+### 17.4 단계 분할
+
+| Sub | 내용 | 위험 | 예상 |
+|---|---|---|---|
+| **10b-1** | `boringNotch/Plugins/MangtchPluginAPI.swift` — protocol, manifest, context. apiVersion = 1. 단독 import 가능하도록 외부 의존 0 | 낮음 | 1h |
+| **10b-2** | `PluginLoader.swift` — `~/Library/Application Support/mangtch.new/Plugins/*.bundle` 스캔 → `Bundle.load()` → principal class lookup → instantiate → `WidgetRegistry.register`. 실패 (unreadable / 클래스 없음 / apiVersion mismatch / wingPriority 충돌) 는 console log + skip | 중. ABI mismatch 가 silent crash 로 이어질 수 있음 — defensive class lookup | 3h |
+| **10b-3** | Settings → Plugins 탭. 발견된 플러그인 목록 (name/version/status), enable toggle, "Open Plugins folder" 버튼, "Reload" 버튼 | 낮음 | 2h |
+| **10b-4** | Reference plugin: `mangtch-new/plugins/HelloPlugin/` — Xcode bundle target, MangtchPlugin conform, "Hello" 위젯 한 개. 빌드 스크립트 (`build-plugin.sh`) 가 결과를 `~/Library/Application Support/mangtch.new/Plugins/` 로 복사 | 중. Xcode 프로젝트 추가 + 코드사이닝 + ABI 호환 검증 = 적분기 역할 | 3h |
+| **10b-5** | `docs/PLUGIN_AUTHORING.md` — Xcode 프로젝트 셋업, MangtchPluginAPI.swift 복사, conform, 빌드, 설치 절차. ABI 주의사항 ("Swift 툴체인 업데이트 시 재빌드 필수") | 낮음 | 2h |
+
+### 17.5 핵심 위험 — Swift ABI
+
+Swift 5.0 부터 ABI stable 이지만 **SwiftUI 의 binary surface 는 macOS 버전마다 변함**. 플러그인이 `import SwiftUI` 후 `View` body 를 작성하면, 호스트와 플러그인이 같은 macOS SDK 로 빌드되어야 layout 일관. 대응:
+
+1. `MangtchPluginAPI.swift` 가 SwiftUI 타입을 export 하지 않게. plugin 의 `makeWidget()` 이 반환하는 `NotchWidget` 인터페이스만 ABI 표면. 위젯 내부 SwiftUI 는 plugin process 가 로드된 동일 macOS 의 SwiftUI 사용 → safe
+2. 플러그인 manifest 에 `minMacOSVersion` 명시. 호스트가 system version 비교
+3. 호스트 빌드 metadata (Swift version, SDK version) 를 about 패널에 노출. 플러그인 작성자가 매칭 빌드 가능
+
+### 17.6 검증
+
+| 단계 | 검증 |
+|---|---|
+| 10b-1 | API 모듈만으로 컴파일 가능 (호스트 빌드 영향 없음) |
+| 10b-2 | dummy bundle (10b-4 사전 빌드) 로드 → console 에 "Loaded plugin com.test.hello v1" |
+| 10b-3 | Settings → Plugins 탭에서 enable toggle 즉시 wing 등장/사라짐 |
+| 10b-4 | HelloPlugin 빌드 + 설치 → 앱 재시작 → wing 에 hand.wave 아이콘 + 패널 picker 에 등장 |
+| 10b-5 | 가이드 따라 외부 작성자 (또는 두 번째 dummy 플러그인) 가 5분 내에 새 플러그인 빌드 가능 |
+
+### 17.7 함정
+
+1. **`Bundle.load()` failure 후 메모리 누수** — Swift dyld 는 한 번 로드한 bundle 을 unload 못 함 (`dlclose` 후에도 Swift metadata 잔존). enable/disable 토글이 dlopen/dlclose 가 아니라 register/unregister 만 — 실제 코드는 메모리 상주
+2. **wingPriority 충돌** — 빌트인 (Music=1, KBO=10, Timer=20) 과 플러그인이 같은 값 등록 시 `WidgetRegistry.register` assert. 플러그인 작성자에게 권장 범위 명시 (50-99 = 플러그인용)
+3. **Plugin crash = 호스트 crash** — same-process 로드라 플러그인의 fatalError 가 앱 통째로 죽임. v1 은 trust 모델로 수용. v2+ 에 XPC 분리 검토
+4. **macOS Gatekeeper / Notarization** — 사용자가 다운로드한 `.bundle` 이 quarantine 면 로드 거부. 가이드에 `xattr -d com.apple.quarantine <bundle>` 명시
+5. **빌트인 위젯 enable toggle 과 충돌하지 않음** — 플러그인 enable 상태는 별도 Defaults key (`pluginEnabled[id]`) 로 분리. `widgetEnabled` 와 namespace 충돌 X
+
+### 17.8 진행 순서
+
+10b-1 → 10b-2 → 10b-4 (reference plugin 으로 10b-2 검증) → 10b-3 → 10b-5.
+
+10b-4 를 10b-3 앞에 두는 이유: Settings UI 작성 전에 "로드 가능한 진짜 플러그인" 이 있어야 list rendering 검증 가능. dummy data 로 UI 만 그리면 ABI 문제를 늦게 발견.
+
+### 17.9 커밋
+
+```
+feat(mangtch-new): plugin API surface (10b-1)
+feat(mangtch-new): plugin bundle loader (10b-2)
+feat(mangtch-new): HelloPlugin reference + build script (10b-4)
+feat(mangtch-new): Settings Plugins tab (10b-3)
+docs(mangtch-new): plugin authoring guide (10b-5)
+```
+
+### 17.10 사용자 결정 포인트 (착수 전 확인 권장)
+
+- Plugin install 위치 — `~/Library/Application Support/mangtch.new/Plugins/` 로 진행? 다른 경로 (e.g., `~/.mangtch/plugins/`) 선호?
+- Reference plugin 이 repo 안 (`mangtch-new/plugins/HelloPlugin/`) vs 별도 repo? 안에 두면 dogfood 즉시, 별도면 distribution scenario 진짜 모방
+- 호스트 about 패널에 Swift/SDK metadata 노출 vs 별도 "Plugin compatibility" 섹션
+- App Store 호환 영구 포기 확정 — 변경 시 10b 전체 재설계 필요
