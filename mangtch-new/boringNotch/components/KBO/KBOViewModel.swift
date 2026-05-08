@@ -88,6 +88,10 @@ final class KBOViewModel {
     /// pinned/viewed one. Tracked game refreshes at 10s; the rest at the
     /// schedule cadence (60s).
     private(set) var liveStates: [String: KBOLinescore.LiveState] = [:]
+    /// Cached run scores from the linescore relay. Bridges the 5s tracked
+    /// poll and the 60s schedule poll so compact/expanded scores stay
+    /// current without waiting for the full schedule response.
+    private(set) var liveScores: [String: (away: Int, home: Int)] = [:]
 
     /// Cached starting pitchers per gameId. Populated by background relay
     /// fetches kicked from each schedule poll so the collapsed game row
@@ -109,6 +113,12 @@ final class KBOViewModel {
     /// `playQueue`. Reset to 0 whenever the tracked game changes so the
     /// next observation re-baselines.
     private var lastSeenSeqno: Int = 0
+    /// Which inning half we last processed. Used to detect inning
+    /// transitions and trigger a backfill fetch for missed end-of-half plays.
+    private var lastSeenInning: Int = 0
+    private var lastSeenHomeOrAway: String = ""
+    /// Guards the 2s immediate-refetch cooldown after new plays arrive.
+    private var lastPlayRefetchTime: Date = .distantPast
     /// FIFO of plays waiting to be tickered out, oldest first. The queue
     /// runner pops one every `playDisplayInterval` seconds so the user
     /// sees each commentary line in order instead of jumping straight to
@@ -136,6 +146,12 @@ final class KBOViewModel {
             Defaults[.kboTextToSpeechEnabled] = ttsEnabled
         }
     }
+    var soundEffectsEnabled: Bool = Defaults[.kboSoundEffectsEnabled] {
+        didSet {
+            guard oldValue != soundEffectsEnabled else { return }
+            Defaults[.kboSoundEffectsEnabled] = soundEffectsEnabled
+        }
+    }
 
     /// Game whose plays should be tickered/spoken. Priority: viewed >
     /// pinned. Both share the same relay-fetch path.
@@ -161,7 +177,7 @@ final class KBOViewModel {
     private var linescoreTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
-    private static let trackedPollSeconds: TimeInterval = 10
+    private static let trackedPollSeconds: TimeInterval = 5
     private static let schedulePollLive: TimeInterval = 60
     private static let schedulePollIdle: TimeInterval = 300
 
@@ -389,7 +405,12 @@ final class KBOViewModel {
     /// on the next poll.
     func toggleExpand(_ game: KBOGame) {
         if viewingGameID == game.gameId {
-            collapse()
+            // Re-tap: collapse inline and unpin. Distinct from panel close
+            // (which calls collapse() without clearing the pin so the live
+            // broadcast survives close/reopen).
+            collapseInline()
+            selectedGameID = nil
+            currentAttackingSide = nil
         } else {
             viewingGameID = game.gameId
             viewingLinescore = nil
@@ -404,10 +425,9 @@ final class KBOViewModel {
 
     func collapse() {
         collapseInline()
-        selectedGameID = nil
-        // KBOExpandedView's preference change will redrive the height
-        // to match the now-shorter content; we don't reset eagerly here
-        // to avoid a one-frame snap-then-grow during the collapse animation.
+        // Pin persists — the user's live broadcast selection survives
+        // panel close/reopen. selectedGameID is only cleared by toggleExpand
+        // re-tap (explicit user unpin) or when the game ends/is cancelled.
     }
 
     /// Collapse just the inline row expansion, leaving the wing pin
@@ -439,22 +459,58 @@ final class KBOViewModel {
             self.isLoadingLinescore = true
             let result = await KBOService.fetchLinescore(gameId: gameId, season: season)
             guard !Task.isCancelled else { return }
-            // Linescore is stored only when the user is actually viewing
-            // this game's detail. For pure background tracking (pinned
-            // but not expanded) we just want the play side-effects.
+
             if self.viewingGameID == gameId {
                 self.viewingLinescore = result
             }
             self.isLoadingLinescore = false
-            // Always update the per-game live state map. Even non-tracked
-            // games funnel into here when their fast timer fires, so each
-            // row in the panel can render its own diamond/count.
-            // Subscript-with-nil removes the key, which is what we want
-            // when Naver clears the at-bat between innings.
-            self.liveStates[gameId] = result?.liveState
+
+            // Update live score cache from R totals so compact/expanded
+            // views reflect the score within 5s instead of waiting 60s.
+            if let away = result?.awayTotals?.runs, let home = result?.homeTotals?.runs {
+                self.liveScores[gameId] = (away: away, home: home)
+            }
+
+            // Non-tracked games: update BSO directly from linescore snapshot.
+            // Tracked game: BSO is synced per-play in the queue runner so
+            // the diamond/count updates stay in lockstep with the ticker.
+            let isTracked = gameId == self.trackedGame?.gameId
+            if !isTracked {
+                self.liveStates[gameId] = result?.liveState
+            }
+
             self.cacheStarters(from: result, gameId: gameId)
-            if let plays = result?.allPlays, !plays.isEmpty {
-                self.handleNewPlays(plays, gameID: gameId)
+
+            // Inning transition detection: if the linescore reports a new
+            // half-inning, the previous half may have ended between polls.
+            // Backfill its specific relay to recover any missed tail plays.
+            var backfillPlays: [KBOLinescore.Play] = []
+            if let r = result, r.currentInning > 0 {
+                let newInning = r.currentInning
+                let newHalf = r.currentHomeOrAway
+                if self.lastSeenInning > 0
+                   && (newInning != self.lastSeenInning || newHalf != self.lastSeenHomeOrAway) {
+                    let prevInning = self.lastSeenInning
+                    let prevHalf = self.lastSeenHomeOrAway
+                    backfillPlays = await KBOService.fetchRelay(
+                        gameId: gameId, inning: prevInning, homeOrAway: prevHalf
+                    )
+                }
+                self.lastSeenInning = newInning
+                self.lastSeenHomeOrAway = newHalf
+            }
+
+            guard !Task.isCancelled else { return }
+
+            // Merge backfill before current plays so the queue sees events
+            // in chronological order: end-of-previous-half → new-half.
+            let currentPlays = result?.allPlays ?? []
+            let allPlays = backfillPlays.isEmpty
+                ? currentPlays
+                : (backfillPlays + currentPlays).sorted { $0.seqno < $1.seqno }
+
+            if !allPlays.isEmpty {
+                self.handleNewPlays(allPlays, gameID: gameId)
             }
         }
     }
@@ -506,6 +562,9 @@ final class KBOViewModel {
                 return
             }
             self.liveStates[gameId] = result?.liveState
+            if let away = result?.awayTotals?.runs, let home = result?.homeTotals?.runs {
+                self.liveScores[gameId] = (away: away, home: home)
+            }
             self.cacheStarters(from: result, gameId: gameId)
         }
     }
@@ -529,22 +588,21 @@ final class KBOViewModel {
             playQueue.removeAll()
         }
 
-        // Mirror the most recent play's attacking side immediately so the
-        // score row's accent doesn't lag behind the queue.
         if let last = plays.last {
             currentAttackingSide = last.attackingSide
+            // Apply the latest play's BSO snapshot immediately so the
+            // tracked game's diamond/count is never more than one poll stale.
+            if let snap = last.liveSnapshot {
+                liveStates[gameID] = snap
+            }
         }
 
         if isFirstObservation {
-            // Baseline: jump to the most recent play so the wing isn't
-            // blank on pin, but mark every prior seqno as already-seen.
-            // No TTS — speaking a stale play that happened before the
-            // user pinned would be jarring.
             if let last = plays.last {
                 lastSeenSeqno = last.seqno
                 if tickerEnabled {
                     latestPlayText = last.text
-                    startQueueRunnerIfNeeded()  // schedules the eventual clear
+                    startQueueRunnerIfNeeded()
                 }
             }
             return
@@ -552,17 +610,36 @@ final class KBOViewModel {
 
         let fresh = plays.filter { $0.seqno > lastSeenSeqno }
         guard !fresh.isEmpty else { return }
-        // Advance the seen-marker even for plays we drop below — otherwise
-        // a flurry of low-importance pitches would re-evaluate every poll.
         lastSeenSeqno = fresh.last!.seqno
-        // Per-pitch chatter (type 1) drowns out the actually-interesting
-        // outcomes if it all hits the queue at 5s pacing. Filter to medium+
-        // for the ticker so users see at-bat results, baserunning, and
-        // scoring without 6-pitch counts in between.
-        let displayable = fresh.filter { $0.importance >= .medium }
-        guard !displayable.isEmpty else { return }
-        playQueue.append(contentsOf: displayable)
-        startQueueRunnerIfNeeded()
+
+        // Medium+ plays hit the visual ticker. Type 2 (substitution) and
+        // type 8 (batter intro) are low-importance but still enter the queue
+        // so TTS can announce lineup changes without polluting the ticker.
+        let displayable = fresh.filter {
+            $0.importance >= .medium || $0.naverType == 2 || $0.naverType == 8
+        }
+        if !displayable.isEmpty {
+            playQueue.append(contentsOf: displayable)
+            startQueueRunnerIfNeeded()
+        }
+
+        // Immediately re-fetch after new plays land so rapidly-arriving
+        // plays (e.g. score, next batter intro) appear quickly. A 2s
+        // cooldown prevents overlapping fetches on a flurry of updates.
+        scheduleImmediateRefetch(for: gameID)
+    }
+
+    private func scheduleImmediateRefetch(for gameID: String) {
+        let cooldown: TimeInterval = 2
+        guard Date().timeIntervalSince(lastPlayRefetchTime) > cooldown else { return }
+        guard let game = games.first(where: { $0.gameId == gameID }), game.isLive else { return }
+        lastPlayRefetchTime = Date()
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(cooldown))
+            guard let game = self.games.first(where: { $0.gameId == gameID }), game.isLive,
+                  self.trackedGame?.gameId == gameID else { return }
+            self.fetchLinescoreNow(for: game)
+        }
     }
 
     /// Run a single advance loop that pops one play every
@@ -572,30 +649,43 @@ final class KBOViewModel {
     private func startQueueRunnerIfNeeded() {
         guard queueRunnerTask == nil else { return }
         queueRunnerTask = Task { @MainActor in
-            // Hold whatever's currently on the ticker for one interval
-            // (the baseline-display case sets latestPlayText before
-            // arming the runner with an empty queue) so the user has
-            // time to read it before we either advance or clear.
             try? await Task.sleep(for: Self.playDisplayInterval)
             while !playQueue.isEmpty {
                 if Task.isCancelled { break }
                 let play = playQueue.removeFirst()
-                if tickerEnabled {
-                    latestPlayText = play.text
+
+                // Sync BSO to the snapshot captured at play time so the
+                // diamond/count advances in lockstep with the ticker text.
+                if let snap = play.liveSnapshot, let gid = self.trackedGame?.gameId {
+                    self.liveStates[gid] = snap
                 }
-                // TTS only narrates the events worth interrupting for —
-                // at-bat outcomes, baserunning, scoring. Inning-start
-                // headers and batter intros are useful in the ticker but
-                // would feel chatty if read aloud every minute.
-                if ttsEnabled && play.importance >= .high {
+
+                // Substitution (type 2) and batter intro (type 8): TTS
+                // announces the change but the visual ticker stays quiet
+                // to avoid cluttering it with non-play lines.
+                let isTTSOnly = play.naverType == 2 || play.naverType == 8
+                if self.tickerEnabled && !isTTSOnly {
+                    self.latestPlayText = play.text
+                }
+
+                if self.soundEffectsEnabled {
+                    if let sound = KBOSoundManager.shared.soundForPlay(
+                        play.text, type: play.naverType, importance: play.importance
+                    ) {
+                        KBOSoundManager.shared.play(sound)
+                    }
+                }
+
+                if self.ttsEnabled && (play.importance >= .high || isTTSOnly) {
                     Self.speak(play.text)
                 }
+
                 try? await Task.sleep(for: Self.playDisplayInterval)
             }
             if !Task.isCancelled {
-                latestPlayText = nil
+                self.latestPlayText = nil
             }
-            queueRunnerTask = nil
+            self.queueRunnerTask = nil
         }
     }
 
@@ -607,6 +697,8 @@ final class KBOViewModel {
         queueRunnerTask = nil
         playQueue.removeAll()
         latestPlayText = nil
+        lastSeenInning = 0
+        lastSeenHomeOrAway = ""
     }
 
     /// In-process synthesizer so utterance start latency matches the
@@ -620,7 +712,10 @@ final class KBOViewModel {
     /// Read the play aloud. Korean voice since plays are written in Korean.
     private static func speak(_ text: String) {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ko-KR")
+        // Prefer Yuna Premium for natural-sounding Korean. Falls back to
+        // any installed ko-KR voice if Yuna Premium isn't downloaded.
+        utterance.voice = AVSpeechSynthesisVoice(identifier: "com.apple.voice.premium.ko-KR.Yuna")
+                       ?? AVSpeechSynthesisVoice(language: "ko-KR")
         synthesizer.speak(utterance)
     }
 

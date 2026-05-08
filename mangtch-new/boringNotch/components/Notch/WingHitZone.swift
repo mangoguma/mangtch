@@ -40,6 +40,7 @@ enum WingButton: String, CaseIterable {
     case musicNext
     case kboTickerToggle
     case kboTTSToggle
+    case kboSoundToggle
 }
 
 struct WingHitZone: Equatable {

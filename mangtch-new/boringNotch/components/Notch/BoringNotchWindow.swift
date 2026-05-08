@@ -40,6 +40,7 @@ class BoringNotchWindow: NSPanel {
             .stationary,
             .canJoinAllSpaces,
             .ignoresCycle,
+            .transient,
         ]
 
         isReleasedWhenClosed = false

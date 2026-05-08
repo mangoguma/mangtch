@@ -71,18 +71,16 @@ enum KBOLayoutTokens {
     /// shrink to a visually cramped strip on no-games dates — the rounded
     /// bottom corner needs vertical breathing room to read as rounded,
     /// and the centered icon+text otherwise sits flush against the chrome.
-    /// Roughly: `panelHeightRowHeight (36) * 4 + rowGap (4) * 3 = 156`.
-    static let emptyStateMinHeight: CGFloat = 156
+    /// Roughly: `panelHeightRowHeight (40) * 4 + rowGap (4) * 3 = 172`.
+    static let emptyStateMinHeight: CGFloat = 172
 
     static let panelHeaderHeight: CGFloat = 24
     static let panelOuterVerticalPadding: CGFloat = 16   // .padding(.vertical, 8) ×2
-    /// Visual row height = teamLogoSize (22) + rowVerticalPadding × 2 (14)
-    /// = 36pt. The HStack inside `gameRow` is bounded by the team logo
-    /// (the tallest child); kboBigScore=16pt and the inline starter label
-    /// at 10.5pt are smaller. Was 50 historically — that estimate was
-    /// ~14pt over per row, so 5 rows added ~70pt of empty NSPanel below
-    /// the visible list.
-    static let panelHeightRowHeight: CGFloat = 36
+    /// Visual row height = teamName VStack (11.5pt name + 1pt gap + 9pt
+    /// starter ≈ 26pt) + rowVerticalPadding × 2 (14) = 40pt. The name+
+    /// starter VStack is now the tallest child in `teamSide`, replacing
+    /// the old logo-bound (22pt). Was 36pt before starters moved inline.
+    static let panelHeightRowHeight: CGFloat = 40
     static let panelHeightLinescoreSection: CGFloat = 110
     static let panelHeightEmptyExtra: CGFloat = 60
     /// Tail breathing room below the last row before the panel's bottom
@@ -101,14 +99,14 @@ enum KBOLayoutTokens {
     static let panelAbsoluteMaxHeight: CGFloat = 700
 
     // MARK: Live state — wing form
-    static let liveWingHStackSpacing: CGFloat = 6
+    static let liveWingHStackSpacing: CGFloat = 4
     static let liveWingDiamondSize: CGFloat = 22
-    static let liveWingCountVerticalSpacing: CGFloat = 1
+    static let liveWingCountVerticalSpacing: CGFloat = 0
     static let liveWingCountRowSpacing: CGFloat = 3
     static let liveWingDotSpacing: CGFloat = 2
     static let liveWingDotSize: CGFloat = 6
     static let liveWingPlayerRowSpacing: CGFloat = 3
-    static let liveWingHorizontalPadding: CGFloat = 8
+    static let liveWingHorizontalPadding: CGFloat = 4
     static let liveWingVerticalPadding: CGFloat = 4
 
     // MARK: Live state — compact (in-row)
@@ -127,11 +125,11 @@ enum KBOLayoutTokens {
     static let compactLiveBadgeSpacing: CGFloat = 3
     static let compactLiveDotSize: CGFloat = 5
     static let compactScoreSpacing: CGFloat = 3
-    static let compactToggleSpacing: CGFloat = 6
+    static let compactToggleSpacing: CGFloat = 4
     static let compactToggleWidth: CGFloat = 28
     static let compactToggleHeight: CGFloat = 22
     static let compactToggleCornerRadius: CGFloat = 6
-    static let compactHorizontalPadding: CGFloat = 6
+    static let compactHorizontalPadding: CGFloat = 12
     static let compactVerticalPadding: CGFloat = 3
     static let compactBackgroundCornerRadius: CGFloat = 6
     static let compactBackgroundHorizontalInset: CGFloat = 4

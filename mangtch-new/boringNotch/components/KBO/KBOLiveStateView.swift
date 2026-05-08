@@ -114,7 +114,7 @@ struct KBOLiveStateView: View {
                 countRow(value: state.outs, total: 2, label: "O", filledColor: KBOThemeTokens.outsFilled)
             }
 
-            ZStack {
+            ZStack(alignment: .leading) {
                 VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
                     playerRow(icon: "p.circle.fill",
                               name: state.pitcherName,
@@ -124,26 +124,24 @@ struct KBOLiveStateView: View {
                               order: state.batOrder,
                               tint: batterTeamColor)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(playText == nil ? 1 : 0)
 
                 if let playText {
-                    // boringNotch's MarqueeText takes a Binding<String> + frameWidth.
-                    // Use a simple truncating Text here — the wing is narrow
-                    // and a marquee's looping delay would confuse timing with
-                    // the 5s ticker display interval.
-                    Text(playText)
-                        .font(TypographyTokens.expandedSmallMedium)
+                    KBOTickerText(playText,
+                                  font: .system(size: 10, weight: .medium),
+                                  speed: 28,
+                                  isActive: true,
+                                  oneShot: true)
                         .foregroundStyle(KBOThemeTokens.liveText)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
+            .frame(minWidth: 50, maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, KBOLayoutTokens.liveWingHorizontalPadding)
         .padding(.vertical, KBOLayoutTokens.liveWingVerticalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
         // No inner pill — the wing's own dark panel background already
         // provides the contrast surface. An extra rounded rect inside it
         // would visibly disagree with the wing's edge curvature.
@@ -154,6 +152,7 @@ struct KBOLiveStateView: View {
             Text(label)
                 .font(TypographyTokens.microBadge)
                 .foregroundStyle(KBOThemeTokens.liveText)
+                .frame(width: 8, alignment: .center)
             countDots(value: value, total: total, filledColor: filledColor)
         }
     }
@@ -175,11 +174,15 @@ struct KBOLiveStateView: View {
                 Text("\(order)")
                     .font(TypographyTokens.microBadgeRounded)
                     .foregroundStyle(.white.opacity(0.7))
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.25), value: order)
             }
             Text(name ?? "—")
                 .font(TypographyTokens.tinyLabel)
                 .foregroundStyle(KBOThemeTokens.liveText)
                 .fixedSize(horizontal: true, vertical: false)
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.25), value: name)
         }
     }
 
@@ -194,12 +197,13 @@ struct KBOLiveStateView: View {
                     .fill(isFilled ? filledColor : Color.clear)
                     .overlay(
                         Circle().strokeBorder(
-                            isFilled ? filledColor : Color.white.opacity(0.7),
+                            isFilled ? filledColor : Color.secondary,
                             lineWidth: 0.8
                         )
                     )
                     .frame(width: KBOLayoutTokens.liveWingDotSize,
                            height: KBOLayoutTokens.liveWingDotSize)
+                    .animation(.easeInOut(duration: 0.3), value: isFilled)
             }
         }
     }
@@ -236,9 +240,10 @@ private struct BasesDiamond: View {
             .fill(filled ? KBOThemeTokens.baseFilled : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .strokeBorder(filled ? KBOThemeTokens.baseFilled : Color.white.opacity(0.7), lineWidth: 1)
+                    .strokeBorder(filled ? KBOThemeTokens.baseFilled : Color.secondary, lineWidth: 1)
             )
             .frame(width: size, height: size)
             .rotationEffect(.degrees(45))
+            .animation(.easeInOut(duration: 0.3), value: filled)
     }
 }

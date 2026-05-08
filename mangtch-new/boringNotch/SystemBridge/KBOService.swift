@@ -70,6 +70,30 @@ enum KBOService {
         }
     }
 
+    /// Fetch relay data for a specific half-inning. Used to backfill
+    /// missed plays (especially the last out) when an inning transition
+    /// is detected and the default relay response no longer includes
+    /// the previous half.
+    static func fetchRelay(gameId: String, inning: Int, homeOrAway: String) async -> [KBOLinescore.Play] {
+        guard var components = URLComponents(string: "\(baseURL)/schedule/games/\(gameId)/relay") else { return [] }
+        components.queryItems = [
+            URLQueryItem(name: "inning", value: String(inning)),
+            URLQueryItem(name: "homeOrAway", value: homeOrAway),
+        ]
+        guard let url = components.url else { return [] }
+        var request = URLRequest(url: url)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 8
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return [] }
+            return KBOLinescore.collectPlays(in: data)
+        } catch {
+            return []
+        }
+    }
+
     /// "Today" in the KBO timezone (Asia/Seoul). Using the user's local
     /// date here would be wrong for users west of Korea — they'd see
     /// yesterday's games during the morning.

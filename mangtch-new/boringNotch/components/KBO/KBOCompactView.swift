@@ -31,11 +31,13 @@ struct KBOCompactView: View {
                     .padding(.vertical, KBOLayoutTokens.compactBackgroundVerticalInset)
             )
             .animation(.easeInOut(duration: 0.18), value: isHovering)
+            .frame(maxWidth: .infinity, alignment: .trailing)
             .onAppear { pulse = true }
         } else {
             Image(systemName: "baseball")
                 .font(TypographyTokens.expandedCaptionLarge)
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -66,16 +68,23 @@ struct KBOCompactView: View {
             }
 
             HStack(spacing: KBOLayoutTokens.compactScoreSpacing) {
+                let live = viewModel.liveScores[game.gameId]
                 teamName(game.awayTeamName, isBatting: awayBatting)
-                Text("\(game.awayTeamScore)")
+                Text("\(live?.away ?? game.awayTeamScore)")
                     .font(TypographyTokens.kboCompactScore)
                     .monospacedDigit()
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.3), value: live?.away ?? game.awayTeamScore)
                 Text(":")
                     .font(TypographyTokens.expandedSmallBold)
                     .foregroundStyle(.tertiary)
-                Text("\(game.homeTeamScore)")
+                Text("\(live?.home ?? game.homeTeamScore)")
                     .font(TypographyTokens.kboCompactScore)
                     .monospacedDigit()
+                    .fixedSize()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.3), value: live?.home ?? game.homeTeamScore)
                 teamName(game.homeTeamName, isBatting: homeBatting)
             }
         }
@@ -89,6 +98,7 @@ struct KBOCompactView: View {
         Text(name)
             .font(isBatting ? TypographyTokens.expandedSmallBold : TypographyTokens.expandedSmallMedium)
             .foregroundStyle(.secondary)
+            .fixedSize()
             .underline(isBatting, color: .secondary)
             .lineLimit(1)
     }
@@ -107,8 +117,12 @@ struct KBOCompactView: View {
                 icon: "speaker.wave.2.fill"
             )
             .wingHitZone(.kboTTSToggle)
+            toggleIcon(
+                isOn: viewModel.soundEffectsEnabled,
+                icon: "bell.fill"
+            )
+            .wingHitZone(.kboSoundToggle)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     /// Both ON and OFF states render with a filled background pill —

@@ -319,6 +319,11 @@ final class GestureHandler {
                let kboWidget = widget.wrapped as? KBOWidget {
                 kboWidget.viewModel.ttsEnabled.toggle()
             }
+        case .kboSoundToggle:
+            if let widget = WidgetRegistry.shared.widget(for: "kbo"),
+               let kboWidget = widget.wrapped as? KBOWidget {
+                kboWidget.viewModel.soundEffectsEnabled.toggle()
+            }
         }
     }
 

@@ -64,6 +64,11 @@ struct KBOLinescore: Equatable {
     /// of skipping straight to the most recent line.
     let allPlays: [Play]
 
+    /// Current inning number and half ("0"=top/away, "1"=bottom/home).
+    /// Used to detect inning transitions and backfill missed plays.
+    let currentInning: Int
+    let currentHomeOrAway: String
+
     /// At-bat snapshot: count, outs, runners on base. nil for non-live or
     /// pre-game states where currentGameState is empty.
     let liveState: LiveState?
@@ -80,11 +85,16 @@ struct KBOLinescore: Equatable {
         let inning: Int
         let text: String
         let attackingSide: AttackingSide?
+        /// Raw Naver type integer for sound effect mapping.
+        let naverType: Int
         /// Editorial weight for this play, derived from Naver's `type`
         /// integer. Lets the ticker drop pitch-by-pitch noise from the
         /// queue while still surfacing scoring/at-bat outcomes, and lets
         /// TTS speak only the genuinely worth-narrating events.
         let importance: Importance
+        /// BSO/base snapshot at this play. Applied when the queue runner
+        /// shows this play so BSO updates in sync with the ticker/TTS.
+        let liveSnapshot: LiveState?
 
         enum AttackingSide: Equatable {
             case home
@@ -116,7 +126,9 @@ struct KBOLinescore: Equatable {
                 switch naverType {
                 case 24: return .critical
                 case 13, 14, 23: return .high
-                case 0, 2, 7, 8: return .medium
+                case 2: return .low     // substitution — TTS reads it, ticker skips
+                case 7: return .medium
+                case 0, 8: return .low  // inning header + batter intro — noise
                 case 1: return .low
                 // Unknown types default to medium so we still surface them
                 // rather than silently dropping plays Naver added later.
@@ -161,6 +173,8 @@ extension KBOLinescore {
             let result: Result?
         }
         struct TextRelay: Decodable {
+            let inn: Int?
+            let homeOrAway: String?  // "0"=top/away, "1"=bottom/home
             let inningScore: InningScore?
             let currentGameState: CurrentGameState?
         }
@@ -185,6 +199,8 @@ extension KBOLinescore {
         // Header fields aren't in the relay payload — leave empty so the
         // view falls back to whatever the schedule API already showed
         // (game.statusInfo, etc.) without crashing.
+        self.currentInning = trd.inn ?? 0
+        self.currentHomeOrAway = trd.homeOrAway ?? "0"
         self.stadium = ""
         self.crowd = ""
         self.startTime = ""
@@ -344,7 +360,7 @@ extension KBOLinescore {
     /// diff against a stored last-seen seqno to discover only the new
     /// plays since the previous poll. type 99 ("=====" inning dividers)
     /// is filtered out — it's display noise, not a play.
-    private static func collectPlays(in raw: Data) -> [Play] {
+    static func collectPlays(in raw: Data) -> [Play] {
         struct Outer: Decodable {
             struct Result: Decodable { let textRelayData: Inner? }
             let result: Result?
@@ -360,6 +376,13 @@ extension KBOLinescore {
             let seqno: Int?
             let text: String?
             let type: Int?
+            let currentGameState: OptionState?
+        }
+        struct OptionState: Decodable {
+            let ball, strike, out: String?
+            let base1, base2, base3: String?
+            let pitcher, batter: String?
+            let homeScore, awayScore: String?
         }
 
         guard let outer = try? JSONDecoder().decode(Outer.self, from: raw),
@@ -381,12 +404,36 @@ extension KBOLinescore {
                       !text.isEmpty,
                       opt.type != 99
                 else { continue }
+                var imp = Play.Importance.from(naverType: opt.type)
+                // Promote fouls to medium so they show in the ticker —
+                // at 2 strikes, BSO doesn't change and the user gets
+                // zero feedback otherwise.
+                if imp == .low, opt.type == 1, text.contains("파울") {
+                    imp = .medium
+                }
+                let snapshot: LiveState? = {
+                    guard let s = opt.currentGameState else { return nil }
+                    return LiveState(
+                        balls: Int(s.ball ?? "0") ?? 0,
+                        strikes: Int(s.strike ?? "0") ?? 0,
+                        outs: Int(s.out ?? "0") ?? 0,
+                        onFirst: (Int(s.base1 ?? "0") ?? 0) != 0,
+                        onSecond: (Int(s.base2 ?? "0") ?? 0) != 0,
+                        onThird: (Int(s.base3 ?? "0") ?? 0) != 0,
+                        batterName: nil,
+                        batOrder: nil,
+                        pitcherName: nil,
+                        attackingSide: side
+                    )
+                }()
                 collected.append(Play(
                     seqno: seqno,
                     inning: inning,
                     text: text,
                     attackingSide: side,
-                    importance: Play.Importance.from(naverType: opt.type)
+                    naverType: opt.type ?? 0,
+                    importance: imp,
+                    liveSnapshot: snapshot
                 ))
             }
         }
