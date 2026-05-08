@@ -58,24 +58,15 @@ final class MusicPlayerWidget: NotchWidget {
 
 struct MusicCompactArtwork: View {
     @ObservedObject private var music = MusicManager.shared
-    @EnvironmentObject private var notchVM: BoringViewModel
-    @Environment(\.albumArtNamespace) private var albumArtNamespace
 
     var body: some View {
         HStack(spacing: 6) {
-            let artView = Image(nsImage: music.albumArt)
+            Image(nsImage: music.albumArt)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 22, height: 22)
                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 .opacity(music.isPlayerIdle ? 0.4 : 1)
-            if let ns = albumArtNamespace {
-                artView
-                    .matchedGeometryEffect(id: "albumArt", in: ns,
-                                          isSource: notchVM.notchState != .open)
-            } else {
-                artView
-            }
             if music.isPlaying {
                 AudioSpectrumView(isPlaying: .constant(true))
                     .frame(width: 14, height: 12)
@@ -175,11 +166,9 @@ struct MusicExpandedView: View {
     @EnvironmentObject var vm: BoringViewModel
     @ObservedObject private var music = MusicManager.shared
     @Default(.enableLyrics) private var enableLyrics
-    @Environment(\.albumArtNamespace) private var injectedNamespace
-    @Namespace private var fallbackNamespace
+    @Namespace private var albumArtNamespace
 
     var body: some View {
-        let albumArtNamespace = injectedNamespace ?? fallbackNamespace
         HStack(alignment: .top, spacing: LayoutTokens.musicLyricsGutter) {
             MusicPlayerView(albumArtNamespace: albumArtNamespace)
                 .frame(minWidth: LayoutTokens.musicPlayerMinWidth, alignment: .leading)
