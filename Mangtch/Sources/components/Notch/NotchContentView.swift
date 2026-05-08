@@ -165,7 +165,7 @@ struct NotchContentView: View {
             // Extend 1pt on each side to cover sub-pixel anti-aliasing
             // seams between the wings and the notch bar.
             Color.black
-                .frame(width: viewModel.notchGeometry.notchWidth + 2,
+                .frame(width: viewModel.notchGeometry.notchWidth + (viewModel.wingWidth > 0 ? 2 : -4),
                        height: viewModel.notchGeometry.notchHeight)
                 .clipShape(
                     UnevenRoundedRectangle(
