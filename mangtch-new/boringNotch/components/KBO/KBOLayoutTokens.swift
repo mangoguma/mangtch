@@ -67,7 +67,12 @@ enum KBOLayoutTokens {
     static let headerDateMinWidth: CGFloat = 80
 
     static let emptyStateSpacing: CGFloat = 6
-    static let emptyStateMinHeight: CGFloat = 100
+    /// Sized to mirror a roughly 4-row filled day so the panel doesn't
+    /// shrink to a visually cramped strip on no-games dates — the rounded
+    /// bottom corner needs vertical breathing room to read as rounded,
+    /// and the centered icon+text otherwise sits flush against the chrome.
+    /// Roughly: `panelHeightRowHeight (36) * 4 + rowGap (4) * 3 = 156`.
+    static let emptyStateMinHeight: CGFloat = 156
 
     static let panelHeaderHeight: CGFloat = 24
     static let panelOuterVerticalPadding: CGFloat = 16   // .padding(.vertical, 8) ×2

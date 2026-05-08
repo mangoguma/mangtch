@@ -12,6 +12,18 @@ import KeyboardShortcuts
 import Sparkle
 import SwiftUI
 
+/// The fully-resolved values the NSPanel resize sink consumes. Pulled
+/// out as a named struct so Swift's type-checker can resolve the Combine
+/// chain in reasonable time — inlining the same shape as a 5-tuple in
+/// `.map` was timing out the type inferencer.
+private struct ResolvedFrame: Equatable {
+    let panelWidth: CGFloat
+    let wingWidth: CGFloat
+    let height: CGFloat
+    let state: NotchState
+    let closedNotch: CGSize
+}
+
 @main
 struct DynamicNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -210,30 +222,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // GeometryReader-backed PreferenceKey) rather than the widget's
         // `heightRange.ideal` estimate. The formula stays as the first-frame
         // default (before measurement settles).
-        viewModel.$publishedMetrics
+        // Resolve to the values the NSPanel actually cares about *before*
+        // dedup. Height comes from `measured` once it's settled — formula
+        // stays as the first-frame fallback. Doing the resolution before
+        // `removeDuplicates` filters publishedMetrics emissions driven
+        // purely by the formula's height side (e.g., KBO @Observable
+        // state ticks re-arming `recomputeMetrics`) when they don't
+        // change the resolved height — eliminates the two-step resize
+        // where one tick used a stale measured and the next the freshly-
+        // rendered measured (both 0.22s easeInOut from different starts).
+        let resolvedFrame = viewModel.$publishedMetrics
             .compactMap { $0 }
             .combineLatest(viewModel.$notchState,
                            viewModel.$closedNotchSize,
                            viewModel.$measuredExpandedContentHeight)
-            .removeDuplicates(by: { lhs, rhs in
-                lhs.0 == rhs.0 && lhs.1 == rhs.1 && lhs.2 == rhs.2 && lhs.3 == rhs.3
-            })
+            .map { (input: (PanelLayoutMetrics, NotchState, CGSize, CGFloat?)) -> ResolvedFrame in
+                let metrics = input.0
+                let measured = input.3
+                let height: CGFloat = (measured ?? 0) > 0 ? measured! : metrics.totalHeight
+                return ResolvedFrame(panelWidth: metrics.panelWidth,
+                                     wingWidth: metrics.wingWidth,
+                                     height: height,
+                                     state: input.1,
+                                     closedNotch: input.2)
+            }
+            .removeDuplicates()
+
+        resolvedFrame
             .receive(on: RunLoop.main)
-            .sink { [weak window] m, state, closedNotch, measured in
+            .sink { [weak window] f in
                 guard let window = window as? BoringNotchWindow else { return }
-                // Measured = total expanded panel height (chrome + body),
-                // since the GR is on `expandedContent` outer. Synthesize
-                // metrics with chrome=0 so `totalHeight` == measured and
-                // the NSPanel doesn't double-count chrome.
-                let synthesized = (measured ?? 0) > 0
-                    ? PanelLayoutMetrics(panelWidth: m.panelWidth,
-                                         wingWidth: m.wingWidth,
-                                         contentHeight: measured!,
-                                         chromeHeight: 0)
-                    : m
+                // chromeHeight=0 because `height` is already the *total*
+                // expanded panel height (GR sits on the `expandedContent`
+                // outer, which captures Divider + WidgetSwitcherBar + body).
+                // Without chrome=0 the NSPanel would double-count chrome.
+                let synthesized = PanelLayoutMetrics(panelWidth: f.panelWidth,
+                                                     wingWidth: f.wingWidth,
+                                                     contentHeight: f.height,
+                                                     chromeHeight: 0)
                 window.resizeWindow(metrics: synthesized,
-                                    notchHeight: closedNotch.height,
-                                    isOpen: state == .open,
+                                    notchHeight: f.closedNotch.height,
+                                    isOpen: f.state == .open,
                                     animated: true)
             }
             .store(in: &viewModel.cancellables)
