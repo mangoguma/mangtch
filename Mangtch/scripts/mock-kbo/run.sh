@@ -6,7 +6,9 @@
 #   ./run.sh scheduled          # pre-game state
 #   ./run.sh finished           # post-game results
 #   ./run.sh cancelled          # rain-out
+#   ./run.sh mixed              # 5 games covering all states (1 live + 2 finished + 1 scheduled + 1 cancelled)
 #   MOCK_PORT=9000 ./run.sh live
+#   MOCK_TICK_SECONDS=3 ./run.sh live   # speed up the live timeline
 #
 # Then in another terminal:
 #   export MANGTCH_KBO_MOCK_BASE=http://127.0.0.1:8765
@@ -21,9 +23,9 @@ set -euo pipefail
 
 scenario="${1:-live}"
 case "$scenario" in
-  live|scheduled|finished|cancelled) ;;
+  live|scheduled|finished|cancelled|mixed) ;;
   *)
-    echo "unknown scenario: $scenario (live | scheduled | finished | cancelled)" >&2
+    echo "unknown scenario: $scenario (live | scheduled | finished | cancelled | mixed)" >&2
     exit 1
     ;;
 esac

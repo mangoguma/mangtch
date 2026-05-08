@@ -25,6 +25,7 @@ JSON 으로 돌려준다.
 - `scheduled` — 모든 경기 BEFORE
 - `finished` — 모든 경기 RESULT (linescore 9이닝 풀 그리드)
 - `cancelled` — 우천취소
+- `mixed` — 5 경기를 한 화면에 모두 깔아주는 QA 종합 시나리오 (1 live + 2 finished + 1 scheduled + 1 cancelled). live 1게임만 LIVE_SCRIPT 로 진행하고 나머지는 고정 상태 — "모든 상태가 같이 나오는지" 와 "핀/패널 토글이 흐름 끊기지 않는지" 같은 체크리스트용
 
 ## Run
 
@@ -34,10 +35,11 @@ cd mangtch-new/scripts/mock-kbo
 ./run.sh scheduled
 ./run.sh finished
 ./run.sh cancelled
+./run.sh mixed         # 5경기 동시 — QA 체크리스트용
 
 # 환경변수
 MOCK_PORT=9000 ./run.sh live           # 포트 변경
-MOCK_TICK_SECONDS=3 ./run.sh live      # 빠른 진행 (live 전용)
+MOCK_TICK_SECONDS=3 ./run.sh live      # 빠른 진행 (live / mixed 전용)
 ```
 
 다른 터미널 또는 launchctl 에서 환경변수를 잡고 앱 실행:
@@ -108,6 +110,18 @@ pkill -f mock-kbo/server.py
 데모 페이스 빠르게 보고 싶으면 `MOCK_TICK_SECONDS=2 ./run.sh live`. ticker 가
 queue 에 너무 빠르게 쌓이는지·우선순위 강등이 잘 먹는지 그런 부하 테스트도
 이 노브로 본다.
+
+## QA 체크리스트 — 시나리오 매핑
+
+| 체크 항목 | 시나리오 | 어떻게 |
+|-----------|----------|--------|
+| Pin a KBO game → close panel → reopen → game still pinned | `mixed` | 5경기 중 임의 핀 → 패널 닫고 다시 열기. live 가 진행돼도 핀 유지되는지 |
+| Watch a live game score change — should update within 10s | `live` 또는 `mixed` | 60s 시점에 2루타·홈인 2개 → 점수 4→5 변경 (TICK 짧게 잡고 보면 빠름) |
+| BSO dots animate on count change | `live` | 각 tick 마다 ball/strike 변동 (10–60s 사이 풀카운트 흐름) |
+| Base diamonds animate on runner movement | `live` | 20s 만루로 진입, 60s 2루타로 1·3루 잔류 |
+| Play ticker scrolls once then stops | `live` | seqno 가 한번 들어왔다 정지하는지 — TICK=10 기본이면 10초마다 한 줄 |
+| All 5 games show correct finished/live status | `mixed` | 5경기 동시 노출 — 각자 statusCode 가 row 에 정확히 매핑되는지 |
+| Light theme: bases and BSO dots visible | `live` | 데이터-무관, 스타일만. 시스템 라이트 테마로 토글 후 wing/expanded 확인 |
 
 ## Capturing real responses
 

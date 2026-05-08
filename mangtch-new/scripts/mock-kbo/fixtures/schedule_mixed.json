@@ -1,0 +1,41 @@
+{
+  "result": {
+    "games": [
+      {
+        "gameId": "MOCK_MIXED_LIVE_001",
+        "gameDateTime": "2026-05-09T18:30:00",
+        "homeTeamCode": "HH", "homeTeamName": "한화", "homeTeamScore": 4, "homeTeamEmblemUrl": null,
+        "awayTeamCode": "LT", "awayTeamName": "롯데", "awayTeamScore": 3, "awayTeamEmblemUrl": null,
+        "statusCode": "STARTED", "statusInfo": "7회초", "cancel": false, "suspended": false
+      },
+      {
+        "gameId": "MOCK_MIXED_RESULT_001",
+        "gameDateTime": "2026-05-09T14:00:00",
+        "homeTeamCode": "OB", "homeTeamName": "두산", "homeTeamScore": 2, "homeTeamEmblemUrl": null,
+        "awayTeamCode": "KT", "awayTeamName": "KT", "awayTeamScore": 5, "awayTeamEmblemUrl": null,
+        "statusCode": "RESULT", "statusInfo": "경기종료", "cancel": false, "suspended": false
+      },
+      {
+        "gameId": "MOCK_MIXED_RESULT_002",
+        "gameDateTime": "2026-05-09T14:00:00",
+        "homeTeamCode": "LG", "homeTeamName": "LG", "homeTeamScore": 8, "homeTeamEmblemUrl": null,
+        "awayTeamCode": "SS", "awayTeamName": "삼성", "awayTeamScore": 8, "awayTeamEmblemUrl": null,
+        "statusCode": "RESULT", "statusInfo": "경기종료", "cancel": false, "suspended": false
+      },
+      {
+        "gameId": "MOCK_MIXED_BEFORE_001",
+        "gameDateTime": "2026-05-09T19:00:00",
+        "homeTeamCode": "WO", "homeTeamName": "키움", "homeTeamScore": 0, "homeTeamEmblemUrl": null,
+        "awayTeamCode": "NC", "awayTeamName": "NC", "awayTeamScore": 0, "awayTeamEmblemUrl": null,
+        "statusCode": "BEFORE", "statusInfo": "경기 전", "cancel": false, "suspended": false
+      },
+      {
+        "gameId": "MOCK_MIXED_CANCEL_001",
+        "gameDateTime": "2026-05-09T18:30:00",
+        "homeTeamCode": "SK", "homeTeamName": "SSG", "homeTeamScore": 0, "homeTeamEmblemUrl": null,
+        "awayTeamCode": "HT", "awayTeamName": "KIA", "awayTeamScore": 0, "awayTeamEmblemUrl": null,
+        "statusCode": "BEFORE", "statusInfo": "우천취소", "cancel": true, "suspended": false
+      }
+    ]
+  }
+}

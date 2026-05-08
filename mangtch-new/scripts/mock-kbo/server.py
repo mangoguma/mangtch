@@ -36,6 +36,18 @@ PORT = int(os.environ.get("MOCK_PORT", "8765"))
 LIVE_TICK = int(os.environ.get("MOCK_TICK_SECONDS", "10"))
 LIVE_START = time.monotonic()
 
+# `mixed` scenario: 5 games of varying status. Maps each gameId to the
+# sub-scenario whose relay fixture it should serve, so a single mock can
+# cover the "all 5 statuses render correctly" QA check while still letting
+# the one live game progress through LIVE_SCRIPT.
+MIXED_GAME_MAP: dict[str, str] = {
+    "MOCK_MIXED_LIVE_001":   "live",
+    "MOCK_MIXED_RESULT_001": "finished",
+    "MOCK_MIXED_RESULT_002": "finished",
+    "MOCK_MIXED_BEFORE_001": "scheduled",
+    "MOCK_MIXED_CANCEL_001": "cancelled",
+}
+
 # Scripted continuation of the live fixture. Starts from 7회초 1·2루 풀카운트
 # 2아웃 4:3. Each entry runs LIVE_TICK seconds after the previous one.
 # Tuple: (textOption.type per Naver taxonomy, text, currentGameState patch).
@@ -56,11 +68,22 @@ LIVE_SCRIPT: list[tuple[int, str, dict[str, str] | None]] = [
 ]
 
 
-def load_fixture(name: str) -> dict:
-    path = FIXTURES / f"{name}_{SCENARIO}.json"
+def load_fixture(name: str, scenario: str | None = None) -> dict:
+    """Load fixture JSON. Defaults to the active SCENARIO; pass an explicit
+    `scenario` for mixed-mode dispatch where each gameId picks its own."""
+    sub = scenario or SCENARIO
+    path = FIXTURES / f"{name}_{sub}.json"
     if not path.exists():
         raise FileNotFoundError(f"missing fixture {path.name}")
     return json.loads(path.read_text())
+
+
+def relay_subscenario_for(game_id: str) -> str:
+    """Pick the relay sub-scenario for a given gameId. In `mixed` mode the
+    map decides; otherwise everyone gets the global SCENARIO."""
+    if SCENARIO == "mixed":
+        return MIXED_GAME_MAP.get(game_id, "scheduled")
+    return SCENARIO
 
 
 def patch_date(payload: dict, date_str: str) -> dict:
@@ -92,8 +115,11 @@ def live_progress() -> tuple[dict[str, str], list[dict]]:
     return overlay, plays
 
 
-def apply_live_timeline(payload: dict) -> dict:
-    if SCENARIO != "live":
+def apply_live_timeline(payload: dict, sub: str | None = None) -> dict:
+    # Apply when the resolved sub-scenario is "live" — covers both the
+    # top-level `live` mode and the live game inside `mixed`.
+    effective = sub or SCENARIO
+    if effective != "live":
         return payload
     overlay, plays = live_progress()
     trd = payload.setdefault("result", {}).setdefault("textRelayData", {})
@@ -140,20 +166,24 @@ def apply_live_timeline(payload: dict) -> dict:
 
 def apply_live_schedule(payload: dict) -> dict:
     """Bump the live game's score in schedule responses so the collapsed
-    row matches the relay's currentGameState."""
-    if SCENARIO != "live":
+    row matches the relay's currentGameState. In `mixed` we only touch the
+    game flagged as live; other rows keep their fixed status/scores."""
+    if SCENARIO not in ("live", "mixed"):
         return payload
     overlay, _ = live_progress()
-    games = payload.get("result", {}).get("games", [])
-    if not games:
+    if not overlay:
         return payload
-    g = games[0]
-    for src, dst in (("awayScore", "awayTeamScore"), ("homeScore", "homeTeamScore")):
-        if src in overlay:
-            try:
-                g[dst] = int(overlay[src])
-            except ValueError:
-                pass
+    games = payload.get("result", {}).get("games", [])
+    for g in games:
+        if SCENARIO == "mixed":
+            if MIXED_GAME_MAP.get(g.get("gameId", "")) != "live":
+                continue
+        for src, dst in (("awayScore", "awayTeamScore"), ("homeScore", "homeTeamScore")):
+            if src in overlay:
+                try:
+                    g[dst] = int(overlay[src])
+                except ValueError:
+                    pass
     return payload
 
 
@@ -187,8 +217,10 @@ class Handler(BaseHTTPRequestHandler):
 
         match = re.fullmatch(r"/schedule/games/([^/]+)/relay", path)
         if match:
+            game_id = match.group(1)
+            sub = relay_subscenario_for(game_id)
             try:
-                payload = apply_live_timeline(load_fixture("relay"))
+                payload = apply_live_timeline(load_fixture("relay", sub), sub)
             except FileNotFoundError as e:
                 self._send(500, {"error": str(e)})
                 return
