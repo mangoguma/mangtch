@@ -30,7 +30,7 @@ JSON 으로 돌려준다.
 ## Run
 
 ```bash
-cd Mangtch/scripts/mock-kbo
+cd mangtch-new/scripts/mock-kbo
 ./run.sh live          # 기본
 ./run.sh scheduled
 ./run.sh finished
@@ -47,11 +47,11 @@ MOCK_TICK_SECONDS=3 ./run.sh live      # 빠른 진행 (live / mixed 전용)
 ```bash
 # 터미널에서 직접 실행할 때
 export MANGTCH_KBO_MOCK_BASE=http://127.0.0.1:8765
-open /Applications/Mangtch.app
+open /Applications/Mangtch-new.app
 
 # Finder/Dock 으로 띄울 때 (Finder 가 띄우는 프로세스에도 보이도록)
 launchctl setenv MANGTCH_KBO_MOCK_BASE http://127.0.0.1:8765
-pkill -9 -x Mangtch; sleep 0.3; open /Applications/Mangtch.app
+pkill -9 -x boringNotch; sleep 0.3; open /Applications/Mangtch-new.app
 
 # 끝나면
 launchctl unsetenv MANGTCH_KBO_MOCK_BASE
