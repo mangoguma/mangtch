@@ -20,6 +20,14 @@ final class GestureHandler {
     /// view model so multi-display panels each have their own dwell timer.
     private var pendingExpandTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
+    /// Per-panel pending grace-period close tasks. When the cursor leaves an
+    /// already-`.open` panel, we wait this long before collapsing — short
+    /// excursions (cursor flicked off the panel and back) shouldn't kill
+    /// the user's reading session. `.hovering` still closes immediately
+    /// because that state is transient by design.
+    private var pendingCloseTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
+    private static let openCloseGrace: Duration = .milliseconds(500)
+
     private init() {}
 
     // MARK: - Setup / Teardown
@@ -245,12 +253,24 @@ final class GestureHandler {
         case .open:
             // Once expanded, only the (now larger) hoverZone — which
             // includes the panel body via `extraOpenHeight` — gates
-            // collapse. No dwell logic here; .open is terminal until
-            // the cursor leaves.
-            if !hoverZone.contains(point) {
+            // collapse. We add a grace period before close so a brief
+            // cursor excursion (flick to a different window, mouse drift)
+            // doesn't yank the panel away mid-read.
+            if hoverZone.contains(point) {
+                pendingCloseTasks[key]?.cancel()
+                pendingCloseTasks.removeValue(forKey: key)
+            } else if pendingCloseTasks[key] == nil {
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
-                vm.close()
+                pendingCloseTasks[key] = Task { @MainActor [weak self, weak vm] in
+                    try? await Task.sleep(for: Self.openCloseGrace)
+                    guard !Task.isCancelled, let vm, vm.notchState == .open else {
+                        self?.pendingCloseTasks.removeValue(forKey: key)
+                        return
+                    }
+                    vm.close()
+                    self?.pendingCloseTasks.removeValue(forKey: key)
+                }
             }
         }
     }
