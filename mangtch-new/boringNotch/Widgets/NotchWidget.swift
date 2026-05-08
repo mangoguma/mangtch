@@ -33,13 +33,57 @@ struct HeightRange {
 
 // MARK: - Widget Protocol
 
-/// Single-owner, bilateral wings. The widget that wins the priority chain
-/// (highest `wingPriority` among those whose `claimsWings` is true) owns
-/// **both** wings and the expanded panel. There is no per-wing selection
-/// and no user toggle — selection is purely state-driven.
+/// # NotchWidget contract
 ///
-/// Every conformer must build both wing views; one-sided wings would
-/// produce an asymmetric notch chrome that no widget in the design covers.
+/// Author guide: see `mangtch-new/docs/ADDING_A_WIDGET.md` for the full
+/// step-by-step. This docstring is the binding contract — read both.
+///
+/// ## Two-axis ownership (phase 9a)
+/// - **Wings** = `BoringViewModel.wingOwnerID`, decided by the priority
+///   chain (highest `wingPriority` among widgets returning `true` from
+///   `claimsWings`). Automatic, foreground-activity driven.
+/// - **Panel** = `BoringViewModel.currentExpandedWidgetID`, decided by
+///   the user via `WidgetSwitcherBar`. Manual.
+///
+/// The two axes can disagree (e.g. Timer running owns wings, user has
+/// KBO panel open). Your widget must render coherently in either role
+/// independently.
+///
+/// ## Bilateral wings
+/// `makeLeftWingView` and `makeRightWingView` are both required. Single-
+/// wing widgets are not supported — the chrome design assumes symmetry.
+/// If your widget never appears in wings (Settings-style chrome), set
+/// `wingPriority = 0` and return `false` from `claimsWings`; the wing
+/// pair will still be built once and stable-mounted, but never shown.
+///
+/// ## Sizing (phases 8, 9c, 9c-tail)
+/// - `widthRange`: state-aware. Closed panel uses the wing-owner's
+///   widthRange; open panel uses the panel-selected widget's. Closed→open
+///   transitions can therefore jump the panel width across two widgets;
+///   the NSAnimation curve sync (phase 8a) keeps that smooth.
+/// - `heightRange`: **formula fallback only**. Real expanded-panel height
+///   comes from the GR measurement of your `makeExpandedView()` output
+///   (`BoringViewModel.measuredExpandedContentHeight`). The formula is
+///   used for first-frame bootstrap and as a safety floor.
+///   - Do **not** apply greedy `.frame(maxHeight:)` ceilings inside your
+///     expanded view: SwiftUI's flex-frame absorbs the parent's proposal
+///     up to that ceiling, the GR reads the absorbed value, and the
+///     panel locks at your formula's pessimistic budget rather than the
+///     true intrinsic. See HANDOFF §0a (Bug 3) for the cautionary tale.
+///   - If your view has variable layouts (e.g. KBO empty-day vs games
+///     list), give each branch an honest intrinsic — `.frame(minHeight:)`
+///     is fine, `.frame(maxHeight:)` is not.
+///
+/// ## Theming + typography (phase 7)
+/// All colors via `<Widget>ThemeTokens` (or chrome `ThemeTokens`).
+/// All fonts via `TypographyTokens`. No magic colors/font sizes — the
+/// self-check greps in PLAN-roadmap-7-to-10.md §9 will fail otherwise.
+///
+/// ## Animation
+/// Use `withAnimation(.easeInOut(duration: 0.22))` for state-driven
+/// reflows in your expanded view. The NSPanel resize matches the same
+/// bezier `(0.42, 0, 0.58, 1.0)` so wing chrome and content stay in
+/// lockstep (phase 8a).
 protocol NotchWidget: AnyObject, Identifiable where ID == String {
     /// Unique identifier for this widget
     var id: String { get }

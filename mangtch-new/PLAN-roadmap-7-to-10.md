@@ -779,3 +779,72 @@ $ xcodebuild ... build 2>&1 | tail -3
 
 - 단계 9 (multi-slot wing) 는 사용자 결정 게이트 (§5.2) 미해결로 보류. 10a (위젯 contributor 가이드 docs) 가 다음 cheapest 후보
 - 10a 작성 시 `NotchWidget` 프로토콜의 `wingPriority` / `claimsWings` / `widthRange` / `heightRange` 4-tuple 이 contract 의 핵심. 9a/9c 결정사항 (wing pair 좌·우 의무, ScrollView fallback 패턴) 도 가이드에 박혀야 함
+
+---
+
+## 16. 단계 9c-tail + 10a 회고 (2026-05-08 완료)
+
+### 16.1 라벨 정정
+
+직전 세션의 `9419922` "10a wip" / `cae8f5b` "10b 일부" / `366a1c2` "10b retro" 커밋은 **실제로는 phase 10 진입이 아니라 phase 9c 의 잔불 정리** (KBO panel measurement-driven height 회귀 + linescore transition) 였음. roadmap §6 의 10a 산출 (`docs/ADDING_A_WIDGET.md`, `NotchWidget` contract docstring) 은 이 세션에서 처음 작성. 향후 git log 읽을 때 메시지 prefix 신뢰하지 말 것.
+
+### 16.2 들어간 변경 (이 세션)
+
+```
+M boringNotch/boringNotchApp.swift             — 진단 로그 스트립
+M boringNotch/components/KBO/KBOLayoutTokens.swift — emptyStateMinHeight 100→156 (직전 wip)
+M boringNotch/models/BoringViewModel.swift     — 진단 로그 스트립
+M boringNotch/Widgets/NotchWidget.swift        — protocol contract docstring (10a-1)
+A docs/ADDING_A_WIDGET.md                      — contributor 가이드 (10a-2)
+```
+
+### 16.3 9c-tail 산출 (직전 wip 위에서 마감)
+
+| Sub | 내용 | 결과 |
+|---|---|---|
+| 9c-tail-a | empty-day 클리핑 — `KBOLayoutTokens.emptyStateMinHeight` 100→156 (4-row 등가). 빈 날짜에서도 bottom corner radius 정상 | 직전 wip |
+| 9c-tail-b | formula vs measured race — `boringNotchApp.swift` 의 NSPanel resize sink 가 `ResolvedFrame` (height 는 measured 우선) 단계로 dedupe. formula 만 변하는 tick 은 emit X | 직전 wip |
+| 9c-tail-c | linescore 수축 transition — `.scale(0.001, anchor: .top)` → `.move(edge: .bottom).combined(with: .opacity)` + 행 `.clipped()` | 직전 wip (`KBOExpandedView.swift`) |
+| 9c-tail-d | 진단 로그 (`appendDiagLog`, `diagLogURL`) 스트립 | 이 세션 |
+
+### 16.4 10a 산출 (이 세션)
+
+- **10a-1** `NotchWidget` 프로토콜에 contract docstring — two-axis ownership, bilateral wings, sizing rules (heightRange = formula fallback only, no greedy maxHeight), theming/typography, animation curve 일치
+- **10a-2** `docs/ADDING_A_WIDGET.md` — 5-step 절차 + verification 시나리오 7종 + 함정 6종. TimerWidget 을 reference 로 명시
+- **10a-3** dummy "Hello World" 위젯 — **skip**. 가이드 자체에 코드 스니펫이 minimal skeleton 으로 들어 있어 dogfood 상실. 신규 contributor 가 실제로 따라하면 그게 dogfood
+
+### 16.5 Out-of-spec 의도적 잔여
+
+- **10a-4** `Widget.template.swift` 보일러플레이트 미작성. 가이드의 §2 코드 블록이 사실상 동일 역할. 별도 파일로 두면 진실 분기 위험 — 한 곳 (가이드) 으로 통합
+- **10b** plugin loader — §6.2 의 4개 결정 게이트 미해결. 별도 의사결정 세션 필요
+- **WidgetSwitcherBar 자동 등록** — 신규 위젯 추가 시 picker 에 노출하려면 `enabledWidgets` 가 자동으로 잡지만, Settings UI 의 enable toggle 행에는 별도 displayName/icon 표시. 가이드 §2 의 `displayName`/`icon` 필드가 그 입력
+
+### 16.6 자가검증
+
+```bash
+$ xcodebuild ... build 2>&1 | tail -3
+# ** BUILD SUCCEEDED **
+```
+
+수동 검수 권장 (사용자):
+- 빈 날짜 (오늘 이후 일정 없는 날) → 패널이 너무 좁지 않게, bottom radius 정상
+- linescore 토글 → single-step resize, "vacuum" 느낌 없음
+- 날짜 prev/next → resize jitter 없음
+- 통상 1~5 경기 → 9c ScrollView 미발동 회귀 X
+
+### 16.7 단계 10b 진입 전 결정 사항 (보류)
+
+§6.2 그대로:
+
+1. Plugin 형식 (Swift dynamic library / WebView+JS / Lua / Swift macro)
+2. macOS App Sandbox 정책
+3. Plugin API surface (network/FS/notification 권한 화이트리스트)
+4. Distribution (App Store 호환 vs side-load 전용)
+
+답이 박힐 때까지 코드 진입 X. 결정 후 로드맵 §6.3+ 부터 재기획.
+
+### 16.8 다음 작업자에게
+
+- **단계 7–10a 마감.** 다음 자연스러운 후속은 (a) 10b 결정 세션 또는 (b) 단계 11+ (사용자 정의 테마, 다국어 등)
+- 신규 위젯 추가 시 `docs/ADDING_A_WIDGET.md` 따를 것. 가이드가 stale 해지면 그 자체가 결함 — 즉시 수정
+- `NotchWidget` 프로토콜 변경 시 docstring 우선 갱신 → 가이드 동기화. 둘 사이 drift 가 가장 큰 함정

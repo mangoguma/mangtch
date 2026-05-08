@@ -1,6 +1,6 @@
 # mangtch-new — Handoff
 
-> Status (2026-05-08, branch `mangtch-new-wip`, tip `cae8f5b` + 1 — phase 10b wip): KBO panel UX bugs from §0 partially closed (pre-game expand pin, panel grow-on-expand, post-expand bottom slack). Linescore close-then-open animation jitter and pure-empty-day clipping still open. Otherwise phases 1–9a + 9c complete.
+> Status (2026-05-08, branch `mangtch-new-wip`): phases 1–9a + 9c + **9c-tail** + **10a** complete. The previously-open §0 issues (linescore close-then-open jitter, empty-day clipping, vacuum-feel collapse animation) are closed and QA-verified. `NotchWidget` now carries its full contract docstring; new contributors follow `docs/ADDING_A_WIDGET.md`. Phase 10b (plugin loader) deferred — gated on the four product decisions listed in `PLAN-roadmap-7-to-10.md` §6.2 / §16.7.
 
 ---
 
@@ -57,7 +57,13 @@ Lowering `panelHeightLinescoreSection` to ~85 would close it for the common case
 
 ---
 
-## 0. Open issues — phase 10a wip (`9419922`)
+## 0. ~~Open issues — phase 10a wip~~ — **CLOSED** (see PLAN §16)
+
+> All three items below were resolved in the 9c-tail pass (empty-day height,
+> measured-only resize, opacity+move transition). Kept as a postmortem for
+> the next time the same failure mode appears.
+
+### Original writeup (`9419922`)
 
 The panel now sizes off the GR-measured intrinsic of `expandedContent` (Divider + WidgetSwitcherBar + widget body) via `vm.measuredExpandedContentHeight` → drives both SwiftUI inner `.frame(height:)` and the AppKit NSPanel resize. Formula bootstrap (`PanelLayoutMetrics.resolve.contentHeight`) now bakes in `panelBottomInset` so the first-frame estimate matches rendered intrinsic. KBO row VStack got `.clipped()` and the linescore mount transition went from `.move(edge:.top)` (which slid the grid over the totals row above on removal) to `.scale(scale: 0.001, anchor: .top).combined(with: .opacity)`.
 
