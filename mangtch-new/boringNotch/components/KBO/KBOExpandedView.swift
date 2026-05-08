@@ -228,14 +228,13 @@ struct KBOExpandedView: View {
                              isBatting: attacking == .home,
                              starter: starters.home)
 
-                    Group {
-                        if game.isLive {
-                            liveStateCell(for: game)
-                        } else {
-                            EmptyView()
-                        }
-                    }
-                    .frame(width: slotW)
+                    // Reserve the BSO slot on every row — live or not —
+                    // so the score column sits at the same horizontal
+                    // position across the whole list. EmptyView in a
+                    // .frame(width:) collapses to zero in HStack, which
+                    // shoved the score left only on live rows.
+                    liveStateCell(for: game)
+                        .frame(width: slotW)
 
                     statusChip(game)
                         .frame(width: KBOLayoutTokens.statusChipWidth, alignment: .trailing)

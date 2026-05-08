@@ -99,21 +99,11 @@ struct KBOLiveStateView: View {
     }
 
     private var wingBody: some View {
-        // Three columns: diamond | B/S/O dots | pitcher/batter names.
-        // Stretches to fill the full wing width so the right side doesn't
-        // sit empty when names are present.
+        // Right-wing layout: Spacer pushes the three columns flush to the
+        // trailing edge so the content "attaches" to the right side of the
+        // wing, matching the baseball placeholder's trailing alignment.
         HStack(spacing: KBOLayoutTokens.liveWingHStackSpacing) {
-            BasesDiamond(onFirst: state.onFirst,
-                         onSecond: state.onSecond,
-                         onThird: state.onThird)
-                .frame(width: KBOLayoutTokens.liveWingDiamondSize,
-                       height: KBOLayoutTokens.liveWingDiamondSize)
-
-            VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
-                countRow(value: state.balls, total: 3, label: "B", filledColor: KBOThemeTokens.ballsFilled)
-                countRow(value: state.strikes, total: 2, label: "S", filledColor: KBOThemeTokens.strikesFilled)
-                countRow(value: state.outs, total: 2, label: "O", filledColor: KBOThemeTokens.outsFilled)
-            }
+            Spacer(minLength: 0)
 
             ZStack(alignment: .leading) {
                 VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
@@ -138,11 +128,23 @@ struct KBOLiveStateView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
-            .frame(minWidth: 50, maxWidth: .infinity, alignment: .leading)
+            .frame(minWidth: 50)
+
+            VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {
+                countRow(value: state.balls, total: 3, label: "B", filledColor: KBOThemeTokens.ballsFilled)
+                countRow(value: state.strikes, total: 2, label: "S", filledColor: KBOThemeTokens.strikesFilled)
+                countRow(value: state.outs, total: 2, label: "O", filledColor: KBOThemeTokens.outsFilled)
+            }
+
+            BasesDiamond(onFirst: state.onFirst,
+                         onSecond: state.onSecond,
+                         onThird: state.onThird)
+                .frame(width: KBOLayoutTokens.liveWingDiamondSize,
+                       height: KBOLayoutTokens.liveWingDiamondSize)
         }
         .padding(.horizontal, KBOLayoutTokens.liveWingHorizontalPadding)
         .padding(.vertical, KBOLayoutTokens.liveWingVerticalPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .trailing)
         // No inner pill — the wing's own dark panel background already
         // provides the contrast surface. An extra rounded rect inside it
         // would visibly disagree with the wing's edge curvature.
