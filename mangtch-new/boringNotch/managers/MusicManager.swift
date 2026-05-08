@@ -445,80 +445,26 @@ class MusicManager: ObservableObject {
 
     @MainActor
     private func fetchLyricsFromWeb(title: String, artist: String) async {
-        let cleanTitle = normalizedQuery(title)
-        let cleanArtist = normalizedQuery(artist)
-        guard let encodedTitle = cleanTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let encodedArtist = cleanArtist.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            self.currentLyrics = ""
-            self.isFetchingLyrics = false
-            return
+        let album = self.album
+        let duration = self.songDuration
+
+        var result = await LRCLIBService.shared.fetch(title: title, artist: artist, album: album, duration: duration)
+        if result == .none {
+            result = await NetEaseLyricsService.shared.fetch(title: title, artist: artist, duration: duration)
         }
 
-        // LRCLIB simple search (no auth): https://lrclib.net/api/search?track_name=...&artist_name=...
-        let urlString = "https://lrclib.net/api/search?track_name=\(encodedTitle)&artist_name=\(encodedArtist)"
-        guard let url = URL(string: urlString) else {
-            self.currentLyrics = ""
-            self.isFetchingLyrics = false
-            return
-        }
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                self.currentLyrics = ""
-                self.isFetchingLyrics = false
-                return
-            }
-            if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-               let first = jsonArray.first {
-                // Prefer plain lyrics (syncedLyrics may also be present)
-                let plain = (first["plainLyrics"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let synced = (first["syncedLyrics"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let resolved = plain.isEmpty ? synced : plain
-                self.currentLyrics = resolved
-                self.isFetchingLyrics = false
-                if !synced.isEmpty {
-                    self.syncedLyrics = self.parseLRC(synced)
-                } else {
-                    self.syncedLyrics = []
-                }
-            } else {
-                self.currentLyrics = ""
-                self.isFetchingLyrics = false
-                self.syncedLyrics = []
-            }
-        } catch {
-            self.currentLyrics = ""
-            self.isFetchingLyrics = false
+        switch result {
+        case .synced(let lines):
+            self.syncedLyrics = lines.map { (time: $0.time, text: $0.text) }
+            self.currentLyrics = lines.map(\.text).joined(separator: "\n")
+        case .plain(let s):
             self.syncedLyrics = []
+            self.currentLyrics = s
+        case .none:
+            self.syncedLyrics = []
+            self.currentLyrics = ""
         }
-    }
-
-    // MARK: - Synced lyrics helpers
-    private func parseLRC(_ lrc: String) -> [(time: Double, text: String)] {
-        var result: [(Double, String)] = []
-        lrc.split(separator: "\n").forEach { lineSub in
-            let line = String(lineSub)
-            // Match [mm:ss.xx] or [m:ss]
-            let pattern = #"\[(\d{1,2}):(\d{2})(?:\.(\d{1,2}))?\]"#
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
-            let nsLine = line as NSString
-            if let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: nsLine.length)) {
-                let minStr = nsLine.substring(with: match.range(at: 1))
-                let secStr = nsLine.substring(with: match.range(at: 2))
-                let csRange = match.range(at: 3)
-                let centiStr = csRange.location != NSNotFound ? nsLine.substring(with: csRange) : "0"
-                let minutes = Double(minStr) ?? 0
-                let seconds = Double(secStr) ?? 0
-                let centis = Double(centiStr) ?? 0
-                let time = minutes * 60 + seconds + centis / 100.0
-                let textStart = match.range.location + match.range.length
-                let text = nsLine.substring(from: textStart).trimmingCharacters(in: .whitespaces)
-                if !text.isEmpty {
-                    result.append((time, text))
-                }
-            }
-        }
-        return result.sorted { $0.0 < $1.0 }
+        self.isFetchingLyrics = false
     }
 
     func lyricLine(at elapsed: Double) -> String {

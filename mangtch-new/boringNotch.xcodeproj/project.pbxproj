@@ -172,6 +172,8 @@
 		FA003014FA003014FA003014 /* KBOTeamColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003015FA003015FA003015 /* KBOTeamColors.swift */; };
 		FA003016FA003016FA003016 /* KBOTeamLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA003017FA003017FA003017 /* KBOTeamLogo.swift */; };
 		FA004001FA004001FA004001 /* KBOService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA004000FA004000FA004000 /* KBOService.swift */; };
+		FA005011FA005011FA005011 /* LRCLIBService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA005010FA005010FA005010 /* LRCLIBService.swift */; };
+		FA005021FA005021FA005021 /* NetEaseLyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA005020FA005020FA005020 /* NetEaseLyricsService.swift */; };
 	/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -344,6 +346,8 @@
 		FA003017FA003017FA003017 /* KBOTeamLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOTeamLogo.swift; sourceTree = "<group>"; };
 		FA003018FA003018FA003018 /* KBOLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOLayoutTokens.swift; sourceTree = "<group>"; };
 		FA004000FA004000FA004000 /* KBOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KBOService.swift; sourceTree = "<group>"; };
+		FA005010FA005010FA005010 /* LRCLIBService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRCLIBService.swift; sourceTree = "<group>"; };
+		FA005020FA005020FA005020 /* NetEaseLyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseLyricsService.swift; sourceTree = "<group>"; };
 		7EAE8DC2B8AB5273C5276F03 /* GestureHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestureHandler.swift; sourceTree = "<group>"; };
 		4172D61169276B47572E3AF3 /* AnimationTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationTokens.swift; sourceTree = "<group>"; };
 	/* End PBXFileReference section */
@@ -836,8 +840,18 @@
 			isa = PBXGroup;
 			children = (
 				FA004000FA004000FA004000 /* KBOService.swift */,
+				FA005000FA005000FA005000 /* Lyrics */,
 			);
 			path = SystemBridge;
+			sourceTree = "<group>";
+		};
+		FA005000FA005000FA005000 /* Lyrics */ = {
+			isa = PBXGroup;
+			children = (
+				FA005010FA005010FA005010 /* LRCLIBService.swift */,
+				FA005020FA005020FA005020 /* NetEaseLyricsService.swift */,
+			);
+			path = Lyrics;
 			sourceTree = "<group>";
 		};
 	/* End PBXGroup section */
@@ -1092,6 +1106,8 @@
 				FA003016FA003016FA003016 /* KBOTeamLogo.swift in Sources */,
 				FA003019FA003019FA003019 /* KBOLayoutTokens.swift in Sources */,
 				FA004001FA004001FA004001 /* KBOService.swift in Sources */,
+				FA005011FA005011FA005011 /* LRCLIBService.swift in Sources */,
+				FA005021FA005021FA005021 /* NetEaseLyricsService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
