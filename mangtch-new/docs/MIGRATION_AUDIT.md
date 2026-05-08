@@ -303,6 +303,9 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 - [x] hover 영역 이탈 → closed (단, `.open` → close 는 0.5s grace — §7.2 참고)
 - [x] play/pause 클릭 → 한번에 동작 (mouseDown 트래킹 끊김 없음)
 - [x] 재생 중 좌측 wing 에 visualizer 노출 (§4.1 — `AudioSpectrumView` 14×12)
+- [x] 트랙 변경 시 wing 폭 일시 확장 → 3초 후 복귀 (§4.3 — `previewPanelWidth` text-fit)
+- [x] 매우 긴 제목/아티스트 노치 침범 없음 — `metrics.wingWidth` 기반 finite frame + tail 트렁케이션
+- [x] Timer compact wing 절반 (340pt closed / 640pt open) — 평상시 메뉴바 점유 줄임
 - [x] 멀티 디스플레이: 각 패널 hoveredWing 독립
 - [x] KBO 가 wing 을 가져갈 때 (live game) 도 호버 컨트롤 분기 정상
 - [x] `xcodebuild` 통과, ad-hoc 사인 + `/Applications/Mangtch-new.app` 재설치
@@ -324,7 +327,19 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 - **(추가 결정) `.open` → close 0.5s grace period** — `3bf4a86 feat(mangtch-new): 0.5s grace period before .open auto-close`. 짧은 cursor 이탈에 패널이 즉시 닫히던 동작이 거슬려 grace 도입. `.hovering` 은 즉시 close 유지 (transient 상태).
 
-- **§4.1 좌측 wing AudioVisualizer 부활 + wing 정렬 정리** — `MusicCompactArtwork` 에 `if music.isPlaying { AudioSpectrumView }` 추가 (boring.notch 기존 4-bar 14×12 재사용). 같은 PR 에서 좌측 wing 의 horizontal padding 누락 픽스(앨범아트가 끝에 붙던 기존 이슈), 우측 wing `trackInfoView`/`transportControls` `.trailing` 정렬 통일.
+- **§4.1 좌측 wing AudioVisualizer 부활 + wing 정렬 정리** — `MusicCompactArtwork` 에 `if music.isPlaying { AudioSpectrumView }` 추가 (boring.notch 기존 4-bar 14×12 재사용). 같은 PR 에서 좌측 wing 의 horizontal padding 누락 픽스(앨범아트가 끝에 붙던 기존 이슈), 우측 wing `trackInfoView`/`transportControls` `.trailing` 정렬 통일. (`92332bb`)
+
+- **§4.3 트랙 변경 시 wing-width preview** — Mangtch `previewWingWidth` 패턴 그대로 포팅. `eac7fda feat(mangtch-new): §4.3 wing-width preview on track change`.
+  - **컨셉 변경 이력**: 첫 시도(`c8a6e57` → `eec711d` revert)는 노치 아래로 56pt 배너 슬라이드 다운. 사용자 결정으로 wing 폭 절반 + 트랙 변경 시 일시 확장 패턴으로 재설계.
+  - `MusicLayoutTokens.compactWidth: 480 → 325`, `compactMinWidth: 380 → 285`. `LayoutTokens.minWingWidth: 130 → 50` (chrome 글로벌 floor — KBO/Timer 의 `widthRange.min` 가 훨씬 위라 영향 없음).
+  - `PanelLayoutMetrics.resolve` 시그니처에 `previewPanelWidth: CGFloat?` 추가 — `.closed/.hovering` 의 widthTarget 을 `previewPanelWidth ?? widthR.ideal` 로.
+  - `BoringViewModel.previewPanelWidth` + `setupTrackChangeObserver` (sink on `MusicManager.shared.$songTitle`). 첫 로드/같은 제목/`.closed` 아닌 상태/sourceID ≠ "music-player" 모두 가드.
+  - `computeTrackChangePreviewPanelWidth(title:artist:)` — 11pt semibold 제목 + 10pt 아티스트 측정 → 더 큰 쪽 + `2*compactHorizontalPadding + 4` 헤드룸 → `notch + 2*textWingW`. floor=compactWidth, ceil=expandedWidth(640) — open-panel cap 과 동일.
+  - 3초 후 `previewPanelWidth = nil`. 기존 `m.panelWidth` 0.22s easeInOut 이 그대로 늘어남/줄어듬.
+
+- **(보너스) wing 텍스트 trailing-overflow 픽스** — `8ef6166 fix(mangtch-new): clamp wing text width + halve Timer compact wing`. `.frame(maxWidth: .infinity)` 만으로는 SwiftUI Text 가 finite 폭 제약 받지 않아 intrinsic 으로 렌더 → 노치 chamber 까지 침범. `MusicCompactInfo.trackInfoView` 에서 `notchVM.metrics.wingWidth` 직접 읽어 `textBudget` 계산, `.frame(maxWidth: textBudget, alignment: .trailing)` 의 finite cap 부과. `.lineLimit(1) + .truncationMode(.tail)` 가 그제서야 동작.
+
+- **(보너스) Timer compact wing 절반** — 같은 커밋. `TimerWidget.widthRange` 를 `.fixed(640)` → `WidthRange(min: 285, ideal: 340, max: 640)` 로 전환. Timer 가 wings 를 가져가도 (countdown 진행 중) 평상시엔 좁은 wing, 패널 열리면 640 캔버스. `TimerLayoutTokens.compactWidth=340/compactMinWidth=285` 추가.
 
 ### 7.2 잔여 작업 (우선순위 順)
 
@@ -332,11 +347,12 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 | 우선 | 항목 | 출처 | 규모 | 비고 |
 |---|---|---|---|---|
-| ~~1~~ | ~~좌측 wing AudioVisualizer 부활~~ | §4.1 | done | `AudioSpectrumView` 4-bar 14×12, `if music.isPlaying` 게이트. 좌측 wing 에 horizontal padding 추가 (앨범아트가 끝 붙던 기존 이슈 같이 픽스). 우측 wing trackInfo/transportControls `.trailing` 정렬. |
-| 1 | 트랙 변경 알림 오버레이 | §4.3 | ~80 LOC | Mangtch `NotchContentView.swift:415-472` 의 `trackChangeNotificationOverlay` 패턴 그대로. `MusicManager.shared` 의 `nowPlaying`/`songTitle` publisher 에 sink 달아 ContentView ZStack 최상단에 슬라이드 인. |
-| 2 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
-| 3 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
-| 4 | Debug 오버레이 (zone 시각화) | §4.5 | ~50 LOC | `Defaults[.debugOverlay]` 토글로 hoverZone/notchZone/leftWing/rightWing rect 렌더. §3 류 작업 디버깅에 매우 유용 — 이번에 직접 print 박아 추적했는데 zone 시각화 있었으면 한 번에 잡혔을 것. |
+| ~~1~~ | ~~좌측 wing AudioVisualizer 부활~~ | §4.1 | done | `92332bb`. `AudioSpectrumView` 4-bar 14×12 + 좌/우 wing 정렬 정리. |
+| ~~2~~ | ~~트랙 변경 알림~~ | §4.3 | done | `eac7fda` (구현체) + `8ef6166` (텍스트 clamp + Timer wing 절반). 배너 안 띄우고 wing 폭 일시 확장 — Mangtch `previewWingWidth` 패턴. 자세한 내용은 §7.1 참고. |
+| 1 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
+| 2 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
+| 3 | Debug 오버레이 (zone 시각화) | §4.5 | ~50 LOC | `Defaults[.debugOverlay]` 토글로 hoverZone/notchZone/leftWing/rightWing rect 렌더. §3/§4.3 류 작업 디버깅에 매우 유용 — wing-width preview 디버깅 때도 직접 print 박아 추적했는데 zone 시각화 있었으면 한 번에 잡혔을 것. |
+| 4 | (옵션) 매우 긴 제목 marquee | §4.3 후속 | ~30 LOC | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(8ef6166 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll fallback. |
 
 ### 7.3 다음 작업자에게
 
@@ -349,3 +365,13 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 - **GlobalMonitor 권한** — `NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved)` 는 macOS Accessibility 권한 필요. ad-hoc 재사인할 때마다 designated requirement 가 갱신되어 TCC 권한이 silently 무효화되는 케이스 있음. `globalMonitor=ok` 로깅됐는데 mouseMoved 이벤트 0건이면 권한 문제 의심 — System Settings → Privacy & Security → Accessibility 에서 토글 OFF→ON.
 
 - **검증 절차** — `§0` (HANDOFF.md) 의 ad-hoc 사인 흐름 그대로. 빌드 후 `Frameworks/*` + `.app` 재사인 → `/Applications/Mangtch-new.app` 갈아치우고 `open`. 직접 binary 실행보다 `open` 이 LaunchServices 등록 + 권한 컨텍스트 제대로 잡힘.
+
+- **SwiftUI Text + finite frame** — `.frame(maxWidth: .infinity)` 는 Text 에 finite 폭 제약을 **전파하지 않음**. trailing 정렬 + intrinsic 폭이 부모보다 크면 트레일링 앵커는 부모 끝, leading 쪽으로 오버플로우 → 인접 영역 침범. 해결: 부모의 실제 폭(`vm.metrics.wingWidth` 등)을 직접 읽어 `.frame(maxWidth: budget)` 로 finite cap. `.lineLimit(1) + .truncationMode(.tail)` 는 finite 제약이 있어야 트리거됨. 참고: `MusicCompactInfo.trackInfoView`.
+
+- **§4.3 wing-width preview 의 게이팅** — `previewPanelWidth` 는 `metrics` 안에서 sourceID 가 `"music-player"` 일 때만 `resolve` 에 전달됨. KBO/Timer 가 wing 가져갔을 때 트랙이 바뀌어도 wing 폭 안 흔들림. 새 위젯이 비슷한 preview 동작 필요하면 `metrics` accessor 의 게이팅 분기 추가.
+
+- **resize pipeline 의 publisher 체인** — `BoringViewModel.setupMetricsTracking` 의 `combineLatest` 에 새로운 입력 추가 시 `.sink` 의 튜플 패턴도 같이 고침 (현재 3-tuple). `boringNotchApp.swift` 의 `resolvedFrame` 체인은 내부적으로 `compactMap`/`combineLatest` 로 `ResolvedFrame` 만드는데, Swift 타입 추론 폭주 방지 위해 명명된 struct 로 풀어둠 — 새 입력은 두 번째 `combineLatest` 로 묶고 mapper 에서 풀기 (배너 시도 시도했던 패턴 — 결국 revert 했지만 패턴은 참고용).
+
+- **SourceKit `No such module 'Defaults'` 등 false positive** — Xcode 가 SwiftPM 패키지 resolve 안 한 상태에서 신규/수정 파일에 대해 빈번히 발생. `xcodebuild` 가 통과하면 무시. HANDOFF §3 에도 명시. SourceKit 만 보고 코드 수정하지 말 것.
+
+- **트랙 변경 시뮬레이션** — 실제 곡 바뀌는 거 기다리기 귀찮으면 `MusicManager.shared.songTitle` 에 직접 다른 값 할당해도 publisher 가 fire 함 (테스트 한정). 평상시는 `nowPlayingObserver` 가 자동 갱신.
