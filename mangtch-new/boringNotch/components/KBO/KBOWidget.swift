@@ -126,18 +126,29 @@ final class KBOWidget: NotchWidget {
         let ideal: CGFloat
         if count > 0 {
             var rows = CGFloat(count) * rowHeight + CGFloat(max(count - 1, 0)) * rowGap
-            if viewModel.viewingLinescore != nil {
+            // Reserve the expansion section as soon as a row is expanded,
+            // not only once the linescore JSON has landed. Pre-game and
+            // failed-fetch rows leave `viewingLinescore` nil but still
+            // render the inline placeholder ("경기 시작 전이라…"), and
+            // without this allowance the panel stayed at collapsed height
+            // and clipped the placeholder out from under its own row.
+            if viewModel.viewingGameID != nil {
                 rows += linescoreHeight
             }
             ideal = header + outerPadding + rows + KBOLayoutTokens.panelHeightFooterSlack
         } else {
-            // panelCornerRadius slack so the rounded bottom edge doesn't
-            // clip into the centered empty/loading/error message.
+            // No extra corner-radius slack here — `PanelLayoutMetrics.resolve`
+            // already bakes in `panelBottomInset` (12pt) and `ContentView`
+            // applies the same 12pt below the widget Group, plus KBO's own
+            // `bodyOuterVerticalPadding` (8pt) sits beneath the empty box.
+            // Adding `panelCornerRadius` on top made the formula 14pt taller
+            // than the rendered intrinsic, so the GR-measured value shrunk
+            // the NSPanel below the formula bootstrap on empty days and the
+            // bottom rounded corner clipped the placeholder text.
             ideal = header
                 + KBOLayoutTokens.bodyOuterSpacing
                 + KBOLayoutTokens.emptyStateMinHeight
                 + outerPadding
-                + LayoutTokens.panelCornerRadius
         }
         // Defensive cap so the panel can't outgrow the viewport on small
         // displays — KBO regular season tops out at 5 games/day so this

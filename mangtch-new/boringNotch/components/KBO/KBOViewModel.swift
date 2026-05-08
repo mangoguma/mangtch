@@ -248,13 +248,13 @@ final class KBOViewModel {
             let fresh = self.games
             self.isLoading = false
             // Auto-unpin a game once it transitions to finished or
-            // cancelled. The wing already falls back to music via
-            // hasContentToShow when isLive is false, but clearing the
-            // pin too removes the accent fill on the row and matches
-            // the user's mental model of "stop watching this game".
+            // cancelled. Scheduled games are intentionally left pinned —
+            // toggleExpand pins on tap, and `!isLive` previously matched
+            // both finished AND scheduled, so opening a pre-game row got
+            // its pin (and accent fill) wiped on the next poll.
             if let pinnedID = self.selectedGameID,
                let pinned = fresh.first(where: { $0.gameId == pinnedID }),
-               !pinned.isLive {
+               pinned.isFinished || pinned.cancel {
                 self.selectedGameID = nil
                 self.currentAttackingSide = nil
             }
