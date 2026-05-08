@@ -60,12 +60,20 @@ struct MusicCompactArtwork: View {
     @ObservedObject private var music = MusicManager.shared
 
     var body: some View {
-        Image(nsImage: music.albumArt)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: 22, height: 22)
-            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            .opacity(music.isPlayerIdle ? 0.4 : 1)
+        HStack(spacing: 6) {
+            Image(nsImage: music.albumArt)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 22, height: 22)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .opacity(music.isPlayerIdle ? 0.4 : 1)
+            if music.isPlaying {
+                AudioSpectrumView(isPlaying: .constant(true))
+                    .frame(width: 14, height: 12)
+            }
+        }
+        .padding(.horizontal, LayoutTokens.compactHorizontalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -96,7 +104,7 @@ struct MusicCompactInfo: View {
     }
 
     private var trackInfoView: some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .trailing, spacing: 1) {
             Text(music.songTitle)
                 .font(TypographyTokens.compactTitle)
                 .foregroundStyle(.primary)
@@ -106,7 +114,7 @@ struct MusicCompactInfo: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private var transportControls: some View {
@@ -118,7 +126,7 @@ struct MusicCompactInfo: View {
             controlButton(icon: "forward.fill")
                 .wingHitZone(.musicNext)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private func controlButton(icon: String) -> some View {

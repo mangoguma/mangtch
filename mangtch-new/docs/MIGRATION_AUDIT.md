@@ -302,7 +302,7 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 - [x] wing 위 dwell → 패널 안 열림 (사용자가 컨트롤 누르려는 의도)
 - [x] hover 영역 이탈 → closed (단, `.open` → close 는 0.5s grace — §7.2 참고)
 - [x] play/pause 클릭 → 한번에 동작 (mouseDown 트래킹 끊김 없음)
-- [ ] 재생 중 좌측 wing 에 visualizer 노출 (§4.1 — 미수행)
+- [x] 재생 중 좌측 wing 에 visualizer 노출 (§4.1 — `AudioSpectrumView` 14×12)
 - [x] 멀티 디스플레이: 각 패널 hoveredWing 독립
 - [x] KBO 가 wing 을 가져갈 때 (live game) 도 호버 컨트롤 분기 정상
 - [x] `xcodebuild` 통과, ad-hoc 사인 + `/Applications/Mangtch-new.app` 재설치
@@ -324,17 +324,19 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 - **(추가 결정) `.open` → close 0.5s grace period** — `3bf4a86 feat(mangtch-new): 0.5s grace period before .open auto-close`. 짧은 cursor 이탈에 패널이 즉시 닫히던 동작이 거슬려 grace 도입. `.hovering` 은 즉시 close 유지 (transient 상태).
 
+- **§4.1 좌측 wing AudioVisualizer 부활 + wing 정렬 정리** — `MusicCompactArtwork` 에 `if music.isPlaying { AudioSpectrumView }` 추가 (boring.notch 기존 4-bar 14×12 재사용). 같은 PR 에서 좌측 wing 의 horizontal padding 누락 픽스(앨범아트가 끝에 붙던 기존 이슈), 우측 wing `trackInfoView`/`transportControls` `.trailing` 정렬 통일.
+
 ### 7.2 잔여 작업 (우선순위 順)
 
 §4 잔여 항목들은 본 마이그레이션의 핵심 wing-hover 동작과 독립된 미감/완성도 작업이다.
 
 | 우선 | 항목 | 출처 | 규모 | 비고 |
 |---|---|---|---|---|
-| 1 | 좌측 wing AudioVisualizer 부활 | §4.1 | ~20 LOC | 재생 중 album-art 옆 막대. boring.notch `MusicVisualizer.swift` 가 이미 있으니 wing 사이즈로 스케일만. |
-| 2 | 트랙 변경 알림 오버레이 | §4.3 | ~80 LOC | Mangtch `NotchContentView.swift:415-472` 의 `trackChangeNotificationOverlay` 패턴 그대로. `MusicManager.shared` 의 `nowPlaying`/`songTitle` publisher 에 sink 달아 ContentView ZStack 최상단에 슬라이드 인. |
-| 3 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
-| 4 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
-| 5 | Debug 오버레이 (zone 시각화) | §4.5 | ~50 LOC | `Defaults[.debugOverlay]` 토글로 hoverZone/notchZone/leftWing/rightWing rect 렌더. §3 류 작업 디버깅에 매우 유용 — 이번에 직접 print 박아 추적했는데 zone 시각화 있었으면 한 번에 잡혔을 것. |
+| ~~1~~ | ~~좌측 wing AudioVisualizer 부활~~ | §4.1 | done | `AudioSpectrumView` 4-bar 14×12, `if music.isPlaying` 게이트. 좌측 wing 에 horizontal padding 추가 (앨범아트가 끝 붙던 기존 이슈 같이 픽스). 우측 wing trackInfo/transportControls `.trailing` 정렬. |
+| 1 | 트랙 변경 알림 오버레이 | §4.3 | ~80 LOC | Mangtch `NotchContentView.swift:415-472` 의 `trackChangeNotificationOverlay` 패턴 그대로. `MusicManager.shared` 의 `nowPlaying`/`songTitle` publisher 에 sink 달아 ContentView ZStack 최상단에 슬라이드 인. |
+| 2 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
+| 3 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
+| 4 | Debug 오버레이 (zone 시각화) | §4.5 | ~50 LOC | `Defaults[.debugOverlay]` 토글로 hoverZone/notchZone/leftWing/rightWing rect 렌더. §3 류 작업 디버깅에 매우 유용 — 이번에 직접 print 박아 추적했는데 zone 시각화 있었으면 한 번에 잡혔을 것. |
 
 ### 7.3 다음 작업자에게
 
