@@ -1,6 +1,6 @@
 # Mangtch 0.10.0 — Handoff
 
-> Status (2026-05-09, branch `mangtch-new-wip`): phases 1–9a + 9c + **9c-tail** + **10a** complete. Directory renamed `Mangtch/` → `Mangtch/`; identity migrated to `com.yojeong.mangtch` v0.10.0; Sparkle re-enabled with production feed + public key. The previously-open §0 issues (linescore close-then-open jitter, empty-day clipping, vacuum-feel collapse animation) are closed and QA-verified. `NotchWidget` now carries its full contract docstring; new contributors follow `docs/ADDING_A_WIDGET.md`. Phase 10b (plugin loader) deferred — gated on the four product decisions listed in `PLAN-roadmap-7-to-10.md` §6.2 / §16.7.
+> Status (2026-05-09, branch `mangtch-new-wip`): phases 1–9a + 9c + **9c-tail** + **10a** complete. Directory renamed `Mangtch/` → `Mangtch/`; identity migrated to `com.mangoguma.mangtch` v0.10.0; Sparkle re-enabled with production feed + public key. The previously-open §0 issues (linescore close-then-open jitter, empty-day clipping, vacuum-feel collapse animation) are closed and QA-verified. `NotchWidget` now carries its full contract docstring; new contributors follow `docs/ADDING_A_WIDGET.md`. Phase 10b (plugin loader) deferred — gated on the four product decisions listed in `PLAN-roadmap-7-to-10.md` §6.2 / §16.7.
 
 ---
 
@@ -174,7 +174,7 @@ Calendar, Webcam, Battery (UI + manager + view models), Downloads UI, HUD-replac
 
 ### Identity
 
-- Bundle id: `com.yojeong.mangtch`
+- Bundle id: `com.mangoguma.mangtch`
 - Display name: `Mangtch`
 - Version: `0.10.0` (build 1)
 - Sparkle: `SUFeedURL = https://raw.githubusercontent.com/mangoguma/mangtch/main/appcast.xml`, `SUEnableAutomaticChecks = true`, `SUPublicEDKey = Fmj4dhenRCT8HbIYtVYUcYYGWS3RnkpNjhIxfG5CUwI=`

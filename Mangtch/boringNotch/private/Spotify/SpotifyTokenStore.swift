@@ -17,7 +17,7 @@ struct SpotifyTokens: Codable {
 }
 
 enum SpotifyTokenStore {
-    private static let service = "com.yojeong.mangtch.spotify"
+    private static let service = "com.mangoguma.mangtch.spotify"
     private static let account = "oauth-tokens"
 
     static func save(_ tokens: SpotifyTokens) throws {
