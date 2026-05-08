@@ -1,13 +1,38 @@
-# Mangtch → mangtch-new — 마이그레이션 점검
+# Mangtch → mangtch-new — 마이그레이션 점검 (최종)
 
 > 목적: `Mangtch/`(SPM 원본)과 `mangtch-new/`(boring.notch 베이스 포팅본) 사이의
 > 기능/구조 차이를 한 자리에 정리. 완전 마이그레이션 전 누락된 항목을
-> 빠짐없이 식별하고, 가장 시급한 항목 — **호버 시 wing 컨트롤 노출** —
-> 의 구현 계획을 박는 문서.
+> 빠짐없이 식별하고, 가장 시급한 항목들 — wing 호버-컨트롤, 트랙 알림, 가사,
+> Spotify 하트, debug 오버레이 — 을 차례로 박은 문서.
 >
-> 베이스 비교 시점: `mangtch-new-wip` 브랜치 tip `d5c2365` (2026-05-08).
+> 최초 베이스 비교 시점: `mangtch-new-wip` tip `d5c2365` (2026-05-08).
+> 마지막 갱신 시점: `bfb85ac` (2026-05-08, post §7.2).
 > 아키텍처 룰(§1 of `HANDOFF.md`)을 우선한다 — boring.notch 클래스명 유지,
 > Mangtch 기능만 그래프트.
+
+---
+
+## 0. 최종 상태 요약 (TL;DR)
+
+본 마이그레이션의 모든 핵심 갭은 닫혔다.
+
+- ✅ 상태 머신 3-state (`closed/hovering/open`) — `008f38a`
+- ✅ Wing 호버-컨트롤 (Music transport ZStack 스왑) — `008f38a`
+- ✅ `.open` 자동 close grace 0.5s — `3bf4a86`
+- ✅ 좌측 wing AudioVisualizer + wing 정렬 정리 — `92332bb`
+- ✅ 트랙 변경 알림 (Mangtch `previewWingWidth` 패턴) — `eac7fda` + `8ef6166`
+- ✅ Right-hover wing 폭 boost (transport 버튼 들어갈 폭) — `390d3cb`
+- ✅ Debug zone overlay — `b9bf1d9`
+- ✅ Spotify 하트 (PKCE OAuth + `/me/tracks`) — `4b122cb`
+- ✅ 가사 폴백 (LRCLIBService actor + NetEase) — `7860b33`
+
+남은 항목:
+
+- ⏳ **FileShelf 위젯 어댑터** — 본 마이그레이션과 별 트랙으로 분리. **§8** 의 단독 인계 참고.
+- ❌ **HUD 위젯** — 보류. 룰 §1 의 "HUD-replacement 제거" 정책에 따라 더 이상 추적하지 않음.
+- (옵션) 매우 긴 제목 marquee fallback — §7.2 표 참고. 미감 항목.
+
+§4 / §7.1 에 건별 상세 + 커밋 해시. 다음 작업자(혹은 미래의 본인)는 §7.3 의 패턴 노트와 §8 의 FileShelf 인계만 보면 충분.
 
 ---
 
@@ -20,20 +45,20 @@
 | 패널 VM | `NotchViewModel` (@Observable) | `BoringViewModel` (ObservableObject) | 동등 — 명명 규칙 따로 |
 | 멀티 디스플레이 | `NotchWindowManager` 전담 | `AppDelegate.windows` 딕셔너리 | 동등 |
 | 위젯 프로토콜 | `NotchWidget` + `WidgetRegistry` | 동일 | 1:1 포팅됨 (10a 시점) |
-| 상태 머신 | `idle / hovering / expanded` (3-state) | `closed / open` (2-state) | **갭 — §3 참고** |
-| Wing 호버 컨트롤 | 호버 시 노출 (`CompactArtworkView`) | **항상 노출** (`MusicCompactInfo`) | **갭 — §3 참고** |
+| 상태 머신 | `idle / hovering / expanded` (3-state) | `closed / hovering / open` (3-state) | ✅ §3 / `008f38a` |
+| Wing 호버 컨트롤 | 호버 시 노출 (`CompactArtworkView`) | 호버시 ZStack 스왑 | ✅ §3 / `008f38a` |
 | Wing 클릭 디스패치 | `WingHitZone` PreferenceKey + GestureHandler | 동일 메커니즘 포팅됨 | 동등 |
 | Wing 좌우 owner | 1축(state-driven) | 2축 (`wingOwnerID` + `currentExpandedWidgetID`) | mangtch-new 가 진화 |
 | KBO 위젯 | 9 파일 | 동등 + `KBOLayoutTokens` / `KBOThemeTokens` 추가 | 1:1 + 강화 |
-| Timer 위젯 | 4 파일 | 동등 + Layout/Theme 토큰 | 1:1 + 강화 |
-| Music 위젯 | `MusicPlayerWidget` + 5 파일 | `MusicPlayerWidget` + boring.notch UI 재사용 | 일부 갭 — §4 참고 |
-| 가사 (synced) | `LyricsManager` + LRCLIB + NetEase 직접 fetch | `MusicManager.syncedLyrics` 표시만 | **갭 — §4.2** |
-| 트랙 변경 알림 | `trackChangeNotificationOverlay` (NotchContentView) | 없음 | **갭 — §4.3** |
-| HUD 위젯 | `WidgetRegistry["hud"]` 슬롯 + 오버레이 마운트 | 없음 | 갭 (저우선) |
-| Debug 오버레이 | `Defaults[.debugOverlay]` 토글 | 없음 | 갭 (저우선) |
-| FileShelf | `FileShelfWidget` (위젯으로 등록) | boring.notch `Shelf*` (위젯 미등록) | 갭 — §4.4 |
+| Timer 위젯 | 4 파일 | 동등 + Layout/Theme 토큰 + compact wing 절반 | 1:1 + 강화 / `8ef6166` |
+| Music 위젯 | `MusicPlayerWidget` + 5 파일 | `MusicPlayerWidget` + boring.notch UI 재사용 + visualizer | ✅ §4.1 / `92332bb` |
+| 가사 (synced) | `LyricsManager` + LRCLIB + NetEase 직접 fetch | `LRCLIBService` actor + `NetEaseLyricsService` actor (script-mix 게이팅) | ✅ §4.2 / `7860b33` |
+| 트랙 변경 알림 | `trackChangeNotificationOverlay` (NotchContentView) | wing-width preview (`previewPanelWidth`) | ✅ §4.3 / `eac7fda`, `8ef6166`, `390d3cb` |
+| HUD 위젯 | `WidgetRegistry["hud"]` 슬롯 + 오버레이 마운트 | 없음 | ❌ 보류 (룰 §1 "HUD-replacement 제거") |
+| Debug 오버레이 | `Defaults[.debugOverlay]` 토글 | 4 색 zone + 오렌지 hit zones | ✅ §4.5 / `b9bf1d9` |
+| FileShelf | `FileShelfWidget` (위젯으로 등록) | boring.notch `Shelf*` (위젯 미등록) | ⏳ §8 단독 인계 |
 | Album-art 테마 추출 | `ColorExtractor` + `ThemeManager` | `MusicManager.avgColor`만 사용 | 의도적 드롭 (룰) |
-| Spotify OAuth | `SpotifyAuth` PKCE + `SpotifyAPI` | 없음 (boring.notch `SpotifyController`만) | 의도적 드롭 (룰) |
+| Spotify OAuth / 하트 | `SpotifyAuth` PKCE + `SpotifyAPI` | PKCE OAuth + `/me/tracks` 포팅 | ✅ §7.1 / `4b122cb` (룰 오버라이드) |
 | Onboarding | `OnboardingWindow` | 없음 | 의도적 드롭 (룰) |
 | Settings | 4 view | `SettingsView` + `EditPanelView` 등 | 동등 (강화됨) |
 | 사운드 토큰 시스템 | `Core/Theme/*Theme.swift` | `sizing/{Theme,Typography}Tokens` + 위젯별 `*ThemeTokens` | mangtch-new 가 진화 (Phase 7) |
@@ -228,51 +253,70 @@ KBO 의 ticker/TTS 토글 (`KBOWidget` 안의 `wingHitZone(.kboTickerToggle)` /
 
 ## 4. 그 외 갭
 
-### 4.1 Music wing 의 `AudioVisualizerView`
+### 4.1 Music wing 의 `AudioVisualizerView` — ✅ 완료 (`92332bb`)
 
 Mangtch 좌측 wing 은 재생 중 앨범아트 옆에 막대 비주얼라이저를 보여줌
-(`NowPlayingView.swift:25-29`). mangtch-new 의 `MusicCompactArtwork` 는
-앨범아트 only — 재생 중 신호가 없음. boring.notch `MusicVisualizer.swift`
-가 있으니 wing 사이즈에 맞게 스케일해서 끼워 넣으면 됨. 작업량 ~20 LOC.
+(`NowPlayingView.swift:25-29`). 포팅: boring.notch `AudioSpectrumView`
+(4-bar 14×12) 를 `MusicCompactArtwork` 에 `if music.isPlaying` 분기로 추가.
+같은 PR 에서 좌측 wing horizontal padding 누락 픽스 + 우측 wing 정렬 통일.
 
-### 4.2 가사 fetch 경로 부재
+### 4.2 가사 fetch 경로 — ✅ 완료 (`7860b33`)
 
-`MusicExpandedView.LyricsPanel` (`MusicPlayerWidget.swift:175-275`) 이
-`MusicManager.shared.syncedLyrics` 를 표시하지만 `MusicManager` 에는 fetch
-구현이 보이지 않음 — `isFetchingLyrics`/`syncedLyrics` 필드만 존재.
+원래 `MusicExpandedView.LyricsPanel` (`MusicPlayerWidget.swift:175-275`) 이
+`MusicManager.shared.syncedLyrics` 를 표시하지만 fetch 경로가 없는 좀비 UI
+상태였음. 룰 §1 의 LRCLIB/NetEase 드롭 정책을 사용자 결정으로 오버라이드:
 
-룰 §1 은 LRCLIB/NetEase **의도적 드롭** 으로 명시. 의미는:
-- (a) UI 만 두고 실제로는 영원히 빈 패널 → 제거가 깔끔.
-- (b) MusicManager 에 fetch 를 채워넣되, 직접 호출 대신 `MediaController` 가
-  제공하는 metadata 만 사용.
+- `mangtch-new/boringNotch/SystemBridge/Lyrics/` 신설
+- `LRCLIBService` (actor) — `/api/get` (정확 매칭, duration+album) → `/api/search` (relaxed)
+- `NetEaseLyricsService` (actor) — `music.163.com/api/search/get` + `/api/song/lyric`
+- 응답에 script-mix 게이팅 (한글/카나/한자 + 라틴 letter 비율) 으로 K-pop/J-pop 트랙에 중국어 번역본 매칭 차단
+- 둘 다 10 분 negative-cache
+- `LRCParser` 포팅, `LRCLine` → 기존 `[(time: Double, text: String)]` 변환 (published 타입 보존)
 
-현재 코드는 (a) 의 좀비 UI 상태. **결정 필요**: LyricsPanel 자체를 제거하거나,
-fetch 를 살릴지. 룰 §1 을 엄격히 따르면 LyricsPanel 코드 삭제가 정답.
+### 4.3 트랙 변경 알림 — ✅ 완료 (`eac7fda` + `8ef6166` + `390d3cb`)
 
-### 4.3 트랙 변경 알림 (`trackChangeNotificationOverlay`)
+Mangtch `trackChangeNotificationOverlay` (노치 아래로 배너 슬라이드) 패턴
+대신 Mangtch 의 `previewWingWidth` 패턴 채택 — wing 폭을 일시 확장해 곡
+정보를 보여주고 3초 후 원복. 결정 이력:
 
-Mangtch `NotchContentView.swift:415-472` — 곡 바뀔 때 패널이 안 열려있어도
-앨범아트+제목 batch 가 노치 아래로 슬라이드 인. 사용자가 "지금 무슨 곡 시작됐지" 를
-힐끗 볼 수 있는 핵심 UX. mangtch-new 에 없음.
+- 첫 시도(`c8a6e57` → `eec711d` revert): 56pt 배너 슬라이드 다운 — 사용자
+  결정으로 폐기.
+- 채택(`eac7fda`): `MusicLayoutTokens.compactWidth: 480 → 325`,
+  `compactMinWidth: 380 → 285`, `LayoutTokens.minWingWidth: 130 → 50` (chrome
+  글로벌 floor). `PanelLayoutMetrics.resolve` 에 `previewPanelWidth: CGFloat?`
+  파라미터, `BoringViewModel.previewPanelWidth` + `setupTrackChangeObserver`
+  (sink on `MusicManager.shared.$songTitle`). 게이팅: 첫 로드/같은 제목/`.closed`
+  아닌 상태/sourceID ≠ "music-player" 모두 미동작. `computeTrackChangePreviewPanelWidth`
+  가 11pt semibold 제목 + 10pt 아티스트 측정 → 더 큰 쪽 + headroom → wing 폭
+  계산. cap = expandedWidth(640).
+- 후속(`8ef6166`): wing 폭 줄어든 결과 SwiftUI Text 가 finite 폭 제약을 못 받아
+  trailing 오버플로우 → `vm.metrics.wingWidth` 직접 읽어 `.frame(maxWidth: budget)`
+  finite cap 부과. 같은 PR 에서 Timer compact wing 도 절반.
+- 후속(`390d3cb`): compactWidth 줄인 결과 wing 이 transport 버튼(94pt)이
+  안 들어가는 폭이 됨. `MusicLayoutTokens.hoverWidth = 420` 추가, `metrics`
+  에서 `hoveredWing == .right && wingOwnerID == "music-player" && notchState != .open`
+  일 때 hover-boost 슬롯 주입. preview 와 hover 동시 활성이면 `max()`.
 
-`MusicManager.shared` 의 `nowPlaying`/`songTitle` 변화 publisher 에 sink 를
-달아 ContentView 의 ZStack 최상단에 띄우면 됨. 작업량 ~80 LOC.
-
-### 4.4 FileShelf 위젯 미등록
+### 4.4 FileShelf 위젯 미등록 — ⏳ §8 단독 인계
 
 mangtch-new 는 boring.notch 의 `Shelf/` 시리즈를 그대로 갖고 있으나
 `WidgetRegistry.registerDefaults()` 에는 미등록. Mangtch 는 `FileShelfWidget`
-을 위젯으로 등록해 wing-drop → 자동 expand 등을 구현. 룰 §1 로 보면 boring.notch
-의 Shelf 가 이미 있으니 신규 위젯이 아니라 기존을 위젯 어댑터로 감싸면 됨.
+을 위젯으로 등록해 wing-drop → 자동 expand 등을 구현. 본 마이그레이션의
+다른 갭과 결합도가 낮아 단독 인계로 분리 — **§8 참고**.
 
-이건 별 PR 거리 — 본 마이그레이션 스코프 밖이지만 추적할 가치 있음.
+### 4.5 Debug 오버레이 — ✅ 완료 (`b9bf1d9`) / HUD 위젯 — ❌ 보류
 
-### 4.5 HUD 위젯 / Debug 오버레이
+**Debug 오버레이**: `Defaults[.debugOverlay]` 토글로 4 색 정적 zone
+(yellow=hover / cyan=L wing / purple=R wing / green=notch) + 오렌지
+wing-button hit zones 시각화. ContentView 의 `wingsRow` 위에 overlay.
+`.closed` 에서는 오렌지 미렌더 (compact 에서 버튼이 opacity 0 인 layered
+상태 — 보여줘봐야 클릭 안 되는 영역). Settings → General → Notch behavior
+에 토글.
 
-Mangtch 의 `Defaults[.debugOverlay]` (zone 시각화) 와 HUD 슬롯
-(`NotchContentView.swift:401-410`) 은 mangtch-new 에 없음. HUD 는
-boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — 룰 §1 의
-"HUD-replacement 제거" 정책에 부합. Debug 오버레이는 §3 작업 시 같이 부활시키면 좋음.
+**HUD 위젯**: 보류. boring.notch `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서
+삭제된 게 룰 §1 의 "HUD-replacement 제거" 정책에 부합한다고 판단했고, Mangtch
+의 HUD 슬롯 부활 여부도 사용자 결정으로 추적 종료. 후일 필요해지면 본
+문서를 갱신할 것.
 
 ### 4.6 그 외 사소한 갭
 
@@ -281,16 +325,21 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 ---
 
-## 5. 권장 작업 순서
+## 5. 권장 작업 순서 — 사후 정리
 
-1. **§3 호버-컨트롤 (B 안)** — 본 문서의 핵심 요청. 0.5 일.
-2. **§4.1 Visualizer 좌측 wing** — 20 LOC, 같은 PR 에 묶어도 됨.
-3. **§4.3 트랙 변경 알림 오버레이** — 별 PR. ~80 LOC.
-4. **§4.2 LyricsPanel 의 거취 결정** — 사용자 결정 필요. 코드 삭제 vs fetch 부활.
-5. **§4.4 FileShelf 위젯 어댑터** — 별 PR. 본 마이그레이션 스코프 밖.
+본 마이그레이션은 아래 순서로 진행되었다 (실제 커밋 흐름).
 
-§3 작업이 끝나면 wing 동작은 Mangtch 와 사용자 관점에서 동등해진다. §4
-나머지는 미감/완성도 항목.
+1. ~~**§3 호버-컨트롤 (B 안)**~~ — ✅ `008f38a` + `3bf4a86` (grace).
+2. ~~**§4.1 Visualizer 좌측 wing**~~ — ✅ `92332bb`.
+3. ~~**§4.3 트랙 변경 알림**~~ — ✅ `eac7fda` + `8ef6166` + `390d3cb`.
+4. ~~**§4.2 LyricsPanel 거취**~~ — ✅ `7860b33` (LRCLIB+NetEase 폴백 살림).
+5. ~~**§4.5 Debug 오버레이**~~ — ✅ `b9bf1d9`.
+6. ~~**(추가) Spotify 하트**~~ — ✅ `4b122cb` (룰 §1 OAuth 드롭 오버라이드).
+7. **§4.4 FileShelf 위젯 어댑터** — ⏳ §8 단독 인계.
+8. **HUD 위젯** — ❌ 보류.
+
+§3 + §4.1~§4.5 + §7 이 끝나면 wing/패널 동작 + 메타 기능 모두 Mangtch 와
+사용자 관점에서 동등해진다. FileShelf 만 별 트랙으로 남음.
 
 ---
 
@@ -312,7 +361,9 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 ---
 
-## 7. 진행 상황 (Handoff — 2026-05-08, 2nd pass)
+## 7. 진행 상황 (최종)
+
+본 마이그레이션은 2026-05-08 완료. 잔여는 §8 (FileShelf) 단독 인계 + HUD 보류만.
 
 ### 7.1 완료
 
@@ -349,19 +400,13 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 - **§7.2 가사 — LRCLIB + NetEase 폴백** — `7860b33 feat(mangtch-new): §7.2 가사 — LRCLIBService 액터 + NetEase 폴백`. `MusicManager.fetchLyricsFromWeb` 의 인라인 LRCLIB 호출 + 자체 LRC 파서 제거, Mangtch `LRCLIBService` (actor) + `NetEaseLyricsService` (actor) + `LRCParser` 포팅해 `mangtch-new/boringNotch/SystemBridge/Lyrics/` 신설. fetch 체인: LRCLIB `/api/get` (정확 매칭, duration+album 사용) → LRCLIB `/api/search` (relaxed) → NetEase `music.163.com/api/search/get` + `/api/song/lyric`. NetEase 응답은 script-mix 게이팅 (한글/카나/한자 + 라틴 letter 비율) 으로 K-pop/J-pop 트랙에 중국어 번역본 매칭 차단. 둘 다 액터 + 10분 negative-cache. `syncedLyrics` 의 published 타입은 기존 `[(time: Double, text: String)]` 유지, `LRCLine` 에서 변환. 룰 §1 의 "LRCLIB/NetEase 드롭" 명시는 사용자 결정으로 오버라이드.
 
-### 7.2 잔여 작업 (우선순위 順)
+### 7.2 잔여 작업
 
-§4 잔여 항목들은 본 마이그레이션의 핵심 wing-hover 동작과 독립된 미감/완성도 작업이다.
-
-| 우선 | 항목 | 출처 | 규모 | 비고 |
-|---|---|---|---|---|
-| ~~1~~ | ~~좌측 wing AudioVisualizer 부활~~ | §4.1 | done | `92332bb`. `AudioSpectrumView` 4-bar 14×12 + 좌/우 wing 정렬 정리. |
-| ~~2~~ | ~~트랙 변경 알림~~ | §4.3 | done | `eac7fda` (구현체) + `8ef6166` (텍스트 clamp + Timer wing 절반). 배너 안 띄우고 wing 폭 일시 확장 — Mangtch `previewWingWidth` 패턴. 자세한 내용은 §7.1 참고. |
-| ~~1~~ | ~~LyricsPanel 거취 결정~~ | §4.2 | done | `7860b33 feat(mangtch-new): §7.2 가사 — LRCLIBService 액터 + NetEase 폴백`. 인라인 LRCLIB 호출을 actor 기반 `LRCLIBService` 로 교체, 미스 시 `NetEaseLyricsService` 로 폴백 (K-pop/CJK 커버리지). NetEase 응답은 script-mix 게이팅으로 잘못된 언어 가사 차단. 룰 §1 의 "LRCLIB/NetEase 드롭" 항목은 사용자 결정으로 오버라이드. |
-| ~~2~~ | ~~Spotify 하트(Liked Songs) 거취 결정~~ | 신규 | done | `4b122cb feat(mangtch-new): §7.2 Spotify 하트 — Web API PKCE + NowPlaying 분기`. PKCE OAuth + `/me/tracks` API 포팅. NowPlayingController/SpotifyController 둘 다 분기. Settings → Media → Spotify 에서 Client ID 입력. |
-| 3 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
-| ~~3~~ | ~~Debug 오버레이 (zone 시각화)~~ | §4.5 | done | `b9bf1d9`. 4 색 정적 zone + 오렌지 wing-button hit zones. Settings → General → Notch behavior → "Debug zone overlay" 토글. `.closed` 에서는 오렌지 미렌더. 자세한 내용은 §7.1 참고. |
-| 4 | (옵션) 매우 긴 제목 marquee | §4.3 후속 | ~30 LOC | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(8ef6166 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll fallback. |
+| 항목 | 출처 | 상태 | 비고 |
+|---|---|---|---|
+| FileShelf 위젯 어댑터 | §4.4 | ⏳ 단독 인계 | 본 마이그레이션과 결합도 낮음. 상세는 **§8**. |
+| HUD 위젯 부활 | §4.5 | ❌ 보류 | 룰 §1 "HUD-replacement 제거" 정책에 따라 추적 종료. 후일 필요해지면 본 문서를 갱신. |
+| (옵션) 매우 긴 제목 marquee | §4.3 후속 | 미감 | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(`8ef6166` 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll. |
 
 ### 7.3 다음 작업자에게
 
@@ -388,3 +433,86 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 - **트랙 변경 시뮬레이션** — 실제 곡 바뀌는 거 기다리기 귀찮으면 `MusicManager.shared.songTitle` 에 직접 다른 값 할당해도 publisher 가 fire 함 (테스트 한정). 평상시는 `nowPlayingObserver` 가 자동 갱신.
 
 - **Debug zone overlay 켜기** — `b9bf1d9` 의 §4.5 도구. Settings → General → Notch behavior → "Debug zone overlay" 토글. wing/notch 클릭 안 됨, hover 영역 안 잡힘, hit zone 어긋남 류 디버깅에 필수. 4 색 정적 zone 은 metrics-driven 이라 panelWidth/wingWidth 가 의도대로 변하는지 즉시 보임 (트랙 변경 preview, hover-boost 둘 다 시각 검증 가능). 오렌지 hit zone 은 PreferenceKey 리포트 결과 — wing 컨텐츠 layout 이 클릭 영역과 어긋나면 여기서 잡힘. `.closed` 에선 오렌지 안 그림 (compact 에서 invisible 한 버튼 영역까지 표시하면 노이즈) — hover 한 번 거쳐서 봐야 함.
+
+---
+
+## 8. FileShelf 위젯 어댑터 — 단독 인계
+
+본 마이그레이션과 결합도가 낮아 분리. 본 트랙(§3 ~ §7) 과 무관하게 독립
+PR 로 진행 가능.
+
+### 8.1 현재 상태
+
+**Mangtch (`Sources/components/Shelf/`)** — 4 파일:
+- `FileShelfWidget.swift` — `NotchWidget` 구현. `id="file-shelf"`, `preferredPosition: .rightWing`,
+  `makeCompactView()` 가 최대 3개 아이템 + `+N` 카운트.
+- `FileShelfViewModel.swift` — items, drop, open, removeAt, revealInFinder.
+- `FileShelfItemView.swift` — 단일 아이템 컴팩트 thumbnail.
+- `FileShelfDropDelegate.swift` — 드래그 감지 → wing 자동 expand.
+
+**mangtch-new (`boringNotch/components/Shelf/`)** — boring.notch 베이스 시리즈를 그대로 갖고 있음. 18 파일:
+- Models: `ShelfItem`, `Bookmark`
+- ViewModels: `ShelfStateViewModel.shared` (싱글톤), `ShelfItemViewModel`, `ShelfSelectionModel`
+- Views: `ShelfView`, `ShelfItemView`, `FileShareView`, `DragPreviewView`
+- Services: `ShelfDropService`, `ShelfPersistenceService`, `ShelfActionService`, `QuickShareService`,
+  `ShareServiceFinder`, `ThumbnailService`, `ImageProcessingService`, `TemporaryFileStorageService`,
+  `QuickLookService`
+
+이미 ContentView 의 `dragDetector` 가 `coordinator.currentView = .shelf` + `vm.open()` 으로
+드롭시 자동 expand 시키고 있음. `ShelfStateViewModel.shared.load(providers)` 가 데이터 진입점.
+**그러나 `WidgetRegistry.registerDefaults()` 에는 미등록** (`MusicPlayerWidget`, `TimerWidget`,
+`KBOWidget` 만 등록).
+
+### 8.2 작업 범위
+
+boring.notch 의 Shelf 시리즈를 *기존 그대로 살린 채* `NotchWidget` 어댑터로 감싸는 것이 정공법.
+신규 위젯이 아니라 어댑터 계층.
+
+1. **`ShelfWidget` 신설** (`mangtch-new/boringNotch/components/Shelf/ShelfWidget.swift`):
+   - `id = "shelf"` (혹은 `"file-shelf"` — Mangtch 호환 원하면 후자)
+   - `displayName = "Shelf"`, `icon = "tray"` (혹은 `"shippingbox"`)
+   - `wingPriority` — Music 보다 높고 Timer/KBO 와 어떻게 경쟁할지 결정 필요. Mangtch 에서는
+     drag 시 자동 expand 라 우선순위 의식 안 했지만, mangtch-new 의 `wingOwnerID` 우선순위
+     체인 기준으론 `claimsWings: !ShelfStateViewModel.shared.isEmpty` 정도가 적절.
+   - `widthRange` — Mangtch 는 `preferredPanelWidth: nil` (자유 폭). mangtch-new 는 `WidthRange`
+     필수. `ShelfView` 의 가로 needs 측정 후 `WidthRange(min: 360, ideal: 480, max: 640)` 정도.
+   - `heightRange` — `ShelfView` 의 그리드가 동적이라 `HeightRange.fixed` 보다는 동적
+     계산 필요. KBO 의 `heightRange` 패턴 참고.
+   - `makeLeftWingView` / `makeRightWingView` — Mangtch 의 컴팩트 (최대 3 + `+N`) 패턴을
+     mangtch-new 의 `ShelfItemView` 로 다시 그리거나, 빈 wing 으로 두고 우측에만 표시할지
+     컨벤션 결정.
+   - `makeExpandedView` — 기존 `ShelfView()` 그대로 반환.
+   - `activate` / `deactivate` — `ShelfStateViewModel.shared` 가 이미 싱글톤 영구 mount 라
+     no-op 으로 충분.
+
+2. **`WidgetRegistry.registerDefaults` 에 등록** — `register(ShelfWidget())` 한 줄 추가.
+
+3. **Drop 감지 일원화** — 현재 `ContentView.dragDetector` 가 `Defaults[.boringShelf] && vm.notchState != .open` 일 때만
+   살아있음. 위젯 등록 후엔 위젯 자체의 drop target 이 우선이어야 자연스러움. `ShelfWidget`
+   이 `claimsWings` 일 때 wing 영역 자체가 drop target 이 되도록 — Mangtch `FileShelfDropDelegate`
+   포팅.
+
+4. **`Defaults[.boringShelf]` 토글과의 관계** — 사용자가 Settings 에서 끌 수 있음. 위젯 등록은
+   `isEnabled = Defaults[.boringShelf]` 로 바인딩하거나 `unregister` 토글.
+
+5. **트랙 변경 preview 와의 충돌** — `previewPanelWidth` 게이팅이 `sourceID == "music-player"`
+   일 때만 동작하므로, Shelf 가 wing owner 일 때는 자동 비활성. 컨벤션 OK.
+
+### 8.3 결정 필요 항목
+
+- **Mangtch 와 ID 호환성** — `id = "file-shelf"` 로 가면 user defaults 의 `currentExpandedWidgetID`
+  마이그레이션 이슈 없음. 새 ID `"shelf"` 가 더 깔끔하지만 기존 사용자 settings 가 깨짐.
+- **boring.notch `ShelfView` vs Mangtch UX** — boring.notch 는 그리드 + 메타 풍부, Mangtch 는
+  컴팩트 3-아이템 row. mangtch-new 는 boring.notch UI 를 재사용해 진화하는 방향이 일관 — Mangtch
+  컴팩트 row 는 wing 에만 살리고 expanded 는 boring.notch 그대로.
+- **Drop UX** — wing-drop 즉시 expand 가 Mangtch 동작. mangtch-new 의 현재 ContentView dragDetector
+  도 사실상 같은 동작 — 위젯 등록 후 이 부분 걷어낼지, 위젯 등록 안 된 상태(Settings 에서 OFF)
+  의 fallback 으로 둘지.
+
+### 8.4 작업량 추정
+
+- 어댑터 + 등록만: 0.3 일.
+- Drop UX 일원화 + Mangtch 컴팩트 row 까지 포함: 0.5 일.
+- QA: 0.5 일 (드롭 / wing-owner 우선순위 / 다른 위젯과의 전환 / 멀티 디스플레이).
+
+본 마이그레이션의 §3 (1.5 일) / §4.3 (반나절) 와 비슷한 규모. 단독 PR 로 충분히 종결 가능.
