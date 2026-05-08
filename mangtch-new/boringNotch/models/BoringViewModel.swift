@@ -377,6 +377,19 @@ class BoringViewModel: NSObject, ObservableObject {
         return false
     }
 
+    /// Transition into the intermediate hover state. Wings stay compact —
+    /// only widget-level hover affordances (transport controls, KBO
+    /// toggles) reveal. Called by GestureHandler when the cursor enters
+    /// the hover zone from `.closed`. Direct invocations of `open()`
+    /// skip this and go straight to expanded.
+    func hover() {
+        // Defensive: never demote .open back to .hovering. The dwell timer
+        // in GestureHandler can race the cursor leaving the wing — only
+        // close() can step down from .open.
+        if notchState == .open { return }
+        notchState = .hovering
+    }
+
     func open() {
         // Mangtch wing/panel layout drives expanded sizing via WidgetRegistry +
         // ContentView, not by overwriting notchSize. notchSize stays at the

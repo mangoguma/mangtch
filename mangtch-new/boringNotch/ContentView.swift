@@ -77,7 +77,10 @@ struct ContentView: View {
             anyDropDebounceTask?.cancel()
 
             if isTargeted {
-                if vm.notchState == .closed {
+                // Drop escalates the panel to fully open from either
+                // pre-expanded state — .hovering counts as "not yet open"
+                // here, the user intent is dropping files into the shelf.
+                if vm.notchState != .open {
                     coordinator.currentView = .shelf
                     vm.open()
                 }
@@ -307,7 +310,10 @@ struct ContentView: View {
 
     @ViewBuilder
     var dragDetector: some View {
-        if Defaults[.boringShelf] && vm.notchState == .closed {
+        // The fullscreen drop catcher only makes sense before the panel
+        // is committed open — both .closed and .hovering qualify (panel is
+        // still compact, so an external file drag should still register).
+        if Defaults[.boringShelf] && vm.notchState != .open {
             Color.clear
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())

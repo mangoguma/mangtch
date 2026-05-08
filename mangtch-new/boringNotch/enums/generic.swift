@@ -20,7 +20,17 @@ public enum ContentType: Int, Codable, Hashable, Equatable {
 }
 
 public enum NotchState {
+    /// No cursor on or near the notch — wings sit at compact width with no
+    /// hover affordances visible.
     case closed
+    /// Cursor entered the wing/notch hover zone but hasn't dwelled on the
+    /// notch body long enough to commit to expand. Wings stay at compact
+    /// width; widgets reveal hover-only controls (transport, KBO toggles).
+    /// Panel does **not** open from this state — only `case .open` does.
+    case hovering
+    /// Panel is fully expanded — full canvas width, expanded widget body
+    /// rendered. Reached only via dwell on the notch body itself, never
+    /// from dwell on a wing (the user is reaching for a wing control).
     case open
 }
 

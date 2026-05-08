@@ -73,30 +73,52 @@ struct MusicCompactArtwork: View {
 
 struct MusicCompactInfo: View {
     @ObservedObject private var music = MusicManager.shared
+    @EnvironmentObject private var notchVM: BoringViewModel
 
     var body: some View {
-        HStack(spacing: LayoutTokens.compactRowSpacing) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(music.songTitle)
-                    .font(TypographyTokens.compactTitle)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(music.artistName)
-                    .font(TypographyTokens.compactSubtitle)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            HStack(spacing: LayoutTokens.compactTransportSpacing) {
-                controlButton(icon: "backward.fill")
-                    .wingHitZone(.musicPrev)
-                controlButton(icon: music.isPlaying ? "pause.fill" : "play.fill")
-                    .wingHitZone(.musicPlayPause)
-                controlButton(icon: "forward.fill")
-                    .wingHitZone(.musicNext)
-            }
+        // Both layers stay mounted across the swap. `if/else` would
+        // remount the Button subtree every hover toggle and break
+        // SwiftUI's mouseDown↔mouseUp tracking inside `.nonactivatingPanel`
+        // (clicks would only register every other press). Mirroring
+        // Mangtch's `CompactArtworkView` ZStack pattern keeps the
+        // tracking session alive — only opacity + hit-testing flips.
+        let isHovering = notchVM.hoveredWing == .right
+        ZStack {
+            trackInfoView
+                .opacity(isHovering ? 0 : 1)
+                .allowsHitTesting(!isHovering)
+            transportControls
+                .opacity(isHovering ? 1 : 0)
+                .allowsHitTesting(isHovering)
         }
         .padding(.horizontal, LayoutTokens.compactHorizontalPadding)
+        .animation(.easeInOut(duration: 0.18), value: isHovering)
+    }
+
+    private var trackInfoView: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(music.songTitle)
+                .font(TypographyTokens.compactTitle)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Text(music.artistName)
+                .font(TypographyTokens.compactSubtitle)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var transportControls: some View {
+        HStack(spacing: LayoutTokens.compactTransportSpacing) {
+            controlButton(icon: "backward.fill")
+                .wingHitZone(.musicPrev)
+            controlButton(icon: music.isPlaying ? "pause.fill" : "play.fill")
+                .wingHitZone(.musicPlayPause)
+            controlButton(icon: "forward.fill")
+                .wingHitZone(.musicNext)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func controlButton(icon: String) -> some View {

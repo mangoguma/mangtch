@@ -62,6 +62,14 @@ struct DynamicNotchApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    /// SwiftUI's `@NSApplicationDelegateAdaptor` installs its own
+    /// `SwiftUI.AppDelegate` wrapper as `NSApplication.shared.delegate`, so
+    /// downstream code that tries `delegate as? AppDelegate` silently sees
+    /// nil. Expose ourselves through this weak singleton instead — set in
+    /// `applicationDidFinishLaunching` and read by `GestureHandler` for
+    /// `viewModel(under:)` resolution.
+    static weak var shared: AppDelegate?
+
     var statusItem: NSStatusItem?
     var windows: [String: NSWindow] = [:] // UUID -> NSWindow
     var viewModels: [String: BoringViewModel] = [:] // UUID -> BoringViewModel
@@ -295,6 +303,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // See `AppDelegate.shared` doc — SwiftUI wraps the delegate, so
+        // we publish ourselves explicitly for non-SwiftUI consumers.
+        AppDelegate.shared = self
 
         NotificationCenter.default.addObserver(
             self,
@@ -403,7 +414,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.closeNotchTask = nil
 
                 switch viewModel.notchState {
-                case .closed:
+                case .closed, .hovering:
+                    // External toggle (menubar shortcut, etc.) treats the
+                    // intermediate hover state as "not yet shown" — the
+                    // user's intent is to surface the panel, so commit to
+                    // .open and schedule the auto-close.
                     await MainActor.run {
                         viewModel.open()
                     }
@@ -513,7 +528,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if let window = windows[uuid], let viewModel = viewModels[uuid] {
                     positionWindow(window, on: screen, changeAlpha: changeAlpha)
 
-                    if viewModel.notchState == .closed {
+                    // After a screen reconfig we want every non-open
+                    // panel back at a clean closed baseline — .hovering
+                    // would otherwise leak across the reposition with
+                    // a stale wing layout.
+                    if viewModel.notchState != .open {
                         viewModel.close()
                     }
                 }
@@ -545,7 +564,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let window = window {
                 positionWindow(window, on: selectedScreen, changeAlpha: changeAlpha)
 
-                if vm.notchState == .closed {
+                // Same baseline reset as the multi-display branch — bring
+                // .hovering back to closed so a screen-change mid-hover
+                // doesn't strand the panel in the intermediate state.
+                if vm.notchState != .open {
                     vm.close()
                 }
             }

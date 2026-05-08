@@ -92,8 +92,17 @@ final class GestureHandler {
 
     // MARK: - AppDelegate accessor
 
+    /// Resolve our `AppDelegate` instance.
+    ///
+    /// SwiftUI's `@NSApplicationDelegateAdaptor` plants a private
+    /// `SwiftUI.AppDelegate` wrapper as `NSApplication.shared.delegate` and
+    /// proxies callbacks down to the wrapped instance — meaning the cast
+    /// `delegate as? AppDelegate` returns nil even though our delegate IS
+    /// the live one. We rely on the explicit `AppDelegate.shared` weak
+    /// pointer (set in `applicationDidFinishLaunching`) to bypass the
+    /// wrapper.
     private var appDelegate: AppDelegate? {
-        NSApplication.shared.delegate as? AppDelegate
+        AppDelegate.shared
     }
 
     /// Returns the view model whose window contains `point`, or nil.
@@ -134,8 +143,9 @@ final class GestureHandler {
 
     private func handleMouseMoved(at point: NSPoint) {
         guard let vm = viewModel(under: point) else {
-            // Cursor on a screen with no panel — collapse hovering panels.
-            for vm in allViewModels where vm.notchState == .open {
+            // Cursor on a screen with no panel — collapse any non-closed
+            // panels (.hovering as well as .open).
+            for vm in allViewModels where vm.notchState != .closed {
                 vm.close()
             }
             return
@@ -195,22 +205,28 @@ final class GestureHandler {
             vm.hoveredWing = newWingHover
         }
 
+        let key = ObjectIdentifier(vm)
         switch vm.notchState {
         case .closed:
+            // Cursor enters wing/notch zone → reveal hover affordances. Do
+            // NOT open the panel here — Mangtch's three-state contract
+            // requires a dwell on the notch body before commit-to-expand.
             if hoverZone.contains(point) {
-                vm.open()
+                vm.hover()
             }
 
-        case .open:
-            let key = ObjectIdentifier(vm)
-            // Auto-expand dwell only over the notch body, not wings.
+        case .hovering:
+            // Auto-expand dwell only over the notch body. Dwell over a
+            // wing keeps the controls visible without opening the panel —
+            // the user is reaching for prev/play/next or KBO toggles, not
+            // asking for the expanded canvas.
             if notchZone.contains(point) {
                 if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
                     let duration = Defaults[.minimumHoverDuration]
-                    pendingExpandTasks[key] = Task { @MainActor [weak self] in
+                    pendingExpandTasks[key] = Task { @MainActor [weak self, weak vm] in
                         try? await Task.sleep(for: .seconds(duration))
                         guard !Task.isCancelled else { return }
-                        // Already open — nothing to do (boring.notch open == expanded).
+                        vm?.open()
                         self?.pendingExpandTasks.removeValue(forKey: key)
                     }
                 }
@@ -218,7 +234,19 @@ final class GestureHandler {
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
             }
-            // Collapse when mouse leaves hover zone entirely.
+            // Cursor escaped the wing+notch hover footprint → drop back
+            // to fully closed.
+            if !hoverZone.contains(point) {
+                pendingExpandTasks[key]?.cancel()
+                pendingExpandTasks.removeValue(forKey: key)
+                vm.close()
+            }
+
+        case .open:
+            // Once expanded, only the (now larger) hoverZone — which
+            // includes the panel body via `extraOpenHeight` — gates
+            // collapse. No dwell logic here; .open is terminal until
+            // the cursor leaves.
             if !hoverZone.contains(point) {
                 pendingExpandTasks[key]?.cancel()
                 pendingExpandTasks.removeValue(forKey: key)
@@ -229,15 +257,17 @@ final class GestureHandler {
 
     private func handleGlobalClick(at point: NSPoint) {
         guard let vm = viewModel(under: point) else {
-            for vm in allViewModels where vm.notchState == .open {
+            for vm in allViewModels where vm.notchState != .closed {
                 vm.close()
             }
             return
         }
 
         switch vm.notchState {
-        case .open:
-            // Dispatch wing button clicks via the hit-zone map.
+        case .open, .hovering:
+            // Wing controls live on both .hovering and .open — the
+            // transport buttons fade in on hover and stay during the
+            // expanded panel. Dispatch wing-button clicks in either state.
             handleWingClick(at: point, viewModel: vm)
 
         case .closed:
@@ -276,8 +306,8 @@ final class GestureHandler {
 
     private func handleKeyDown(_ event: NSEvent) {
         switch event.keyCode {
-        case 53: // Escape — collapse every open panel
-            for vm in allViewModels where vm.notchState == .open {
+        case 53: // Escape — collapse every non-closed panel (.hovering and .open)
+            for vm in allViewModels where vm.notchState != .closed {
                 vm.close()
             }
         default:

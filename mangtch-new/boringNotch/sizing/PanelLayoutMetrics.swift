@@ -23,7 +23,14 @@ struct PanelLayoutMetrics: Equatable {
         let widthR = widget?.widthRange ?? .default
         let heightR = widget?.heightRange ?? .default
 
-        let widthTarget = state == .open ? widthR.max : widthR.ideal
+        // `.hovering` is intentionally compact — the wing reveals controls
+        // via opacity swap, but the panel doesn't grow. Only `.open`
+        // (committed expand after notch-body dwell) snaps to `max`.
+        let widthTarget: CGFloat
+        switch state {
+        case .closed, .hovering: widthTarget = widthR.ideal
+        case .open:              widthTarget = widthR.max
+        }
         let panelW = clamp(widthTarget, min: widthR.min, max: widthR.max)
         let wingW = clamp((panelW - notchSize.width) / 2,
                           min: LayoutTokens.minWingWidth,
