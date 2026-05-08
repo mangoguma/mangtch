@@ -78,10 +78,28 @@ class BoringViewModel: NSObject, ObservableObject {
     var metrics: PanelLayoutMetrics {
         let sourceID = notchState == .open ? currentExpandedWidgetID : wingOwnerID
         let widget = WidgetRegistry.shared.widget(for: sourceID)
-        // `previewPanelWidth` only applies when Music owns the wings —
-        // it's a track-change cue, irrelevant when KBO/Timer takeover is
-        // showing their own content.
-        let preview = (sourceID == "music-player") ? previewPanelWidth : nil
+        // Two `.closed/.hovering`-state width boosts overlap when Music
+        // owns the wings:
+        //   1. `previewPanelWidth` — track-change text-fit (3s window)
+        //   2. `hoverWidth`        — cursor on right wing, expand so
+        //      transport controls (94pt) fit in the wing
+        // Larger wins. Both are gated to Music — KBO/Timer have their
+        // own widthRange and don't care.
+        let preview: CGFloat?
+        if sourceID == "music-player" {
+            let trackBoost = previewPanelWidth
+            let hoverBoost: CGFloat? =
+                (notchState != .open && hoveredWing == .right)
+                ? MusicLayoutTokens.hoverWidth : nil
+            switch (trackBoost, hoverBoost) {
+            case let (a?, b?): preview = max(a, b)
+            case let (a?, nil): preview = a
+            case let (nil, b?): preview = b
+            case (nil, nil): preview = nil
+            }
+        } else {
+            preview = nil
+        }
         return PanelLayoutMetrics.resolve(widget: widget,
                                           notchSize: notchSize,
                                           state: notchState,
@@ -309,7 +327,10 @@ class BoringViewModel: NSObject, ObservableObject {
         // depending on `notchState`, so both must trigger recomputation.
         let sourcesA = Publishers.CombineLatest($notchSize, $notchState)
         let sourcesB = Publishers.CombineLatest($currentExpandedWidgetID, $wingOwnerID)
-        sourcesA.combineLatest(sourcesB, $previewPanelWidth)
+        // `$hoveredWing` joins the chain so the Music hover-width boost
+        // (right-wing controls expansion) re-fires `recomputeMetrics`.
+        let sourcesC = Publishers.CombineLatest($previewPanelWidth, $hoveredWing)
+        sourcesA.combineLatest(sourcesB, sourcesC)
             .sink { [weak self] _, _, _ in
                 Task { @MainActor [weak self] in
                     self?.recomputeMetrics()
