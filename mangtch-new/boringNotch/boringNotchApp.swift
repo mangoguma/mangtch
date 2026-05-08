@@ -307,6 +307,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // we publish ourselves explicitly for non-SwiftUI consumers.
         AppDelegate.shared = self
 
+        // LSUIElement apps don't get application(_:open:), so we register
+        // an Apple Event handler for the Spotify OAuth callback (mangtch://).
+        SpotifyURLHandler.shared.register()
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenConfigurationDidChange),

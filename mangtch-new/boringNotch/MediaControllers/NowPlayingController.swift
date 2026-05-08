@@ -30,12 +30,15 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     var supportsFavorite: Bool {
         let bundleID = playbackState.bundleIdentifier
-        return bundleID == "com.apple.Music"
+        // Spotify support is gated on Web API auth in MusicManager — we just
+        // advertise capability here. Apple Music uses the local AppleScript
+        // `favorited` property.
+        return bundleID == "com.apple.Music" || bundleID == "com.spotify.client"
     }
 
     func setFavorite(_ favorite: Bool) async {
         let bundleID = playbackState.bundleIdentifier
-        
+
         if bundleID == "com.apple.Music" {
             let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
             if !runningApps.isEmpty {
@@ -48,11 +51,46 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                 """
                 try? await AppleScriptHelper.executeVoid(script)
             }
+        } else if bundleID == "com.spotify.client" {
+            // Spotify's AppleScript `starred` is read-only / no-op since the
+            // Liked Songs library replaced the old Star feature. Route
+            // through the Web API instead — needs the track URI from the
+            // running Spotify app.
+            guard let trackID = await fetchSpotifyTrackID() else { return }
+            let success = await SpotifyAPI.shared.setLiked(trackID: trackID, liked: favorite)
+            guard success else { return }
+            var updated = self.playbackState
+            updated.isFavorite = favorite
+            updated.lastUpdated = Date()
+            self.playbackState = updated
+            return
         }
-        
+
         // Update the favorite state locally and fetch updated info
         try? await Task.sleep(for: .milliseconds(150))
         await updatePlaybackInfo()
+    }
+
+    /// Pull the current track URI from Spotify via AppleScript and reduce
+    /// it to a bare base62 ID. Returns nil if Spotify isn't running or
+    /// hasn't reported a track yet.
+    private func fetchSpotifyTrackID() async -> String? {
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.spotify.client")
+        guard !runningApps.isEmpty else { return nil }
+
+        let script = """
+        tell application "Spotify"
+            try
+                return id of current track
+            on error
+                return ""
+            end try
+        end tell
+        """
+        guard let result = try? await AppleScriptHelper.execute(script),
+              let raw = result.stringValue, !raw.isEmpty
+        else { return nil }
+        return SpotifyTrackID.extract(from: raw)
     }
 
     private var lastMusicItem:
@@ -294,18 +332,18 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
         newPlaybackState.volume = payload.volume ?? (diff ? self.playbackState.volume : 0.5)
         
         self.playbackState = newPlaybackState
-        
+
         // Fetch favorite state for supported apps asynchronously
-        // await fetchFavoriteStateIfSupported()
+        await fetchFavoriteStateIfSupported()
     }
-    
+
      private func fetchFavoriteStateIfSupported() async {
          let bundleID = playbackState.bundleIdentifier
-        
+
          if bundleID == "com.apple.Music" {
              let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music")
              guard !runningApps.isEmpty else { return }
-             
+
              let script = """
              tell application "Music"
                  try
@@ -320,6 +358,13 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
                  updated.isFavorite = result.booleanValue
                  self.playbackState = updated
              }
+         } else if bundleID == "com.spotify.client" {
+             guard await SpotifyAuth.shared.isAuthorized,
+                   let trackID = await fetchSpotifyTrackID() else { return }
+             let liked = await SpotifyAPI.shared.isLiked(trackID: trackID)
+             var updated = self.playbackState
+             updated.isFavorite = liked
+             self.playbackState = updated
          }
      }
     

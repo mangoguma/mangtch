@@ -657,6 +657,8 @@ struct Media: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            SpotifySettingsSection()
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Media")

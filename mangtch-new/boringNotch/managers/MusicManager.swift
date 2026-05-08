@@ -86,9 +86,37 @@ class MusicManager: ObservableObject {
                 print("Failed to check deprecation status: \(error). Defaulting to false.")
                 self.isNowPlayingDeprecated = false
             }
-            
+
             // Initialize the active controller after deprecation check
             self.setActiveControllerBasedOnPreference()
+
+            // SpotifyController.supportsFavorite is always true, but the
+            // Web API call is a no-op without OAuth — gate canFavoriteTrack
+            // on the live auth state and refresh when sign-in/out happens.
+            SpotifyAuth.shared.$isAuthorized
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.refreshCanFavoriteTrack()
+                }
+                .store(in: &self.cancellables)
+        }
+    }
+
+    @MainActor
+    private func refreshCanFavoriteTrack() {
+        guard let controller = activeController else {
+            canFavoriteTrack = false
+            return
+        }
+        // Spotify (whether routed via SpotifyController directly or via the
+        // NowPlaying + Spotify bundle path) needs Web API auth — the heart
+        // is a no-op without it. Apple Music etc. just trust the controller.
+        let needsSpotifyAuth = controller is SpotifyController
+            || bundleIdentifier == "com.spotify.client"
+        if needsSpotifyAuth {
+            canFavoriteTrack = controller.supportsFavorite && SpotifyAuth.shared.isAuthorized
+        } else {
+            canFavoriteTrack = controller.supportsFavorite
         }
     }
 
@@ -171,8 +199,10 @@ class MusicManager: ObservableObject {
 
         // Set new active controller
         activeController = controller
-        
-        self.canFavoriteTrack = controller.supportsFavorite
+
+        Task { @MainActor in
+            self.refreshCanFavoriteTrack()
+        }
 
         // Get current state from active controller
         forceUpdate()
@@ -275,6 +305,9 @@ class MusicManager: ObservableObject {
             self.bundleIdentifier = state.bundleIdentifier
             // Update volume control support from active controller
             self.volumeControlSupported = activeController?.supportsVolumeControl ?? false
+            // NowPlayingController.supportsFavorite is bundle-dependent, so
+            // re-evaluate when the active app switches (e.g. Spotify → Music).
+            self.refreshCanFavoriteTrack()
         }
 
         if repeatModeChanged {

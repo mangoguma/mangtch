@@ -232,4 +232,9 @@ extension Defaults.Keys {
     static let kboSelectedGameID = Key<String?>("kboSelectedGameID", default: nil)
     static let kboTickerEnabled = Key<Bool>("kboTickerEnabled", default: true)
     static let kboTextToSpeechEnabled = Key<Bool>("kboTextToSpeechEnabled", default: false)
+
+    // MARK: Spotify
+    /// Spotify Web API Client ID (PKCE flow — no secret).
+    /// User pastes this from https://developer.spotify.com/dashboard.
+    static let spotifyClientID = Key<String>("spotifyClientID", default: "")
 }
