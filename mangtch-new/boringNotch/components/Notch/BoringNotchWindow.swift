@@ -80,10 +80,11 @@ class BoringNotchWindow: NSPanel {
     func resizeWindow(metrics: PanelLayoutMetrics,
                       notchHeight: CGFloat,
                       isOpen: Bool,
+                      closedBannerHeight: CGFloat = 0,
                       animated: Bool = true) {
         let height: CGFloat = isOpen
             ? notchHeight + metrics.totalHeight + LayoutTokens.shadowPadding
-            : notchHeight + LayoutTokens.shadowPadding
+            : notchHeight + closedBannerHeight + LayoutTokens.shadowPadding
         let width: CGFloat = metrics.panelWidth
 
         let anchorScreen = self.screen ?? NSScreen.main
