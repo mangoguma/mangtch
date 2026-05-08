@@ -296,13 +296,54 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 ## 6. 검증 체크리스트 (§3 마무리 시)
 
-- [ ] hover 시: 우측 wing 의 title/artist 가 prev/play/next 로 fade — 0.18s
-- [ ] hover 시: 패널은 **안** 열린다 (closed → hovering, 폭 그대로)
-- [ ] notch 본체 dwell (`Defaults[.minimumHoverDuration]`) → 패널 open
-- [ ] wing 위 dwell → 패널 안 열림 (사용자가 컨트롤 누르려는 의도)
-- [ ] hover 영역 이탈 → closed
-- [ ] play/pause 클릭 → 한번에 동작 (mouseDown 트래킹 끊김 없음)
-- [ ] 재생 중 좌측 wing 에 visualizer 노출 (선택)
-- [ ] 멀티 디스플레이: 각 패널 hoveredWing 독립
-- [ ] KBO 가 wing 을 가져갈 때 (live game) 도 호버 컨트롤 분기 정상
-- [ ] `xcodebuild` 통과, ad-hoc 사인 + `/Applications/Mangtch-new.app` 재설치
+- [x] hover 시: 우측 wing 의 title/artist 가 prev/play/next 로 fade — 0.18s
+- [x] hover 시: 패널은 **안** 열린다 (closed → hovering, 폭 그대로)
+- [x] notch 본체 dwell (`Defaults[.minimumHoverDuration]`) → 패널 open
+- [x] wing 위 dwell → 패널 안 열림 (사용자가 컨트롤 누르려는 의도)
+- [x] hover 영역 이탈 → closed (단, `.open` → close 는 0.5s grace — §7.2 참고)
+- [x] play/pause 클릭 → 한번에 동작 (mouseDown 트래킹 끊김 없음)
+- [ ] 재생 중 좌측 wing 에 visualizer 노출 (§4.1 — 미수행)
+- [x] 멀티 디스플레이: 각 패널 hoveredWing 독립
+- [x] KBO 가 wing 을 가져갈 때 (live game) 도 호버 컨트롤 분기 정상
+- [x] `xcodebuild` 통과, ad-hoc 사인 + `/Applications/Mangtch-new.app` 재설치
+
+---
+
+## 7. 진행 상황 (Handoff — 2026-05-08)
+
+### 7.1 완료
+
+- **§3 B 안 풀 구현** — `008f38a feat(mangtch-new): wing hover-controls via .hovering intermediate state` (8 files, +459/-41)
+  - `NotchState.hovering` 추가 + `BoringViewModel.hover()` 메소드 (`.open` 데모트 가드 포함)
+  - `PanelLayoutMetrics.resolve` 의 `state` 3-갈래 처리 (`.closed`/`.hovering`→ideal, `.open`→max)
+  - `GestureHandler.handleMouseMoved` 3-state 재구성: `.closed`→`hover()`, `.hovering` 에서 notch 본체 dwell 시 `open()`, wing dwell 은 무시
+  - `MusicCompactInfo` ZStack 호버-스왑 (opacity + `allowsHitTesting`, 0.18s easeInOut)
+  - 기존 `notchState == .open` 분기 의미 단위 재라우팅 (ContentView drop targeting, boringNotchApp togglePopover/screen-reset)
+
+- **(보너스) `AppDelegate.shared` 캐스트 픽스** — `§3` 빌드 후 검증 중 발견. SwiftUI 의 `@NSApplicationDelegateAdaptor` 가 `SwiftUI.AppDelegate` 래퍼를 `NSApplication.shared.delegate` 로 설치 → 기존 `delegate as? AppDelegate` 가 항상 nil → `viewModel(under:)` 가 nil 을 반환 → `hoveredWing` 업데이트 자체가 차단되던 잠재 버그. `AppDelegate.shared` weak singleton 으로 우회.
+
+- **(추가 결정) `.open` → close 0.5s grace period** — `3bf4a86 feat(mangtch-new): 0.5s grace period before .open auto-close`. 짧은 cursor 이탈에 패널이 즉시 닫히던 동작이 거슬려 grace 도입. `.hovering` 은 즉시 close 유지 (transient 상태).
+
+### 7.2 잔여 작업 (우선순위 順)
+
+§4 잔여 항목들은 본 마이그레이션의 핵심 wing-hover 동작과 독립된 미감/완성도 작업이다.
+
+| 우선 | 항목 | 출처 | 규모 | 비고 |
+|---|---|---|---|---|
+| 1 | 좌측 wing AudioVisualizer 부활 | §4.1 | ~20 LOC | 재생 중 album-art 옆 막대. boring.notch `MusicVisualizer.swift` 가 이미 있으니 wing 사이즈로 스케일만. |
+| 2 | 트랙 변경 알림 오버레이 | §4.3 | ~80 LOC | Mangtch `NotchContentView.swift:415-472` 의 `trackChangeNotificationOverlay` 패턴 그대로. `MusicManager.shared` 의 `nowPlaying`/`songTitle` publisher 에 sink 달아 ContentView ZStack 최상단에 슬라이드 인. |
+| 3 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
+| 4 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
+| 5 | Debug 오버레이 (zone 시각화) | §4.5 | ~50 LOC | `Defaults[.debugOverlay]` 토글로 hoverZone/notchZone/leftWing/rightWing rect 렌더. §3 류 작업 디버깅에 매우 유용 — 이번에 직접 print 박아 추적했는데 zone 시각화 있었으면 한 번에 잡혔을 것. |
+
+### 7.3 다음 작업자에게
+
+- **상태머신 컨벤션** — `.closed/.hovering/.open` 셋만 존재. 새 코드에서 `notchState ==` 분기 추가 시 의미 단위로 셋 다 고려: 패널 폭 기준이면 `.open` 만, hit-testing 이면 `.open` 만, wing 컨텐츠 노출이면 `!= .closed`, hover 영역 유지면 `!= .closed`. fallback `!= .closed` / `!= .open` 한 줄 swap 으로 퉁치지 말 것 — §3.3 Step 1 참고.
+
+- **AnyView 캐싱과 `@EnvironmentObject`** — `AnyNotchWidget.{leftWingView,rightWingView}` 가 위젯 등록 시 한 번 만들어져 영구 보관됨. 그 안에 `@EnvironmentObject` 가 들어 있어도 SwiftUI 트리 재구축에서 정상 반응함이 검증됨 (`MusicCompactInfo` body re-eval 확인). 새 위젯 작성 시 동일 패턴 OK.
+
+- **NSPanel + SwiftUI Button 트래킹** — `.nonactivatingPanel` 환경에서 SwiftUI `Button` mouseDown↔mouseUp 트래킹은 view tree 재구축에 취약. 호버 swap UI 작성 시 `if/else` 로 갈아치우지 말고 ZStack opacity + `allowsHitTesting` 조합 사용. `MusicCompactInfo` / `KBOCompactView` 가 같은 패턴.
+
+- **GlobalMonitor 권한** — `NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved)` 는 macOS Accessibility 권한 필요. ad-hoc 재사인할 때마다 designated requirement 가 갱신되어 TCC 권한이 silently 무효화되는 케이스 있음. `globalMonitor=ok` 로깅됐는데 mouseMoved 이벤트 0건이면 권한 문제 의심 — System Settings → Privacy & Security → Accessibility 에서 토글 OFF→ON.
+
+- **검증 절차** — `§0` (HANDOFF.md) 의 ad-hoc 사인 흐름 그대로. 빌드 후 `Frameworks/*` + `.app` 재사인 → `/Applications/Mangtch-new.app` 갈아치우고 `open`. 직접 binary 실행보다 `open` 이 LaunchServices 등록 + 권한 컨텍스트 제대로 잡힘.
