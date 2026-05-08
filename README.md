@@ -52,39 +52,23 @@
 
 Grab the latest `.app` from the [**Releases**](https://github.com/mangoguma/mangtch/releases) page, drop it into `/Applications`, and launch.
 
-### Build with Xcode
-
-```bash
-git clone https://github.com/mangoguma/mangtch.git
-open mangtch/Mangtch/Package.swift
-```
-
-In Xcode pick the **Mangtch** scheme and **My Mac** as the destination, then `Cmd+R` to run or `Cmd+B` to build. For a distributable bundle: **Product → Archive → Distribute App**.
-
-### Build from source (CLI)
+### Build from source
 
 ```bash
 git clone https://github.com/mangoguma/mangtch.git
 cd mangtch/Mangtch
 
-# Build the .app bundle (debug + release both work; build-app.sh assembles the bundle)
-./build-app.sh
+xcodebuild -project boringNotch.xcodeproj -scheme boringNotch \
+  -configuration Release -derivedDataPath build \
+  CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 
-# Run it
-open .build/release/Mangtch.app
-
-# Install to /Applications
-cp -R .build/release/Mangtch.app /Applications/
+cp -R build/Build/Products/Release/Mangtch.app /Applications/
+open /Applications/Mangtch.app
 ```
 
-`build-app.sh` picks the most stable code-signing identity it can find:
+Or open `Mangtch/boringNotch.xcodeproj` in Xcode, pick the **boringNotch** scheme + **My Mac**, and hit `Cmd+R`. The product is named **Mangtch.app**; the internal target name is still `boringNotch` (binary at `…/MacOS/boringNotch`).
 
-1. `MANGTCH_SIGN_IDENTITY` env var (CI / explicit override)
-2. `Apple Development: …` from your login keychain (free Apple ID via Xcode → Settings → Accounts → Manage Certificates → +)
-3. A self-signed `Mangtch Code Signing` cert if you've created one
-4. Ad-hoc signing as a fallback
-
-The first three keep the cdhash stable across rebuilds, so macOS TCC permissions (Apple Events for Spotify control, Accessibility for fullscreen detection) survive every rebuild. Ad-hoc rebuilds invalidate them.
+> macOS TCC permissions (Apple Events for Spotify control, Accessibility for fullscreen detection) are bound to the binary's cdhash. Re-signing with the same identity preserves them; ad-hoc rebuilds invalidate them and require re-granting.
 
 ---
 
@@ -104,90 +88,117 @@ The heart on the expanded player and on track-changes will now reflect the actua
 
 ## 🏗️ Architecture
 
+Mangtch is a fork of [boring.notch](https://github.com/TheBoredTeam/boring.notch) with the upstream chrome (NSPanel host, multi-display window manager, settings shell, media controllers, Sparkle wiring) kept intact, and Mangtch's own widget contract grafted on top.
+
 ```
 Mangtch/
-├── Sources/
-│   ├── App/                       # AppDelegate, MangtchApp scene, menu bar, onboarding
-│   ├── Core/
-│   │   ├── NotchWindow/           # NSPanel host, layout, widget switcher, drag-monitor
-│   │   ├── Animation/             # Spring + smooth animation tokens
-│   │   ├── EventBus/              # Combine event channel
-│   │   ├── Gesture/               # Hover/click handling
-│   │   ├── Settings/              # SettingsManager (UserDefaults), global shortcut
-│   │   └── Theme/                 # Theme engine + color extraction
-│   ├── Widgets/                   # NotchWidget protocol + plug-and-play implementations
-│   │   ├── MusicPlayer/           # Now-Playing, transport, visualizer, marquee
-│   │   ├── FileShelf/             # Drag-and-drop file holding pen
-│   │   ├── Timer/                 # Countdown + stopwatch with progress ring
-│   │   └── KBO/                   # Korean baseball schedule + live scoreboard
-│   ├── SystemBridge/
-│   │   ├── MediaBridge.swift      # Spotify/Apple Music AppleScript polling
-│   │   ├── SystemInfoBridge.swift # Battery (IOKit)
-│   │   └── Spotify/               # PKCE OAuth, Web API, token Keychain store
-│   └── Settings/                  # SwiftUI views for the settings window
-├── Tests/                         # Unit tests
-├── Package.swift                  # SwiftPM manifest (Sparkle + AppKit/IOKit/CoreAudio)
-└── build-app.sh                   # Bundle assembly + code signing
+├── boringNotch.xcodeproj/                 # single scheme: boringNotch
+└── boringNotch/
+    ├── boringNotchApp.swift               # @main + AppDelegate (upstream)
+    ├── BoringViewCoordinator.swift        # global nav (upstream)
+    ├── ContentView.swift                  # wings + WidgetSwitcherBar (rewritten for Mangtch)
+    ├── Widgets/
+    │   ├── NotchWidget.swift              # widget protocol — read this first
+    │   └── WidgetRegistry.swift           # @Observable singleton
+    ├── components/
+    │   ├── Music/                         # MusicPlayerWidget + upstream player chrome
+    │   ├── KBO/                           # KBO schedule / live scoreboard widget
+    │   ├── Timer/                         # Countdown + stopwatch widget
+    │   ├── Shelf/                         # FileShelf (upstream, kept)
+    │   ├── Tabs/WidgetSwitcherBar.swift   # in-panel widget picker
+    │   └── Notch/                         # NSPanel, wing hit zones, panel shape
+    ├── sizing/
+    │   ├── PanelLayoutMetrics.swift       # pure resolver: (widget, state) → wingWidth/panelWidth/expandedHeight
+    │   ├── ThemeTokens.swift              # chrome colors (light/dark)
+    │   ├── TypographyTokens.swift         # ~25 semantic fonts
+    │   └── LayoutTokens.swift             # shared layout constants
+    ├── observers/GestureHandler.swift     # global NSEvent monitor for hover + wing clicks
+    ├── managers/                          # MusicManager, ImageService, NotchSpaceManager, …
+    ├── MediaControllers/                  # NowPlaying / Apple Music / Spotify / YT Music
+    └── docs/ADDING_A_WIDGET.md            # contributor guide for new widgets
 ```
 
-### State machine
+### Widget contract
 
-```
-idle ──(hover)──▶ hovering ──(click)──▶ expanded
-  ▲                  │                      │
-  └──────────────────┴──(mouse out / ⎋ / outside-click)
-```
+All widgets conform to `NotchWidget` (see `boringNotch/Widgets/NotchWidget.swift`):
 
-### Widget protocol
+- `widthRange` / `heightRange` — content-driven sizing. The chrome resolves layout via `PanelLayoutMetrics.resolve(widget:notchSize:state:)`. There is no measurement pass for width and no static clamp constant; widgets are the source of truth for their own size.
+- `wingPriority` + `claimsWings` — state-driven priority chain decides which widget owns the wings (Timer running > KBO live > Music as floor).
+- `makeLeftWingView()` / `makeRightWingView()` / `makeExpandedView()` — both wings are mandatory. Wing trees are stable-mounted; owner swaps are opacity toggles, not remounts.
 
-All widgets implement `NotchWidget`. The widget switcher and the right-wing routing pick up new widgets automatically — adding a fifth widget is one `register()` call.
-
-```swift
-protocol NotchWidget: AnyObject, Identifiable where ID == String {
-    var id: String { get }
-    var displayName: String { get }
-    var icon: String { get }                      // SF Symbol
-    var isEnabled: Bool { get set }
-    var preferredPosition: WidgetPosition { get }
-
-    @MainActor func makeCompactView() -> AnyView  // Wing (~120pt wide)
-    @MainActor func makeExpandedView() -> AnyView // Full panel
-
-    func activate()
-    func deactivate()
-}
-```
+Adding a new widget is a 5-step recipe in [`Mangtch/docs/ADDING_A_WIDGET.md`](Mangtch/docs/ADDING_A_WIDGET.md). `TimerWidget` is the smallest reference.
 
 ---
 
-## 🧪 Testing
+## 🧭 Project philosophy
 
-```bash
-cd Mangtch
+Internalize these before sending a PR; reviewers will reject changes that violate them.
 
-# Run unit tests
-swift test
+### 1. boring.notch is the architectural base
 
-# Verify notch detection on this machine
-swift test-notch.swift
-```
+Upstream chrome is kept verbatim wherever possible: `boringNotchApp.swift`, `AppDelegate`, `BoringViewCoordinator`, per-screen `BoringViewModel`, `BoringNotchWindow`, multi-display window logic, `MediaControllerProtocol` + the four media controllers, Sparkle, `Defaults`, settings shell. Don't rename their types or move their files.
+
+Mangtch contributes feature code, not framework rewrites. The whitelisted additions are:
+
+- The widget contract (`Widgets/NotchWidget.swift`, `Widgets/WidgetRegistry.swift`)
+- The wing hit-zone system (`components/Notch/{WingHitZone,FirstMouseHostingView,WingShapes}.swift`)
+- The widget switcher (`components/Tabs/WidgetSwitcherBar.swift`)
+- The per-widget directories (`components/{Music,KBO,Timer}/`)
+- The pure layout resolver (`sizing/PanelLayoutMetrics.swift`) and the design-token files
+- `observers/GestureHandler.swift`
+
+When in doubt about scope, the rule is: extend `BoringViewModel` in place rather than introducing a new view model, and keep new widgets self-contained under `components/<Widget>/`.
+
+### 2. No fallback shims
+
+If something is referenced by removed code, remove the call site rather than stubbing the dependency. PR descriptions that say "I added a no-op so the build compiles" will get pushed back.
+
+### 3. Sizing is content-driven, never measured for width
+
+`PanelLayoutMetrics` is a pure function. Wings and the expanded panel size off the active widget's `widthRange`. The expanded panel's *height* is GeometryReader-measured (intrinsic, not flex-frame), so:
+
+- **Never** wrap an expanded view body in `.frame(maxHeight:)` — flex-frames absorb the parent's proposal and the panel locks at a pessimistic budget instead of the real intrinsic. Use `.frame(minHeight:)` if you need a visual floor.
+- **Never** introduce `Color.clear` cells without an explicit `.frame(height: …)` — they're height-greedy and silently bloat row heights.
+
+### 4. Frontend policy — design tokens, not magic numbers
+
+All visual values in widget code go through tokens. No exceptions in new code:
+
+| Use case | Token source |
+|---|---|
+| Chrome color | `sizing/ThemeTokens.swift` |
+| Widget-specific color | `components/<Widget>/<Widget>ThemeTokens.swift` |
+| Font (any) | `sizing/TypographyTokens.swift` (~25 semantic fonts) |
+| Spacing / sizing | `<Widget>LayoutTokens` (or `LayoutTokens` for chrome) |
+
+**Disallowed in new code:** `Color.white`, `Color(white: 0.X)`, `Color(red:green:blue:)` literals inline, `.foregroundStyle(.secondary.opacity(N))`, `.font(.system(size: N))`, hardcoded `.padding(N)` for chrome-related spacing. Add the value to the relevant tokens file first, then reference the token.
+
+Boring.notch upstream files (`NotchHomeView`, `MusicPlayerView`, `MusicControlsView`, `MusicVisualizer`, `AnimatedFace`, `Button+Bouncing`, anything under `Settings/`/`Shelf/`) are off-limits for token migration — leave them alone.
+
+### 5. Animation lockstep
+
+State-driven reflows in expanded views use `.easeInOut(duration: 0.22)`. The NSPanel resize uses bezier `(0.42, 0, 0.58, 1.0)`, which matches SwiftUI `easeInOut` exactly — so wings, panel chrome, and content all ease in lockstep. Don't introduce a new animation curve without a reason that's stronger than aesthetics.
+
+### 6. Truncation is forbidden
+
+`lineLimit` / `truncationMode` are banned in widget content. Grow the chrome (via `widthRange`) until the content fits. The whole point of the panel is glanceability; ellipsis defeats it.
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork and create a feature branch.
-2. Follow the Swift API Design Guidelines.
-3. Add unit tests for non-UI logic where it makes sense.
-4. Use Conventional-Commits-style messages — the existing history follows `feat:`, `fix:`, `refactor:`, `chore:`, `polish:` prefixes:
+1. Fork, branch off `main` (`feature/<short-name>` or `fix/<short-name>`).
+2. Read the [philosophy](#-project-philosophy) above; if your change touches widgets, also read [`Mangtch/docs/ADDING_A_WIDGET.md`](Mangtch/docs/ADDING_A_WIDGET.md).
+3. Build + run locally (the `xcodebuild` one-liner under [Installation](#-installation)). UI work needs a screenshot or screen recording in the PR description.
+4. Conventional-Commits-style messages — `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`. Korean commit messages are accepted; mixed Korean/English in body is fine. The body should answer *why*, not restate the diff.
 
 ```
 feat: sync the heart button with Spotify Liked Songs via Web API
-fix: open Settings via NSWindow to bypass macOS 14 SwiftUI regression
-chore: remove unused Download widget
+fix: keep KBO pre-game pin through schedule poll
+refactor: drop greedy maxHeight on KBO gamesList
 ```
 
-The body should explain *why* — what was broken or missing — not just restate the diff.
+For sizable changes (new widget, panel-state machine touches, multi-display behavior) open an issue first so we can agree on scope before you write code.
 
 ---
 
