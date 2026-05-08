@@ -109,16 +109,8 @@ struct ContentView: View {
     @ViewBuilder
     private var panelContent: some View {
         let m = vm.metrics
-        let bannerVisible = vm.trackChangeBannerActive && vm.notchState == .closed
         VStack(spacing: 0) {
             wingsRow
-            TrackChangeBannerView()
-                .frame(width: m.panelWidth)
-                .frame(height: bannerVisible ? BoringViewModel.trackChangeBannerHeight : 0,
-                       alignment: .top)
-                .clipped()
-                .allowsHitTesting(false)
-                .animation(.easeInOut(duration: 0.22), value: bannerVisible)
             expandedContent
                 .frame(width: m.panelWidth, alignment: .top)
                 // Measure the **entire** expanded panel intrinsic height
@@ -346,41 +338,6 @@ struct FullScreenDropDelegate: DropDelegate {
     func dropEntered(info _: DropInfo) { isTargeted = true }
     func dropExited(info _: DropInfo) { isTargeted = false }
     func performDrop(info _: DropInfo) -> Bool { isTargeted = false; onDrop(); return true }
-}
-
-// MARK: - Track Change Banner
-//
-// Pill rendered below the wings when MusicManager reports a new title and
-// the panel is `.closed`. Reads MusicManager.shared directly so artwork +
-// metadata stay in sync if the song advances mid-banner. Mirror of
-// Mangtch's `trackChangeNotificationOverlay` (NotchContentView.swift:415-472).
-private struct TrackChangeBannerView: View {
-    @ObservedObject private var music = MusicManager.shared
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(nsImage: music.albumArt)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 36, height: 36)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(music.songTitle)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(music.artistName)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 }
 
 struct GeneralDropTargetDelegate: DropDelegate {

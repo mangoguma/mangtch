@@ -22,7 +22,6 @@ private struct ResolvedFrame: Equatable {
     let height: CGFloat
     let state: NotchState
     let closedNotch: CGSize
-    let bannerActive: Bool
 }
 
 @main
@@ -245,17 +244,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .combineLatest(viewModel.$notchState,
                            viewModel.$closedNotchSize,
                            viewModel.$measuredExpandedContentHeight)
-            .combineLatest(viewModel.$trackChangeBannerActive)
-            .map { (combined: ((PanelLayoutMetrics, NotchState, CGSize, CGFloat?), Bool)) -> ResolvedFrame in
-                let (metrics, state, closedNotch, measured) = combined.0
-                let bannerActive = combined.1
+            .map { (input: (PanelLayoutMetrics, NotchState, CGSize, CGFloat?)) -> ResolvedFrame in
+                let metrics = input.0
+                let measured = input.3
                 let height: CGFloat = (measured ?? 0) > 0 ? measured! : metrics.totalHeight
                 return ResolvedFrame(panelWidth: metrics.panelWidth,
                                      wingWidth: metrics.wingWidth,
                                      height: height,
-                                     state: state,
-                                     closedNotch: closedNotch,
-                                     bannerActive: bannerActive)
+                                     state: input.1,
+                                     closedNotch: input.2)
             }
             .removeDuplicates()
 
@@ -274,7 +271,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window.resizeWindow(metrics: synthesized,
                                     notchHeight: f.closedNotch.height,
                                     isOpen: f.state == .open,
-                                    closedBannerHeight: f.bannerActive ? BoringViewModel.trackChangeBannerHeight : 0,
                                     animated: true)
             }
             .store(in: &viewModel.cancellables)

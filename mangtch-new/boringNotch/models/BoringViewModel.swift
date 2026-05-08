@@ -135,17 +135,6 @@ class BoringViewModel: NSObject, ObservableObject {
     
     @Published var hideOnClosed: Bool = true
 
-    /// Track-change banner visibility. When true & `notchState == .closed`,
-    /// the panel grows by `Self.trackChangeBannerHeight` to render a
-    /// title/artist/art pill below the wings. Cleared after
-    /// `Self.trackChangeBannerDuration` seconds. Mirrors Mangtch's
-    /// `trackChangeNotificationOverlay` (NotchContentView.swift:415-472).
-    @Published private(set) var trackChangeBannerActive: Bool = false
-    static let trackChangeBannerHeight: CGFloat = 56
-    static let trackChangeBannerDuration: TimeInterval = 3.0
-    private var trackChangeHideTask: Task<Void, Never>?
-    private var lastObservedTrackTitle: String = ""
-
     @Published var edgeAutoOpenActive: Bool = false
     @Published var isHoveringCalendar: Bool = false
     @Published var isBatteryPopoverActive: Bool = false
@@ -210,37 +199,6 @@ class BoringViewModel: NSObject, ObservableObject {
         setupMetricsTracking()
         setupWingOwnerTracking()
         setupAppearanceObserver()
-        setupTrackChangeObserver()
-    }
-
-    /// Subscribes to MusicManager's title publisher and toggles the
-    /// track-change banner when a *real* change happens. First-load reads
-    /// (empty → first title) are suppressed so launching the app doesn't
-    /// flash a banner. Banner is only shown while the panel is `.closed`
-    /// — `.hovering`/`.open` already surface track info.
-    private func setupTrackChangeObserver() {
-        MusicManager.shared.$songTitle
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newTitle in
-                self?.handleTrackTitleChange(newTitle)
-            }
-            .store(in: &cancellables)
-    }
-
-    @MainActor
-    private func handleTrackTitleChange(_ newTitle: String) {
-        let prev = lastObservedTrackTitle
-        lastObservedTrackTitle = newTitle
-        guard !newTitle.isEmpty, !prev.isEmpty, prev != newTitle else { return }
-        guard notchState == .closed else { return }
-
-        trackChangeBannerActive = true
-        trackChangeHideTask?.cancel()
-        trackChangeHideTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(Self.trackChangeBannerDuration * 1_000_000_000))
-            guard !Task.isCancelled, let self = self else { return }
-            self.trackChangeBannerActive = false
-        }
     }
 
     private func setupAppearanceObserver() {
