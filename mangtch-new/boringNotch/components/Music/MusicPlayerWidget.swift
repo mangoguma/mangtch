@@ -104,15 +104,28 @@ struct MusicCompactInfo: View {
     }
 
     private var trackInfoView: some View {
-        VStack(alignment: .trailing, spacing: 1) {
+        // SwiftUI's `.frame(maxWidth: .infinity)` on a `Text` does NOT
+        // propagate a finite width down — when intrinsic width exceeds the
+        // parent's actual width, the text renders at intrinsic size and
+        // bleeds past the trailing-aligned frame's leading edge (visible
+        // under the notch chamber for the right wing). Read the resolved
+        // wing width from the VM and pass it as a *finite* upper bound so
+        // `.lineLimit(1) + .truncationMode(.tail)` actually triggers.
+        let textBudget = max(0,
+            notchVM.metrics.wingWidth - 2 * LayoutTokens.compactHorizontalPadding - 4)
+        return VStack(alignment: .trailing, spacing: 1) {
             Text(music.songTitle)
                 .font(TypographyTokens.compactTitle)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: textBudget, alignment: .trailing)
             Text(music.artistName)
                 .font(TypographyTokens.compactSubtitle)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: textBudget, alignment: .trailing)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }

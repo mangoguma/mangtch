@@ -12,6 +12,14 @@ enum TimerLayoutTokens {
     static let panelIdealHeight: CGFloat = 260
     static let panelMaxHeight: CGFloat = 320
 
+    /// Closed-state panel width — tight enough that the resting wings
+    /// don't dominate the menu bar. Each wing only needs a small ring
+    /// (compactRingSize 18) on the left and the countdown digits on the
+    /// right; matches Music widget's compact target. Opening the panel
+    /// snaps to `LayoutTokens.panelMaxWidth` (640) for the timer canvas.
+    static let compactWidth: CGFloat = 340
+    static let compactMinWidth: CGFloat = 285
+
     // MARK: Expanded view container
     static let expandedSpacing: CGFloat = 16
     static let expandedHorizontalPadding: CGFloat = 20
