@@ -17,7 +17,7 @@ enum LayoutTokens {
     // MARK: Wing geometry
     static let wingTopOuterRadius: CGFloat = 8       // boring.notch concave scoop
     static let panelCornerRadius: CGFloat = 14
-    static let minWingWidth: CGFloat = 130           // visual floor
+    static let minWingWidth: CGFloat = 50            // visual floor — lowered so Music can rest at half-width when no track-change preview is active
     static let absoluteMaxWingWidth: CGFloat = 480
     /// Soft cap for `WidthRange.max` defaults — no widget should grow the
     /// panel past this without a deliberate override. Matches the Music

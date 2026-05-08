@@ -11,11 +11,11 @@ enum MusicLayoutTokens {
     static let expandedHeight: CGFloat = 190
 
     /// Compact wing target — closed-state panel width when Music owns the
-    /// wings. Mirrors Mangtch reference's `preferredPanelWidth: 480`: wide
-    /// enough for a typical title + artist + 3 transport buttons without
-    /// truncation, narrow enough that the wings don't dominate the menu
-    /// bar when nothing is expanded.
-    static let compactWidth: CGFloat = 480
-    /// Defensive floor — short titles like "—" never collapse below this.
-    static let compactMinWidth: CGFloat = 380
+    /// wings. Halved from the previous `480` so the resting wings sit
+    /// flush against the notch and don't dominate the menu bar; full
+    /// title/artist text becomes visible only on track change via
+    /// `BoringViewModel.previewPanelWidth` (text-fit measurement).
+    static let compactWidth: CGFloat = 325
+    /// Defensive floor — clamps the closed-state panel width.
+    static let compactMinWidth: CGFloat = 285
 }

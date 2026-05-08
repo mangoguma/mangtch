@@ -78,9 +78,14 @@ class BoringViewModel: NSObject, ObservableObject {
     var metrics: PanelLayoutMetrics {
         let sourceID = notchState == .open ? currentExpandedWidgetID : wingOwnerID
         let widget = WidgetRegistry.shared.widget(for: sourceID)
+        // `previewPanelWidth` only applies when Music owns the wings —
+        // it's a track-change cue, irrelevant when KBO/Timer takeover is
+        // showing their own content.
+        let preview = (sourceID == "music-player") ? previewPanelWidth : nil
         return PanelLayoutMetrics.resolve(widget: widget,
                                           notchSize: notchSize,
-                                          state: notchState)
+                                          state: notchState,
+                                          previewPanelWidth: preview)
     }
 
     /// Mirror of `metrics` published via Combine — observers (NSPanel
@@ -134,6 +139,16 @@ class BoringViewModel: NSObject, ObservableObject {
     var cancellables: Set<AnyCancellable> = []
     
     @Published var hideOnClosed: Bool = true
+
+    /// Track-change preview: when Music's title changes, the panel
+    /// temporarily expands the closed-state width to fit the full title +
+    /// artist text, then snaps back after `Self.trackChangePreviewDuration`.
+    /// nil = no preview active. Mirrors Mangtch's `previewWingWidth`
+    /// pattern (MusicPlayerViewModel.swift:148, NotchViewModel side).
+    @Published private(set) var previewPanelWidth: CGFloat?
+    static let trackChangePreviewDuration: TimeInterval = 3.0
+    private var previewClearTask: Task<Void, Never>?
+    private var lastObservedTrackTitle: String = ""
 
     @Published var edgeAutoOpenActive: Bool = false
     @Published var isHoveringCalendar: Bool = false
@@ -199,6 +214,61 @@ class BoringViewModel: NSObject, ObservableObject {
         setupMetricsTracking()
         setupWingOwnerTracking()
         setupAppearanceObserver()
+        setupTrackChangeObserver()
+    }
+
+    /// Subscribes to MusicManager's title publisher and triggers the
+    /// track-change preview width when a *real* change happens. First-load
+    /// reads (empty → first title) are suppressed so launching the app
+    /// doesn't flash a width animation. Preview is only set while the
+    /// panel is `.closed` — `.hovering`/`.open` already surface track info.
+    private func setupTrackChangeObserver() {
+        MusicManager.shared.$songTitle
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newTitle in
+                self?.handleTrackTitleChange(newTitle)
+            }
+            .store(in: &cancellables)
+    }
+
+    @MainActor
+    private func handleTrackTitleChange(_ newTitle: String) {
+        let prev = lastObservedTrackTitle
+        lastObservedTrackTitle = newTitle
+        guard !newTitle.isEmpty, !prev.isEmpty, prev != newTitle else { return }
+        guard notchState == .closed else { return }
+
+        let target = computeTrackChangePreviewPanelWidth(title: newTitle,
+                                                        artist: MusicManager.shared.artistName)
+        previewPanelWidth = target
+
+        previewClearTask?.cancel()
+        previewClearTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.trackChangePreviewDuration * 1_000_000_000))
+            guard !Task.isCancelled, let self = self else { return }
+            self.previewPanelWidth = nil
+        }
+    }
+
+    /// Measures the wider of the title (11pt semibold) and artist (10pt
+    /// regular) strings and translates that into a panel width that fits
+    /// both wings (notch + 2 × (text + horizontal padding)). Capped at
+    /// the Music widget's `expandedWidth` so a pathological title can't
+    /// over-extend the closed panel. Mirrors Mangtch's
+    /// `previewWingWidth(for:)` (MusicPlayerViewModel.swift:167-185).
+    @MainActor
+    private func computeTrackChangePreviewPanelWidth(title: String, artist: String) -> CGFloat {
+        let titleFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let artistFont = NSFont.systemFont(ofSize: 10)
+        let titleW = (title as NSString).size(withAttributes: [.font: titleFont]).width
+        let artistW = (artist as NSString).size(withAttributes: [.font: artistFont]).width
+        let textWingW = ceil(max(titleW, artistW))
+            + 2 * LayoutTokens.compactHorizontalPadding
+            + 4 // small headroom against pixel rounding
+        let derivedPanel = notchSize.width + 2 * textWingW
+        let lowerBound = MusicLayoutTokens.compactWidth
+        let upperBound = MusicLayoutTokens.expandedWidth
+        return min(max(derivedPanel, lowerBound), upperBound)
     }
 
     private func setupAppearanceObserver() {
@@ -239,8 +309,8 @@ class BoringViewModel: NSObject, ObservableObject {
         // depending on `notchState`, so both must trigger recomputation.
         let sourcesA = Publishers.CombineLatest($notchSize, $notchState)
         let sourcesB = Publishers.CombineLatest($currentExpandedWidgetID, $wingOwnerID)
-        sourcesA.combineLatest(sourcesB)
-            .sink { [weak self] _, _ in
+        sourcesA.combineLatest(sourcesB, $previewPanelWidth)
+            .sink { [weak self] _, _, _ in
                 Task { @MainActor [weak self] in
                     self?.recomputeMetrics()
                 }

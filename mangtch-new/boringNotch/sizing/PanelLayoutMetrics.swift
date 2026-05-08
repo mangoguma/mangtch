@@ -19,16 +19,21 @@ struct PanelLayoutMetrics: Equatable {
     @MainActor
     static func resolve(widget: (any NotchWidget)?,
                         notchSize: CGSize,
-                        state: NotchState) -> PanelLayoutMetrics {
+                        state: NotchState,
+                        previewPanelWidth: CGFloat? = nil) -> PanelLayoutMetrics {
         let widthR = widget?.widthRange ?? .default
         let heightR = widget?.heightRange ?? .default
 
         // `.hovering` is intentionally compact — the wing reveals controls
         // via opacity swap, but the panel doesn't grow. Only `.open`
         // (committed expand after notch-body dwell) snaps to `max`.
+        // `previewPanelWidth` (track-change text-fit boost) overrides the
+        // closed/hovering ideal so the wing temporarily expands to show
+        // the full title/artist before snapping back. Clamped to widget's
+        // own [min, max] so a misconfigured preview can't break geometry.
         let widthTarget: CGFloat
         switch state {
-        case .closed, .hovering: widthTarget = widthR.ideal
+        case .closed, .hovering: widthTarget = previewPanelWidth ?? widthR.ideal
         case .open:              widthTarget = widthR.max
         }
         let panelW = clamp(widthTarget, min: widthR.min, max: widthR.max)
@@ -56,8 +61,12 @@ struct PanelLayoutMetrics: Equatable {
     @MainActor
     static func resolve(widget: AnyNotchWidget?,
                         notchSize: CGSize,
-                        state: NotchState) -> PanelLayoutMetrics {
-        resolve(widget: widget?.wrapped, notchSize: notchSize, state: state)
+                        state: NotchState,
+                        previewPanelWidth: CGFloat? = nil) -> PanelLayoutMetrics {
+        resolve(widget: widget?.wrapped,
+                notchSize: notchSize,
+                state: state,
+                previewPanelWidth: previewPanelWidth)
     }
 
     private static func clamp(_ x: CGFloat, min lo: CGFloat, max hi: CGFloat) -> CGFloat {
