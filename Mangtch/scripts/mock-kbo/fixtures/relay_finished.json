@@ -1,0 +1,35 @@
+{
+  "result": {
+    "textRelayData": {
+      "inningScore": {
+        "away": { "1": "0", "2": "1", "3": "0", "4": "0", "5": "2", "6": "0", "7": "1", "8": "0", "9": "0" },
+        "home": { "1": "0", "2": "0", "3": "1", "4": "1", "5": "0", "6": "2", "7": "3", "8": "0", "9": "X" }
+      },
+      "currentGameState": {
+        "awayScore": "4", "homeScore": "7",
+        "awayHit": "9", "homeHit": "11",
+        "awayError": "1", "homeError": "0",
+        "awayBallFour": "3", "homeBallFour": "4"
+      },
+      "homeLineup": {
+        "batter": [{ "pcode": "B_HH_01", "name": "노시환", "batOrder": 1 }],
+        "pitcher": [{ "pcode": "P_HH_01", "name": "문동주" }]
+      },
+      "awayLineup": {
+        "batter": [{ "pcode": "B_LT_05", "name": "전준우", "batOrder": 5 }],
+        "pitcher": [{ "pcode": "P_LT_01", "name": "박세웅" }]
+      },
+      "textRelays": [
+        {
+          "inn": 9,
+          "homeOrAway": "0",
+          "textOptions": [
+            { "seqno": 901, "type": 13, "text": "전준우 : 유격수 땅볼 아웃" },
+            { "seqno": 902, "type": 13, "text": "유강남 : 삼진 아웃" },
+            { "seqno": 903, "type": 13, "text": "안치홍 : 중견수 플라이 아웃 (경기종료)" }
+          ]
+        }
+      ]
+    }
+  }
+}

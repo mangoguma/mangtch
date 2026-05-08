@@ -1,0 +1,711 @@
+import SwiftUI
+import AppKit
+
+/// Expanded panel content: KBO games for the displayed day. Default day
+/// is today; users can step backward/forward via header chevrons.
+struct KBOExpandedView: View {
+    let viewModel: KBOViewModel
+    @EnvironmentObject private var vm: BoringViewModel
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.timeZone = TimeZone(identifier: "Asia/Seoul")
+        f.dateFormat = "M월 d일 (E)"
+        return f
+    }()
+
+    private static let naverScheduleURL = URL(string: "https://m.sports.naver.com/kbaseball/schedule/index")!
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KBOLayoutTokens.bodyOuterSpacing) {
+            header
+
+            if viewModel.games.isEmpty {
+                emptyState
+            } else {
+                gamesList
+            }
+        }
+        .padding(.horizontal, KBOLayoutTokens.bodyOuterHorizontalPadding)
+        .padding(.vertical, KBOLayoutTokens.bodyOuterVerticalPadding)
+        .onAppear {
+            // Re-anchor the date to today on reopen, but keep any
+            // expanded row / pinned game intact so the live broadcast
+            // the user was watching survives close/reopen.
+            viewModel.rewindDateOnly()
+        }
+    }
+
+    /// Bare intrinsic VStack — no `.frame(maxHeight:)` cap. SwiftUI's
+    /// flexible-frame semantics meant the cap was greedy: any parent
+    /// proposal ≥ intrinsic was absorbed up to `gamesListMaxHeight`,
+    /// the GR on `expandedContent` then read that absorbed proposal
+    /// back into `measuredExpandedContentHeight`, and the panel locked
+    /// itself at the formula's pessimistic 110pt budget for the
+    /// linescore section instead of the real ~85pt the grid actually
+    /// renders — leaving an ugly empty band below the last row.
+    /// KBO regular season caps at 5 games/day so the intrinsic stack
+    /// always fits well under `panelAbsoluteMaxHeight=700`; pathological
+    /// mock data beyond that simply over-extends, acceptable for a
+    /// regular-season display.
+    private var gamesList: some View {
+        VStack(spacing: KBOLayoutTokens.rowGap) {
+            ForEach(viewModel.games) { game in
+                gameRow(game)
+            }
+        }
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(spacing: KBOLayoutTokens.headerSpacing) {
+            Label("KBO", systemImage: "baseball")
+                .font(TypographyTokens.expandedHeader)
+
+            Spacer()
+
+            // Day navigation: ‹ date › with a "오늘" reset when off today.
+            HStack(spacing: KBOLayoutTokens.headerDayNavSpacing) {
+                Button { viewModel.shiftDay(by: -1) } label: {
+                    Image(systemName: "chevron.left")
+                        .font(TypographyTokens.expandedSemibold)
+                        .frame(width: KBOLayoutTokens.headerChevronSize,
+                               height: KBOLayoutTokens.headerChevronSize)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Text(viewModel.isShowingToday
+                     ? "오늘"
+                     : Self.dateFormatter.string(from: viewModel.displayedDate))
+                    .font(TypographyTokens.expandedBody)
+                    .frame(minWidth: KBOLayoutTokens.headerDateMinWidth)
+
+                Button { viewModel.shiftDay(by: 1) } label: {
+                    Image(systemName: "chevron.right")
+                        .font(TypographyTokens.expandedSemibold)
+                        .frame(width: KBOLayoutTokens.headerChevronSize,
+                               height: KBOLayoutTokens.headerChevronSize)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Keep the button slot reserved even when on "today" so the
+            // surrounding buttons don't reflow horizontally as the user
+            // steps days. Fade + disable instead of conditional insertion.
+            Button("오늘") { viewModel.resetToToday() }
+                .font(TypographyTokens.expandedCaption)
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+                .opacity(viewModel.isShowingToday ? 0 : 1)
+                .allowsHitTesting(!viewModel.isShowingToday)
+
+            // Jump out to Naver Sports for the full schedule view.
+            Button {
+                NSWorkspace.shared.open(Self.naverScheduleURL)
+            } label: {
+                Image(systemName: "arrow.up.right.square")
+                    .font(TypographyTokens.expandedCaptionLarge)
+                    .frame(width: KBOLayoutTokens.headerChevronSize,
+                           height: KBOLayoutTokens.headerChevronSize)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("네이버 스포츠에서 보기")
+
+            // Same reserved-slot trick — a popping ProgressView would
+            // shove the whole row sideways every fetch.
+            ProgressView()
+                .controlSize(.mini)
+                .opacity(viewModel.isLoading ? 1 : 0)
+        }
+    }
+
+    // MARK: - Empty / Loading / Error State
+    //
+    // Three-way branch on the empty content area:
+    //   1. isLoading → spinner ("불러오는 중…") so the user knows the
+    //      request is in flight, not that nothing's scheduled.
+    //   2. lastError != nil → the previous fetch failed; show the error
+    //      message instead of pretending no games exist.
+    //   3. otherwise → genuine no-games-scheduled day.
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if viewModel.isLoading {
+            emptyStateBox {
+                ProgressView().controlSize(.small)
+                Text("일정을 불러오는 중…")
+                    .font(TypographyTokens.expandedBodyPlain)
+                    .foregroundStyle(.secondary)
+            }
+        } else if let error = viewModel.lastError {
+            emptyStateBox {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(TypographyTokens.kboLargeGlyph)
+                    .foregroundStyle(.secondary)
+                Text(error)
+                    .font(TypographyTokens.expandedBodyPlain)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            emptyStateBox {
+                Image(systemName: "baseball")
+                    .font(TypographyTokens.kboHeroGlyph)
+                    .foregroundStyle(.secondary)
+                Text(viewModel.isShowingToday
+                     ? "오늘 KBO 경기가 없어요"
+                     : "이 날 KBO 경기가 없어요")
+                    .font(TypographyTokens.expandedBodyPlain)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func emptyStateBox<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(spacing: KBOLayoutTokens.emptyStateSpacing) {
+            content()
+        }
+        .frame(maxWidth: .infinity, minHeight: KBOLayoutTokens.emptyStateMinHeight)
+    }
+
+    // MARK: - Row
+
+    @ViewBuilder
+    private func gameRow(_ game: KBOGame) -> some View {
+        // "isPinned" = the game is currently fixed to the left wing.
+        // "isExpanded" = the row is opened to show the inline box score.
+        // The two are independent: tapping the row toggles expansion,
+        // tapping the pin icon toggles the wing pin.
+        let isPinned = viewModel.selectedGameID == game.gameId
+        let isExpanded = viewModel.viewingGameID == game.gameId
+        // Per-row batting indicator. Only resolves when we have a live
+        // state for this game; finished/scheduled rows leave both sides
+        // false so the colour falls through to the loser/primary path.
+        let attacking = game.isLive ? viewModel.liveStates[game.gameId]?.attackingSide : nil
+
+        VStack(spacing: 0) {
+            // Header strip — clickable area that toggles expansion.
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    viewModel.toggleExpand(game)
+                }
+            }) {
+                HStack(spacing: KBOLayoutTokens.rowChildSpacing) {
+                    let cached = viewModel.startingPitchers[game.gameId]
+                    let starters = KBOStarters(
+                        away: game.awayStarterName ?? cached?.away,
+                        home: game.homeStarterName ?? cached?.home
+                    )
+                    let slotW = rowSlotWidth
+
+                    Text(Self.stadium(for: game.homeTeamCode))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: slotW)
+
+                    teamSide(name: game.awayTeamName,
+                             code: game.awayTeamCode,
+                             logoURL: game.awayEmblemURL,
+                             alignment: .trailing,
+                             isLoser: game.winnerSide == .home,
+                             isBatting: attacking == .away,
+                             starter: starters.away)
+
+                    scoreColumn(game)
+                        .fixedSize()
+                        .frame(minWidth: KBOLayoutTokens.scoreColumnWidth)
+
+                    teamSide(name: game.homeTeamName,
+                             code: game.homeTeamCode,
+                             logoURL: game.homeEmblemURL,
+                             alignment: .leading,
+                             isLoser: game.winnerSide == .away,
+                             isBatting: attacking == .home,
+                             starter: starters.home)
+
+                    // Reserve the BSO slot on every row — live or not —
+                    // so the score column sits at the same horizontal
+                    // position across the whole list. EmptyView in a
+                    // .frame(width:) collapses to zero in HStack, which
+                    // shoved the score left only on live rows.
+                    liveStateCell(for: game)
+                        .frame(width: slotW)
+
+                    statusChip(game)
+                        .frame(width: KBOLayoutTokens.statusChipWidth, alignment: .trailing)
+                }
+                .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
+                .padding(.vertical, KBOLayoutTokens.rowVerticalPadding)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Inline box score / placeholder, visible only when expanded.
+            // Transition: slide downward into the empty space below the
+            // collapsed row (clipped by the row's own `.clipped()`), with
+            // an opacity fade. Avoids the "vacuum" feel of the prior
+            // `.scale(0.001, anchor: .top)` while still preventing the
+            // upstream-overlap bug `.move(edge: .top)` had.
+            if isExpanded {
+                Divider()
+                    .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
+                    .transition(.opacity)
+                inlineDetail(game)
+                    .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
+                    .padding(.vertical, KBOLayoutTokens.rowVerticalPadding)
+                    .transition(
+                        .move(edge: .bottom)
+                            .combined(with: .opacity)
+                    )
+            }
+        }
+        // Clip transition overflow so the collapsing grid never bleeds
+        // past the row's own bounds onto the totals row above.
+        .clipped()
+        .background {
+            RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
+                .fill(rowFill(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive))
+                .background {
+                    // Lift rows off the jet-black panel in dark mode so
+                    // the existing tints (tuned for a `white: 0.12` panel
+                    // upstream) don't composite to near-invisibility.
+                    if vm.systemIsDark {
+                        RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
+                            .fill(KBOThemeTokens.rowBaselineTint)
+                    }
+                }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: KBOLayoutTokens.rowCornerRadius, style: .continuous)
+                .strokeBorder(rowStroke(isPinned: isPinned, isExpanded: isExpanded, isLive: game.isLive),
+                              lineWidth: (isPinned || isExpanded)
+                                ? KBOLayoutTokens.rowStrokeActive
+                                : KBOLayoutTokens.rowStrokeIdle)
+        }
+        .opacity(game.cancel ? 0.55 : 1)
+    }
+
+    // MARK: - Row Sub-views
+
+    /// Width of each row-edge slot. Derived from the longest cached
+    /// starter name so 5-char names like "로드리게스" don't crowd the
+    /// badge, but bumped up to fit the 80pt live-state cell on rows
+    /// where the slot hosts the diamond/BSO instead. Fixed (rather than
+    /// flex) so the 승/패 badges align vertically across rows — names
+    /// float toward the outer edge while badges stay anchored to the
+    /// inner edge of the slot, giving every row a consistent W/L column.
+    @MainActor
+    private var rowSlotWidth: CGFloat {
+        let scheduleNames = viewModel.games.flatMap { [$0.awayStarterName, $0.homeStarterName] }
+        let cachedNames = viewModel.startingPitchers.values.flatMap { [$0.away, $0.home] }
+        let names = (scheduleNames + cachedNames).compactMap { $0 }
+        let font = NSFont.systemFont(ofSize: KBOLayoutTokens.inlineStarterFontSize,
+                                     weight: .semibold)
+        let widest = names
+            .map { ($0 as NSString).size(withAttributes: [.font: font]).width }
+            .max() ?? 0
+        // Name + gap + badge (~12pt for "승/패") + outer breathing
+        // room so the badge doesn't kiss the score column.
+        let starterNeeded = ceil(widest)
+            + KBOLayoutTokens.inlineStarterNameGap
+            + KBOLayoutTokens.inlineStarterBadgeWidth
+            + KBOLayoutTokens.inlineStarterTrailing
+        // rowSlotMinWidth is the natural width of KBOLiveStateView in compact mode.
+        return max(KBOLayoutTokens.rowSlotMinWidth, starterNeeded)
+    }
+
+    /// Inline starting-pitcher label that sits at the outer edges of the
+    /// game row. Just the name plus an optional 승/패 prefix once the
+    /// game ends — no badge / "선발" tag, since row context already
+    /// implies the pitcher slot. The W/L tag is attributed to the
+    /// starter even though the pitcher of record may be a reliever; it
+    /// matches Naver's collapsed-card UX and users mainly want a quick
+    /// "who pitched / who took the L" read.
+    ///
+    /// `trailing=false` for the away side: name flush to the inner edge
+    /// of the slot, badge tucked just inside it (between name and the
+    /// score column). Mirrored on the home side.
+    @ViewBuilder
+    private func inlineStarterLabel(name: String?,
+                                    resultPrefix: String?,
+                                    trailing: Bool,
+                                    slotWidth: CGFloat) -> some View {
+        let inner = HStack(spacing: KBOLayoutTokens.inlineStarterNameGap) {
+            if !trailing {
+                Spacer(minLength: 0)
+                if let name {
+                    Text(name)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize()
+                }
+                if let resultPrefix {
+                    resultBadge(resultPrefix)
+                }
+            } else {
+                if let resultPrefix {
+                    resultBadge(resultPrefix)
+                }
+                if let name {
+                    Text(name)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize()
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        inner.frame(width: slotWidth,
+                    alignment: trailing ? .leading : .trailing)
+    }
+
+    private func resultBadge(_ text: String) -> some View {
+        Text(text)
+            .font(TypographyTokens.expandedSmallBold)
+            .foregroundStyle(text == "승" ? KBOThemeTokens.win : Color.secondary)
+    }
+
+    /// "승"/"패" for a finished game's losing/winning side, "선발" for
+    /// pre-game / live as a softer tag, and nil when there's nothing
+    /// useful to mark (cancelled, no winner / draw).
+    private func resultPrefix(game: KBOGame, side: KBOGame.Side) -> String? {
+        guard !game.cancel else { return nil }
+        if game.isFinished, let winner = game.winnerSide {
+            return winner == side ? "승" : "패"
+        }
+        return nil
+    }
+
+    @ViewBuilder
+    private func teamSide(name: String,
+                          code: String,
+                          logoURL: URL?,
+                          alignment: HorizontalAlignment,
+                          isLoser: Bool,
+                          isBatting: Bool,
+                          starter: String? = nil) -> some View {
+        let isLeading = alignment == .leading
+        HStack(spacing: KBOLayoutTokens.teamSideSpacing) {
+            if isLeading {
+                KBOTeamLogo(url: logoURL, teamCode: code, size: KBOLayoutTokens.teamLogoSize)
+            }
+            VStack(alignment: isLeading ? .leading : .trailing, spacing: 1) {
+                Text(name)
+                    .font(.system(size: 11.5, weight: isBatting ? .bold : .semibold))
+                    .fixedSize()
+                    .foregroundStyle(isLoser ? Color.secondary : Color.primary)
+                    .underline(isBatting, color: isLoser ? .secondary : .primary)
+                if let starter {
+                    Text(starter)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            if !isLeading {
+                KBOTeamLogo(url: logoURL, teamCode: code, size: KBOLayoutTokens.teamLogoSize)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: isLeading ? .leading : .trailing)
+    }
+
+    @ViewBuilder
+    private func scoreColumn(_ game: KBOGame) -> some View {
+        if game.cancel {
+            Text("취소")
+                .font(TypographyTokens.expandedBodySemibold)
+                .foregroundStyle(.secondary)
+        } else if game.isScheduled {
+            Text("vs")
+                .font(TypographyTokens.expandedBody)
+                .foregroundStyle(.secondary)
+        } else {
+            let live = viewModel.liveScores[game.gameId]
+            let away = live?.away ?? game.awayTeamScore
+            let home = live?.home ?? game.homeTeamScore
+            HStack(spacing: KBOLayoutTokens.scoreSpacing) {
+                scoreNumber(away,
+                            isLoser: game.winnerSide == .home)
+                Text("·")
+                    .font(TypographyTokens.expandedBodyPlain)
+                    .foregroundStyle(.tertiary)
+                scoreNumber(home,
+                            isLoser: game.winnerSide == .away)
+            }
+        }
+    }
+
+    private func scoreNumber(_ value: Int, isLoser: Bool) -> some View {
+        Text("\(value)")
+            .font(TypographyTokens.kboBigScore)
+            .monospacedDigit()
+            .fixedSize()
+            .foregroundStyle(isLoser ? .secondary : .primary)
+            .contentTransition(.numericText())
+            .animation(.easeInOut(duration: 0.3), value: value)
+    }
+
+    @ViewBuilder
+    private func statusChip(_ game: KBOGame) -> some View {
+        if game.cancel {
+            chipText("취소", color: .secondary)
+        } else if game.isLive {
+            HStack(spacing: KBOLayoutTokens.liveDotSpacing) {
+                LivePulseDot()
+                Text(game.statusInfo.isEmpty ? "LIVE" : game.statusInfo)
+                    .font(TypographyTokens.expandedSemibold)
+                    .foregroundStyle(KBOThemeTokens.live)
+                    .lineLimit(1)
+            }
+        } else if game.isFinished {
+            chipText("종료", color: .secondary)
+        } else {
+            chipText(game.startTimeText, color: .secondary)
+        }
+    }
+
+    /// Inline at-bat readout (diamond + count + outs). Shown for every
+    /// live game we have a `liveStates` entry for — not just the tracked
+    /// one — so users can read all in-flight games' bases/count at a
+    /// glance. The 80pt slot stays reserved on every row so the columns
+    /// don't reflow when state appears or clears mid-row.
+    @ViewBuilder
+    private func liveStateCell(for game: KBOGame) -> some View {
+        if game.isLive, let state = viewModel.liveStates[game.gameId] {
+            KBOLiveStateView(state: state, compact: true)
+        } else {
+            // Same height-lock as the left slot — see the comment there.
+            Color.clear.frame(height: 0)
+        }
+    }
+
+    private func chipText(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(TypographyTokens.expandedSmallMedium)
+            .foregroundStyle(color)
+            .lineLimit(1)
+    }
+
+    // MARK: - Row Background
+
+    private func rowFill(isPinned: Bool, isExpanded: Bool, isLive: Bool) -> Color {
+        if isPinned { return Color.accentColor.opacity(0.16) }
+        if isExpanded { return Color.primary.opacity(0.07) }
+        if isLive { return Color.red.opacity(0.06) }
+        return Color.primary.opacity(0.04)
+    }
+
+    private func rowStroke(isPinned: Bool, isExpanded: Bool, isLive: Bool) -> Color {
+        if isPinned { return Color.accentColor.opacity(0.55) }
+        if isExpanded { return Color.primary.opacity(0.25) }
+        if isLive { return Color.red.opacity(0.25) }
+        return Color.primary.opacity(0.06)
+    }
+
+    // MARK: - Inline Detail
+
+    @ViewBuilder
+    private func inlineDetail(_ game: KBOGame) -> some View {
+        if let line = viewModel.viewingLinescore {
+            if line.hasInningData {
+                linescoreGrid(game: game, line: line)
+            } else {
+                liveSummaryFallback(game: game)
+            }
+        } else if viewModel.isLoadingLinescore {
+            HStack {
+                Spacer()
+                ProgressView().controlSize(.small)
+                Spacer()
+            }
+            .frame(minHeight: 50)
+        } else {
+            // Scheduled games have no relay payload yet, so the catch-all
+            // "기록을 가져오지 못했어요" reads like a network error when
+            // really it's just "경기 전이라 아직 기록이 없음". Branch the
+            // copy so users don't think something's broken.
+            Text(preGameOrErrorMessage(for: game))
+                .font(TypographyTokens.expandedCaption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 50)
+        }
+    }
+
+    private func preGameOrErrorMessage(for game: KBOGame) -> String {
+        if game.cancel { return "경기가 취소됐어요" }
+        if game.isScheduled {
+            return "\(game.startTimeText) 경기 시작 전이라 아직 기록이 없어요"
+        }
+        return "기록을 가져오지 못했어요"
+    }
+
+    private func liveSummaryFallback(game: KBOGame) -> some View {
+        VStack(spacing: 4) {
+            Text(game.isLive
+                 ? "이닝 기록 준비 중 — 잠시 후 자동으로 표시돼요"
+                 : "이닝 기록이 아직 등록되지 않았어요")
+                .font(TypographyTokens.expandedCaption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 30)
+    }
+
+    private func linescoreGrid(game: KBOGame, line: KBOLinescore) -> some View {
+        let cols = line.innings
+        let grid = VStack(spacing: 0) {
+            scoreRow(team: "팀명",
+                     innings: (1...cols).map { String($0) },
+                     totals: ["R", "H", "E", "B"],
+                     isHeader: true)
+                .background(Color.secondary.opacity(0.08))
+
+            scoreRow(team: game.awayTeamName,
+                     innings: line.awayInningScores,
+                     totals: totalsCells(line.awayTotals),
+                     isHeader: false)
+            scoreRow(team: game.homeTeamName,
+                     innings: line.homeInningScores,
+                     totals: totalsCells(line.homeTotals),
+                     isHeader: false)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: KBOLayoutTokens.linescoreCornerRadius,
+                                    style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: KBOLayoutTokens.linescoreCornerRadius,
+                             style: .continuous)
+                .strokeBorder(.secondary.opacity(0.15),
+                              lineWidth: KBOLayoutTokens.linescoreDividerWidth)
+        }
+
+        return grid
+    }
+
+    private static func stadium(for homeTeamCode: String) -> String {
+        switch homeTeamCode {
+        case "OB": return "잠실"
+        case "LG": return "잠실"
+        case "NC": return "창원"
+        case "SS": return "대전"
+        case "HT": return "광주"
+        case "HH": return "인천"
+        case "KT": return "수원"
+        case "SK": return "문학"
+        case "LT": return "사직"
+        case "WO": return "대구"
+        default:   return "—"
+        }
+    }
+
+    private func starterLabel(name: String?,
+                              teamCode: String,
+                              alignment: HorizontalAlignment) -> some View {
+        // Tint the "P" badge with the team colour but keep the name in
+        // primary — KT/롯데/두산 colours are nearly black and would vanish
+        // against the panel's dark fill if applied to text directly.
+        let isLeading = alignment == .leading
+        let badge = Image(systemName: "p.circle.fill")
+            .font(TypographyTokens.expandedBodySemibold)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, KBOTeamColors.primary(for: teamCode))
+        return VStack(alignment: alignment, spacing: KBOLayoutTokens.expandedStarterRowSpacing) {
+            Text("선발")
+                .font(TypographyTokens.tinyLabel)
+                .foregroundStyle(.secondary)
+            HStack(spacing: KBOLayoutTokens.expandedStarterRowSpacing) {
+                if isLeading { badge }
+                Text(name ?? "—")
+                    .font(TypographyTokens.expandedBodySemibold)
+                    .foregroundStyle(name == nil ? Color.secondary : Color.primary)
+                    .fixedSize()
+                if !isLeading { badge }
+            }
+        }
+        // Slot sizes to its actual content — the panel chrome's
+        // `widthRange` derivation in `KBOWidget` measures the
+        // same name with the same font, so wing/panel widen to fit
+        // exactly. No `lineLimit` (CLAUDE.md), no fixed slot width.
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func totalsCells(_ t: KBOLinescore.Totals?) -> [String] {
+        guard let t else { return ["-", "-", "-", "-"] }
+        return [String(t.runs), String(t.hits), String(t.errors), String(t.walks)]
+    }
+
+    private func scoreRow(team: String,
+                          innings: [String],
+                          totals: [String],
+                          isHeader: Bool) -> some View {
+        HStack(spacing: 0) {
+            Text(team)
+                .font(.system(size: isHeader ? 9 : 10,
+                              weight: isHeader ? .semibold : .medium))
+                .foregroundStyle(isHeader ? .secondary : .primary)
+                .lineLimit(1)
+                .frame(width: KBOLayoutTokens.linescoreTeamLabelWidth, alignment: .leading)
+
+            // Static row — innings always fit horizontally in the panel
+            // (worst case 12 innings × 20pt = 240pt; usable width is ~430pt).
+            // No inner scroll so users see the whole frame at once.
+            HStack(spacing: 0) {
+                ForEach(innings.indices, id: \.self) { i in
+                    Text(innings[i])
+                        .font(.system(size: isHeader ? 9 : 11,
+                                      weight: .semibold,
+                                      design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isHeader ? .secondary : .primary)
+                        .frame(width: KBOLayoutTokens.linescoreInningCellWidth,
+                               height: KBOLayoutTokens.linescoreInningCellHeight)
+                }
+            }
+
+            HStack(spacing: 0) {
+                ForEach(totals.indices, id: \.self) { i in
+                    Text(totals[i])
+                        .font(.system(size: isHeader ? 9 : 11,
+                                      weight: .bold,
+                                      design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isHeader
+                                         ? Color.accentColor
+                                         : (i == 0 ? .primary : .secondary))
+                        .frame(width: KBOLayoutTokens.linescoreTotalsCellWidth,
+                               height: KBOLayoutTokens.linescoreTotalsCellHeight)
+                }
+            }
+            .padding(.leading, KBOLayoutTokens.linescoreTotalsLeading)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(.secondary.opacity(0.15))
+                    .frame(width: KBOLayoutTokens.linescoreDividerWidth)
+                    .padding(.vertical, KBOLayoutTokens.linescoreDividerVerticalPadding)
+            }
+        }
+        .padding(.horizontal, KBOLayoutTokens.linescoreSidePadding)
+    }
+}
+
+/// 1-1.4× scaling pulse for the LIVE indicator. Subtle — not distracting,
+/// but enough to draw the eye to in-progress games among finished/scheduled.
+private struct LivePulseDot: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(KBOThemeTokens.live)
+            .frame(width: KBOLayoutTokens.livePulseDotSize,
+                   height: KBOLayoutTokens.livePulseDotSize)
+            .scaleEffect(pulse ? 1.35 : 1.0)
+            .opacity(pulse ? 0.55 : 1.0)
+            .onAppear { pulse = true }
+            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: pulse)
+    }
+}

@@ -1,0 +1,52 @@
+import SwiftUI
+
+/// Single source of truth for panel layout magic numbers.
+/// Two categories:
+///   - **Canvas constants** — fixed by upstream pixel-design (do NOT change
+///     without re-laying out boring.notch's MusicPlayerView/AlbumArtView).
+///   - **Policy constants** — design assumptions (changeable, but document
+///     the visual intent in the doc-comment).
+enum LayoutTokens {
+    // MARK: Chrome (shared across all widgets)
+    static let shadowPadding: CGFloat = 20
+
+    /// Divider (1pt) + WidgetSwitcherBar (22pt button + 3pt × 2 padY).
+    /// Read by both BoringViewModel.panelHeight and initialWindowFrame(for:).
+    static let chromeTopHeight: CGFloat = 29
+
+    // MARK: Wing geometry
+    static let wingTopOuterRadius: CGFloat = 8       // boring.notch concave scoop
+    static let panelCornerRadius: CGFloat = 14
+    static let minWingWidth: CGFloat = 50            // visual floor — lowered so Music can rest at half-width when no track-change preview is active
+    static let absoluteMaxWingWidth: CGFloat = 480
+    /// Soft cap for `WidthRange.max` defaults — no widget should grow the
+    /// panel past this without a deliberate override. Matches the Music
+    /// pixel canvas width by coincidence; not a derived value.
+    static let panelMaxWidth: CGFloat = 640
+
+    // MARK: Expanded content insets
+    static let panelHorizontalInset: CGFloat = 12
+    static let panelBottomInset: CGFloat = 12
+    static let dividerHorizontalInset: CGFloat = 20
+    static let switcherBarPadY: CGFloat = 3
+
+    // MARK: Visual balance (의존성 토큰 — 같이 움직여야 하는 값들)
+    /// AlbumArtView가 만드는 외곽 inset (NotchHomeView.swift:21).
+    static let artworkInset: CGFloat = 5
+    /// 반대편 보정 — artworkInset과 동일하게 유지되어야 panel이 좌우 대칭.
+    /// 앨범아트 padding을 바꾸면 이 값도 자동으로 따라감.
+    static var visualBalanceInset: CGFloat { artworkInset }
+
+    // MARK: Music expanded inner layout
+    static let musicLyricsGutter: CGFloat = 15
+    static let lyricsMinWidth: CGFloat = 180
+    static let lyricsIdealWidth: CGFloat = 215
+    static let lyricsMaxWidth: CGFloat = 260
+    static let musicPlayerMinWidth: CGFloat = 320
+
+    // MARK: Music compact wing
+    static let compactRowSpacing: CGFloat = 10
+    static let compactTransportSpacing: CGFloat = 6
+    static let compactControlSize: CGFloat = 22
+    static let compactHorizontalPadding: CGFloat = 8
+}

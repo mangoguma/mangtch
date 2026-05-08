@@ -13,11 +13,18 @@ DerivedData/
 *.swo
 *~
 
-# Internal docs
+# Internal docs (scratch). Mangtch/docs/ is a published contributor
+# guide and intentionally tracked.
 docs/
+!Mangtch/docs/
+!Mangtch/docs/**
 
 # AI tool configs
 .claude/
 .omc/
 .agent/
 .gemini/
+
+# Project-specific
+Mangtch/Mangtch-*.zip
+boring.notch/

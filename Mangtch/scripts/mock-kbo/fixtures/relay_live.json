@@ -1,0 +1,60 @@
+{
+  "result": {
+    "textRelayData": {
+      "inningScore": {
+        "away": { "1": "0", "2": "1", "3": "0", "4": "0", "5": "2", "6": "0", "7": "0", "8": "-", "9": "-" },
+        "home": { "1": "0", "2": "0", "3": "1", "4": "1", "5": "0", "6": "2", "7": "0", "8": "-", "9": "-" }
+      },
+      "currentGameState": {
+        "awayScore": "3", "homeScore": "4",
+        "awayHit": "7", "homeHit": "8",
+        "awayError": "0", "homeError": "1",
+        "awayBallFour": "2", "homeBallFour": "3",
+        "ball": "3", "strike": "2", "out": "2",
+        "base1": "1", "base2": "1", "base3": "0",
+        "pitcher": "P_HH_01", "batter": "B_LT_05"
+      },
+      "homeLineup": {
+        "batter": [
+          { "pcode": "B_HH_01", "name": "노시환", "batOrder": 1 },
+          { "pcode": "B_HH_02", "name": "채은성", "batOrder": 2 }
+        ],
+        "pitcher": [
+          { "pcode": "P_HH_01", "name": "문동주" }
+        ]
+      },
+      "awayLineup": {
+        "batter": [
+          { "pcode": "B_LT_05", "name": "전준우", "batOrder": 5 },
+          { "pcode": "B_LT_06", "name": "유강남", "batOrder": 6 }
+        ],
+        "pitcher": [
+          { "pcode": "P_LT_01", "name": "박세웅" }
+        ]
+      },
+      "textRelays": [
+        {
+          "inn": 7,
+          "homeOrAway": "0",
+          "textOptions": [
+            { "seqno": 700, "type": 0,  "text": "7회초 롯데 공격" },
+            { "seqno": 701, "type": 8,  "text": "5번타자 전준우" },
+            { "seqno": 702, "type": 1,  "text": "1구 스트라이크" },
+            { "seqno": 703, "type": 1,  "text": "2구 볼" },
+            { "seqno": 704, "type": 13, "text": "전준우 : 좌익수 앞 1루타" },
+            { "seqno": 705, "type": 14, "text": "도루성공 (2루)" },
+            { "seqno": 706, "type": 13, "text": "유강남 : 볼넷" },
+            { "seqno": 707, "type": 8,  "text": "7번타자 안치홍" },
+            { "seqno": 708, "type": 13, "text": "안치홍 : 우익수 앞 안타" },
+            { "seqno": 709, "type": 24, "text": "전준우 홈인 (3:4)" },
+            { "seqno": 710, "type": 1,  "text": "1구 볼" },
+            { "seqno": 711, "type": 1,  "text": "2구 스트라이크" },
+            { "seqno": 712, "type": 1,  "text": "3구 볼" },
+            { "seqno": 713, "type": 1,  "text": "4구 볼" },
+            { "seqno": 714, "type": 1,  "text": "5구 스트라이크 (헛스윙)" }
+          ]
+        }
+      ]
+    }
+  }
+}
