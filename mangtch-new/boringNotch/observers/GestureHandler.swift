@@ -16,17 +16,6 @@ final class GestureHandler {
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
-    /// Per-panel pending auto-expand tasks. Keyed by ObjectIdentifier of the
-    /// view model so multi-display panels each have their own dwell timer.
-    private var pendingExpandTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
-
-    /// Per-panel pending grace-period close tasks. When the cursor leaves an
-    /// already-`.open` panel, we wait this long before collapsing — short
-    /// excursions (cursor flicked off the panel and back) shouldn't kill
-    /// the user's reading session. `.hovering` still closes immediately
-    /// because that state is transient by design.
-    private var pendingCloseTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
-    private static let openCloseGrace: Duration = .milliseconds(500)
 
     private init() {}
 
@@ -213,65 +202,22 @@ final class GestureHandler {
             vm.hoveredWing = newWingHover
         }
 
-        let key = ObjectIdentifier(vm)
         switch vm.notchState {
         case .closed:
-            // Cursor enters wing/notch zone → reveal hover affordances. Do
-            // NOT open the panel here — Mangtch's three-state contract
-            // requires a dwell on the notch body before commit-to-expand.
+            // Cursor enters wing/notch zone → reveal hover affordances (wing controls).
             if hoverZone.contains(point) {
                 vm.hover()
             }
 
         case .hovering:
-            // Auto-expand dwell only over the notch body. Dwell over a
-            // wing keeps the controls visible without opening the panel —
-            // the user is reaching for prev/play/next or KBO toggles, not
-            // asking for the expanded canvas.
-            if notchZone.contains(point) {
-                if Defaults[.openNotchOnHover], pendingExpandTasks[key] == nil {
-                    let duration = Defaults[.minimumHoverDuration]
-                    pendingExpandTasks[key] = Task { @MainActor [weak self, weak vm] in
-                        try? await Task.sleep(for: .seconds(duration))
-                        guard !Task.isCancelled else { return }
-                        vm?.open()
-                        self?.pendingExpandTasks.removeValue(forKey: key)
-                    }
-                }
-            } else {
-                pendingExpandTasks[key]?.cancel()
-                pendingExpandTasks.removeValue(forKey: key)
-            }
-            // Cursor escaped the wing+notch hover footprint → drop back
-            // to fully closed.
+            // Cursor escaped the wing+notch hover footprint → drop back to fully closed.
             if !hoverZone.contains(point) {
-                pendingExpandTasks[key]?.cancel()
-                pendingExpandTasks.removeValue(forKey: key)
                 vm.close()
             }
 
         case .open:
-            // Once expanded, only the (now larger) hoverZone — which
-            // includes the panel body via `extraOpenHeight` — gates
-            // collapse. We add a grace period before close so a brief
-            // cursor excursion (flick to a different window, mouse drift)
-            // doesn't yank the panel away mid-read.
-            if hoverZone.contains(point) {
-                pendingCloseTasks[key]?.cancel()
-                pendingCloseTasks.removeValue(forKey: key)
-            } else if pendingCloseTasks[key] == nil {
-                pendingExpandTasks[key]?.cancel()
-                pendingExpandTasks.removeValue(forKey: key)
-                pendingCloseTasks[key] = Task { @MainActor [weak self, weak vm] in
-                    try? await Task.sleep(for: Self.openCloseGrace)
-                    guard !Task.isCancelled, let vm, vm.notchState == .open else {
-                        self?.pendingCloseTasks.removeValue(forKey: key)
-                        return
-                    }
-                    vm.close()
-                    self?.pendingCloseTasks.removeValue(forKey: key)
-                }
-            }
+            // Panel stays open until pan-up gesture, outside click, or Escape.
+            break
         }
     }
 
