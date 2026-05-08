@@ -312,7 +312,7 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 ---
 
-## 7. 진행 상황 (Handoff — 2026-05-08)
+## 7. 진행 상황 (Handoff — 2026-05-08, 2nd pass)
 
 ### 7.1 완료
 
@@ -341,6 +341,10 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 - **(보너스) Timer compact wing 절반** — 같은 커밋. `TimerWidget.widthRange` 를 `.fixed(640)` → `WidthRange(min: 285, ideal: 340, max: 640)` 로 전환. Timer 가 wings 를 가져가도 (countdown 진행 중) 평상시엔 좁은 wing, 패널 열리면 640 캔버스. `TimerLayoutTokens.compactWidth=340/compactMinWidth=285` 추가.
 
+- **§4.3 후속 — Music wing hover-width 부스트** — `390d3cb fix(mangtch-new): widen wing on right-hover so transport controls fit`. §4.3 에서 compactWidth 480→325 로 줄인 결과, wing ≈ 62pt 로는 transport 버튼 (3×22 + 2×6 + 2×8 = 94pt) 이 안 들어가 호버 스왑 후에도 사실상 클릭 불가능. `MusicLayoutTokens.hoverWidth = 420` (wing ≈ 110pt) 추가, `BoringViewModel.metrics` 의 hover-boost 분기에서 `hoveredWing == .right && wingOwnerID == "music-player" && notchState != .open` 일 때 `previewPanelWidth` 슬롯에 주입. 트랙 변경 preview 와 hover 가 동시에 활성이면 `max()` 로 큰 쪽이 이김. `setupMetricsTracking` 의 `combineLatest` 체인에 `$hoveredWing` 추가 (3 → 4 publisher).
+
+- **§4.5 Debug zone overlay** — `b9bf1d9 feat(mangtch-new): §4.5 debug zone overlay`. `Defaults[.debugOverlay]` 토글로 4 색 정적 zone (yellow=hover / cyan=L wing / purple=R wing / green=notch) + 오렌지 wing-button hit zones 시각화. ContentView 의 `wingsRow` 위에 overlay. 윈도우가 panelWidth × (notchHeight + extraOpen) 로 사이즈되어 정적 4 rect 는 윈도우-로컬 좌표로 1:1 매핑, hit zones 만 host window frame 으로 screen→local 변환. `notchState == .closed` 에서는 오렌지 미렌더 (compact 에서 버튼이 opacity 0 인 layered 상태 — 보여줘봐야 클릭 안 되는 영역만 표시됨). Settings → General → Notch behavior 에 토글.
+
 ### 7.2 잔여 작업 (우선순위 順)
 
 §4 잔여 항목들은 본 마이그레이션의 핵심 wing-hover 동작과 독립된 미감/완성도 작업이다.
@@ -351,8 +355,8 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 | ~~2~~ | ~~트랙 변경 알림~~ | §4.3 | done | `eac7fda` (구현체) + `8ef6166` (텍스트 clamp + Timer wing 절반). 배너 안 띄우고 wing 폭 일시 확장 — Mangtch `previewWingWidth` 패턴. 자세한 내용은 §7.1 참고. |
 | 1 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
 | 2 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
-| 3 | Debug 오버레이 (zone 시각화) | §4.5 | ~50 LOC | `Defaults[.debugOverlay]` 토글로 hoverZone/notchZone/leftWing/rightWing rect 렌더. §3/§4.3 류 작업 디버깅에 매우 유용 — wing-width preview 디버깅 때도 직접 print 박아 추적했는데 zone 시각화 있었으면 한 번에 잡혔을 것. |
-| 4 | (옵션) 매우 긴 제목 marquee | §4.3 후속 | ~30 LOC | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(8ef6166 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll fallback. |
+| ~~3~~ | ~~Debug 오버레이 (zone 시각화)~~ | §4.5 | done | `b9bf1d9`. 4 색 정적 zone + 오렌지 wing-button hit zones. Settings → General → Notch behavior → "Debug zone overlay" 토글. `.closed` 에서는 오렌지 미렌더. 자세한 내용은 §7.1 참고. |
+| 3 | (옵션) 매우 긴 제목 marquee | §4.3 후속 | ~30 LOC | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(8ef6166 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll fallback. |
 
 ### 7.3 다음 작업자에게
 
@@ -370,8 +374,12 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 
 - **§4.3 wing-width preview 의 게이팅** — `previewPanelWidth` 는 `metrics` 안에서 sourceID 가 `"music-player"` 일 때만 `resolve` 에 전달됨. KBO/Timer 가 wing 가져갔을 때 트랙이 바뀌어도 wing 폭 안 흔들림. 새 위젯이 비슷한 preview 동작 필요하면 `metrics` accessor 의 게이팅 분기 추가.
 
-- **resize pipeline 의 publisher 체인** — `BoringViewModel.setupMetricsTracking` 의 `combineLatest` 에 새로운 입력 추가 시 `.sink` 의 튜플 패턴도 같이 고침 (현재 3-tuple). `boringNotchApp.swift` 의 `resolvedFrame` 체인은 내부적으로 `compactMap`/`combineLatest` 로 `ResolvedFrame` 만드는데, Swift 타입 추론 폭주 방지 위해 명명된 struct 로 풀어둠 — 새 입력은 두 번째 `combineLatest` 로 묶고 mapper 에서 풀기 (배너 시도 시도했던 패턴 — 결국 revert 했지만 패턴은 참고용).
+- **resize pipeline 의 publisher 체인** — `BoringViewModel.setupMetricsTracking` 의 `combineLatest` 에 새로운 입력 추가 시 `.sink` 의 튜플 패턴도 같이 고침 (현재 4-tuple — `390d3cb` 에서 `$hoveredWing` 추가). `boringNotchApp.swift` 의 `resolvedFrame` 체인은 내부적으로 `compactMap`/`combineLatest` 로 `ResolvedFrame` 만드는데, Swift 타입 추론 폭주 방지 위해 명명된 struct 로 풀어둠 — 새 입력은 두 번째 `combineLatest` 로 묶고 mapper 에서 풀기 (배너 시도 시도했던 패턴 — 결국 revert 했지만 패턴은 참고용).
+
+- **compactWidth 와 wing 컨텐츠 폭의 트레이드오프** — `390d3cb` 에서 보듯 compactWidth 를 줄이면 wing 가 narrow 해져서 transport 류 컨텐츠가 안 들어감. 새 위젯이 hover-스왑 패턴으로 wing 에 control 띄울 때, **`(compactWidth - notchWidth)/2` 가 control 폭보다 작으면 hover-width 부스트가 필요**. 현재 패턴: 위젯 별 `hoverWidth` 토큰 + `BoringViewModel.metrics` 의 hover-boost 분기 (`hoveredWing` + `wingOwnerID` 게이팅) → `previewPanelWidth` 슬롯에 주입 → `max()` 로 다른 boost 와 합쳐짐. KBO 도 hover-스왑 (ticker/TTS toggle) 이라 비슷한 폭 부스트가 필요할 수 있는데, 현재 KBO compact 는 280+ 폭이라 아슬아슬 — 뭔가 안 클릭되면 여기 의심.
 
 - **SourceKit `No such module 'Defaults'` 등 false positive** — Xcode 가 SwiftPM 패키지 resolve 안 한 상태에서 신규/수정 파일에 대해 빈번히 발생. `xcodebuild` 가 통과하면 무시. HANDOFF §3 에도 명시. SourceKit 만 보고 코드 수정하지 말 것.
 
 - **트랙 변경 시뮬레이션** — 실제 곡 바뀌는 거 기다리기 귀찮으면 `MusicManager.shared.songTitle` 에 직접 다른 값 할당해도 publisher 가 fire 함 (테스트 한정). 평상시는 `nowPlayingObserver` 가 자동 갱신.
+
+- **Debug zone overlay 켜기** — `b9bf1d9` 의 §4.5 도구. Settings → General → Notch behavior → "Debug zone overlay" 토글. wing/notch 클릭 안 됨, hover 영역 안 잡힘, hit zone 어긋남 류 디버깅에 필수. 4 색 정적 zone 은 metrics-driven 이라 panelWidth/wingWidth 가 의도대로 변하는지 즉시 보임 (트랙 변경 preview, hover-boost 둘 다 시각 검증 가능). 오렌지 hit zone 은 PreferenceKey 리포트 결과 — wing 컨텐츠 layout 이 클릭 영역과 어긋나면 여기서 잡힘. `.closed` 에선 오렌지 안 그림 (compact 에서 invisible 한 버튼 영역까지 표시하면 노이즈) — hover 한 번 거쳐서 봐야 함.
