@@ -1,6 +1,6 @@
-# mangtch-new — Handoff
+# Mangtch 0.10.0 — Handoff
 
-> Status (2026-05-08, branch `mangtch-new-wip`): phases 1–9a + 9c + **9c-tail** + **10a** complete. The previously-open §0 issues (linescore close-then-open jitter, empty-day clipping, vacuum-feel collapse animation) are closed and QA-verified. `NotchWidget` now carries its full contract docstring; new contributors follow `docs/ADDING_A_WIDGET.md`. Phase 10b (plugin loader) deferred — gated on the four product decisions listed in `PLAN-roadmap-7-to-10.md` §6.2 / §16.7.
+> Status (2026-05-09, branch `mangtch-new-wip`): phases 1–9a + 9c + **9c-tail** + **10a** complete. Directory renamed `Mangtch/` → `Mangtch/`; identity migrated to `com.yojeong.mangtch` v0.10.0; Sparkle re-enabled with production feed + public key. The previously-open §0 issues (linescore close-then-open jitter, empty-day clipping, vacuum-feel collapse animation) are closed and QA-verified. `NotchWidget` now carries its full contract docstring; new contributors follow `docs/ADDING_A_WIDGET.md`. Phase 10b (plugin loader) deferred — gated on the four product decisions listed in `PLAN-roadmap-7-to-10.md` §6.2 / §16.7.
 
 ---
 
@@ -46,9 +46,9 @@ Lowering `panelHeightLinescoreSection` to ~85 would close it for the common case
 
 ### Files touched
 
-- `mangtch-new/boringNotch/components/KBO/KBOViewModel.swift` — auto-unpin condition
-- `mangtch-new/boringNotch/components/KBO/KBOWidget.swift` — heightRange trigger
-- `mangtch-new/boringNotch/components/KBO/KBOExpandedView.swift` — `gamesList` flex-frame removed
+- `Mangtch/boringNotch/components/KBO/KBOViewModel.swift` — auto-unpin condition
+- `Mangtch/boringNotch/components/KBO/KBOWidget.swift` — heightRange trigger
+- `Mangtch/boringNotch/components/KBO/KBOExpandedView.swift` — `gamesList` flex-frame removed
 
 ### Commits
 
@@ -78,17 +78,17 @@ The panel now sizes off the GR-measured intrinsic of `expandedContent` (Divider 
 **Diagnosis writeup:** `/Users/sarang/.claude/plans/wild-chasing-nebula.md` — full root-cause walkthrough of cases 1-5 (cases 1 + 5 fixed in `9419922`; cases 2-4 above are the remainder).
 
 **Investigation hooks for next session:**
-- `mangtch-new/boringNotch/components/KBO/KBOExpandedView.swift` — `emptyState` view, `body` switch, transition modifiers
-- `mangtch-new/boringNotch/models/BoringViewModel.swift::recomputeMetrics()` — `withObservationTracking` re-arm logic
-- `mangtch-new/boringNotch/boringNotchApp.swift` (sink subscribing `$publishedMetrics + $measuredExpandedContentHeight`) — where formula vs measured race lives
-- `mangtch-new/boringNotch/sizing/PanelLayoutMetrics.swift::resolve` — formula bootstrap (now includes `panelBottomInset`)
+- `Mangtch/boringNotch/components/KBO/KBOExpandedView.swift` — `emptyState` view, `body` switch, transition modifiers
+- `Mangtch/boringNotch/models/BoringViewModel.swift::recomputeMetrics()` — `withObservationTracking` re-arm logic
+- `Mangtch/boringNotch/boringNotchApp.swift` (sink subscribing `$publishedMetrics + $measuredExpandedContentHeight`) — where formula vs measured race lives
+- `Mangtch/boringNotch/sizing/PanelLayoutMetrics.swift::resolve` — formula bootstrap (now includes `panelBottomInset`)
 - WIP build: `xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Release -derivedDataPath build CODE_SIGN_IDENTITY="-"` then ad-hoc re-sign all `Frameworks/*.framework` + the `.app` (Team-ID mismatch with bundled `MediaRemoteAdapter.framework` → dyld refuses load otherwise)
 
 ---
 
 > Phase context (carried over from `73074ec`): Builds + runs as a `.nonactivatingPanel` accessory app. **Two-axis ownership** — wings follow a state-driven priority chain (Timer running > KBO live/browsing > Music) via `BoringViewModel.wingOwnerID`; expanded panel follows the user's `WidgetSwitcherBar` pick via `currentExpandedWidgetID`. `PanelLayoutMetrics` resolves from `wingOwnerID` when closed, `currentExpandedWidgetID` when open. Wing/panel sizing on widget-declared `widthRange`/`heightRange` contract — KBO + Music content-driven, Timer fixed 640. Wing pair (left + right) is mandatory at the protocol level (`makeLeftWingView`/`makeRightWingView` non-optional). Visual token system (`ThemeTokens` / `TypographyTokens` / per-widget `*ThemeTokens`) + adaptive panel shading + `Defaults[.panelAppearance]` carried over from phase 7/8. Phase 10a (위젯 contributor 가이드 docs) is the next cheapest; phase 9 (multi-slot wing) blocked on user-decision gate. See `PLAN-roadmap-7-to-10.md §14` for the 9a retrospective and `§15` for the 9c retrospective (KBO `gamesList` wrapped in a height-clamped `ScrollView` reading `vm.publishedMetrics.contentHeight`; 5c `Color.clear.frame(height: 0)` height-locks already in place so the 5c row-bloat regression is precluded) (model pivoted twice mid-build — single-owner-bilateral spec → two-axis after user feedback that the panel needs all-widgets picker; then `claimsWings` narrowed from `isActive || displayTime > 0` to `isActive || finished` so countdown setup doesn't grab the wings).
 
-`mangtch-new/` is a fork of `boring.notch/` (open-source upstream) with non-product features stripped and Mangtch's widget machinery + KBO/Timer/Music widgets grafted in.
+`Mangtch/` is a fork of `boring.notch/` (open-source upstream) with non-product features stripped and Mangtch's widget machinery + KBO/Timer/Music widgets grafted in.
 
 The original `Mangtch/` SPM project is **not** modified — read-only reference for porting.
 
@@ -108,12 +108,12 @@ A copy of these rules also lives in user memory: `/Users/sarang/.claude/projects
 
 ---
 
-## 2. What's in `mangtch-new/`
+## 2. What's in `Mangtch/`
 
 ### Layout (boring.notch's layout, lightly augmented)
 
 ```
-mangtch-new/
+Mangtch/
   boringNotch.xcodeproj/                # main Xcode project (single scheme: boringNotch)
   BoringNotchXPCHelper/                 # stripped target — XPC helper sources gone, the
                                         #   target shell remains in pbxproj. Safe to delete
@@ -174,18 +174,19 @@ Calendar, Webcam, Battery (UI + manager + view models), Downloads UI, HUD-replac
 
 ### Identity
 
-- Bundle id: `kr.yojeong.mangtch.new`
-- Display name: `Mangtch-new`
-- Sparkle: `SUFeedURL` removed from Info.plist + `SUEnableAutomaticChecks=false` (won't auto-update into stock boringNotch)
+- Bundle id: `com.yojeong.mangtch`
+- Display name: `Mangtch`
+- Version: `0.10.0` (build 1)
+- Sparkle: `SUFeedURL = https://raw.githubusercontent.com/mangoguma/mangtch/main/appcast.xml`, `SUEnableAutomaticChecks = true`, `SUPublicEDKey = Fmj4dhenRCT8HbIYtVYUcYYGWS3RnkpNjhIxfG5CUwI=`
 - Internal target name: `boringNotch` (unchanged — only product display name renamed; binary at `…/MacOS/boringNotch`)
-- The `kr.yojeong.mangtch.new.XPCHelper` bundle id is set on the still-existing `BoringNotchXPCHelper` target shell, but the helper has no purpose now (MediaKeyInterceptor is gone). Safe to delete the target.
+- The `BoringNotchXPCHelper` target shell remains in pbxproj but has no purpose (MediaKeyInterceptor is gone). Safe to delete.
 
 ---
 
 ## 3. How to build / install / run
 
 ```bash
-cd /Users/sarang/Projects/mangtch/mangtch-new
+cd /Users/sarang/Projects/mangtch/Mangtch
 
 # Build (Release; Debug works too)
 xcodebuild -project boringNotch.xcodeproj \
@@ -194,11 +195,11 @@ xcodebuild -project boringNotch.xcodeproj \
   CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
   build
 
-# Install + run (matches the workflow in Mangtch/CLAUDE.md)
+# Install + run
 pkill -9 -x boringNotch 2>/dev/null; sleep 0.3
-rm -rf /Applications/Mangtch-new.app
-cp -R ./build/Build/Products/Release/boringNotch.app /Applications/Mangtch-new.app
-open /Applications/Mangtch-new.app
+rm -rf /Applications/Mangtch.app
+cp -R ./build/Build/Products/Release/boringNotch.app /Applications/Mangtch.app
+open /Applications/Mangtch.app
 ```
 
 The released binary runs accessory (no Dock icon). Menu-bar icon hosts Settings + Quit. Quit via `pkill -9 -x boringNotch`.
@@ -209,7 +210,7 @@ The released binary runs accessory (no Dock icon). Menu-bar icon hosts Settings 
 
 ## 4. Phase log (what was done, in order)
 
-1. **Phase 1 — Bootstrap** — copied `boring.notch/` → `mangtch-new/`, removed `.git/.github/.devcontainer/crowdin.yml`, edited `boringNotch.xcodeproj/project.pbxproj` to rename bundle ids + display name (sed against `theboringteam.boringnotch` and `INFOPLIST_KEY_CFBundleDisplayName`), pruned Sparkle SUFeedURL.
+1. **Phase 1 — Bootstrap** — copied `boring.notch/` → `Mangtch/`, removed `.git/.github/.devcontainer/crowdin.yml`, edited `boringNotch.xcodeproj/project.pbxproj` to rename bundle ids + display name (sed against `theboringteam.boringnotch` and `INFOPLIST_KEY_CFBundleDisplayName`), pruned Sparkle SUFeedURL.
 2. **Phase 2 — Strip** — deleted feature directories listed above. Fixed dangling references in 11 files. Stub-replaced `ContentView.swift` body so build compiled before Phase 3 rewrote it. Merged `BoringNotchSkyLightWindow`'s panel config (dark appearance, sharingType update) into `BoringNotchWindow`. **Slop note:** the agent created `boringNotch/managers/XPCHelperClient.swift` as a no-op stub instead of cleanly removing the references in `SettingsView`/`BoringViewCoordinator`. See "Cleanup needed".
 3. **Phase 3 — Widget machinery** — added `Widgets/{NotchWidget,WidgetRegistry}.swift`, `components/Notch/{WingHitZone,FirstMouseHostingView,WingShapes}.swift`, `observers/GestureHandler.swift`, `animations/AnimationTokens.swift`, `components/Tabs/WidgetSwitcherBar.swift`. Extended `BoringViewModel` with `wingHitZones`, `hoveredWing`, `currentExpandedWidgetID`, `compactWingWidth`, `wingWidth`/`panelModeWingWidth`/`wingsFlat`/`panelWidth`. Rewrote `ContentView` with Mangtch wings + WidgetSwitcherBar. `BoringNotchWindow` content now hosted via `FirstMouseHostingView`.
 4. **Phase 4 — Widget port** — copied Timer (4 files), KBO (9 files + `KBOService.swift`), and wrote thin `MusicPlayerWidget` over `MusicManager`. Registered all three in `WidgetRegistry.registerDefaults()`. Added `WingButton.kboTickerToggle/.kboTTSToggle` cases + `GestureHandler` dispatch. **The Phase 4 agent timed out partway** — the file copies happened but pbxproj registrations were missing. A follow-up executor pass added the 15 missing pbxproj entries (`MusicPlayerWidget`, 4 Timer files, 9 KBO files, `KBOService.swift`) plus the `Notification.Name.boringNotchDidOpen` declaration. **Important:** the main `boringNotch/` Xcode group is **NOT** a `PBXFileSystemSynchronizedRootGroup` — only `private/` and `BoringNotchXPCHelper/` are. New files in `boringNotch/` must be explicitly registered in the pbxproj (`PBXFileReference` + `PBXBuildFile` + Sources build phase entry).

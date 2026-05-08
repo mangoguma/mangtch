@@ -12,21 +12,14 @@
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUEnableAutomaticChecks</key>
-	<false/>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/mangoguma/mangtch/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Fmj4dhenRCT8HbIYtVYUcYYGWS3RnkpNjhIxfG5CUwI=</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>
-	</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>com.yojeong.mangtch.spotify-callback</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>mangtch</string>
-			</array>
-		</dict>
 	</array>
 </dict>
 </plist>

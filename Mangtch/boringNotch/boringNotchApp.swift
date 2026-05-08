@@ -50,7 +50,7 @@ struct DynamicNotchApp: App {
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
             CheckForUpdatesView(updater: updaterController.updater)
             Divider()
-            Button("Restart Boring Notch") {
+            Button("Restart Mangtch") {
                 ApplicationRelauncher.restart()
             }
             Button("Quit", role: .destructive) {
@@ -306,6 +306,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // See `AppDelegate.shared` doc — SwiftUI wraps the delegate, so
         // we publish ourselves explicitly for non-SwiftUI consumers.
         AppDelegate.shared = self
+
+        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
 
         // LSUIElement apps don't get application(_:open:), so we register
         // an Apple Event handler for the Spotify OAuth callback (mangtch://).
