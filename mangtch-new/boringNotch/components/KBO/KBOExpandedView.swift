@@ -37,37 +37,24 @@ struct KBOExpandedView: View {
         }
     }
 
-    /// Bare row stack — VStack returns its intrinsic height (sum of
-    /// rows + gaps), so the outer expandedContent measurement at
-    /// ContentView level naturally grows to fit. KBO regular season
-    /// caps at 5 games/day and the panel safely fits well under
-    /// `panelAbsoluteMaxHeight`, so no inner ScrollView is needed —
-    /// the earlier 9c ScrollView attempt got tangled with SwiftUI's
-    /// "ScrollView fills parent proposal" default and pinned the panel
-    /// to the formula bootstrap height instead of the real intrinsic.
-    /// Pathological mock data beyond `gamesListMaxHeight` clips rather
-    /// than scrolls — acceptable for a regular-season display.
+    /// Bare intrinsic VStack — no `.frame(maxHeight:)` cap. SwiftUI's
+    /// flexible-frame semantics meant the cap was greedy: any parent
+    /// proposal ≥ intrinsic was absorbed up to `gamesListMaxHeight`,
+    /// the GR on `expandedContent` then read that absorbed proposal
+    /// back into `measuredExpandedContentHeight`, and the panel locked
+    /// itself at the formula's pessimistic 110pt budget for the
+    /// linescore section instead of the real ~85pt the grid actually
+    /// renders — leaving an ugly empty band below the last row.
+    /// KBO regular season caps at 5 games/day so the intrinsic stack
+    /// always fits well under `panelAbsoluteMaxHeight=700`; pathological
+    /// mock data beyond that simply over-extends, acceptable for a
+    /// regular-season display.
     private var gamesList: some View {
         VStack(spacing: KBOLayoutTokens.rowGap) {
             ForEach(viewModel.games) { game in
                 gameRow(game)
             }
         }
-        .frame(maxHeight: gamesListMaxHeight, alignment: .top)
-        .clipped()
-    }
-
-    /// Screen-safe ceiling — `panelScreenSafeFraction × visibleFrame.height`
-    /// (capped at `panelAbsoluteMaxHeight=700`). Deliberately decoupled
-    /// from `vm.metrics`: the 9a two-axis model swaps the metrics
-    /// source between `wingOwnerID` (.closed) and `currentExpandedWidgetID`
-    /// (.open), so a vm.metrics-derived clamp would collapse mid-close
-    /// to (e.g.) Music's small default and reflow the list upward
-    /// before the outer panel close animation finished.
-    private var gamesListMaxHeight: CGFloat {
-        let safeMax = (NSScreen.main?.visibleFrame.height ?? 800)
-            * KBOLayoutTokens.panelScreenSafeFraction
-        return min(safeMax, KBOLayoutTokens.panelAbsoluteMaxHeight)
     }
 
     // MARK: - Header
@@ -277,11 +264,11 @@ struct KBOExpandedView: View {
             .buttonStyle(.plain)
 
             // Inline box score / placeholder, visible only when expanded.
-            // Transition: scale(0, anchor:.top) collapses the linescore
-            // **into the divider above its own slot** without translating
-            // upward past sibling row content (the previous
-            // `.move(edge: .top)` slid the grid over the totals row above
-            // during removal — visible as content overlap during fade-out).
+            // Transition: slide downward into the empty space below the
+            // collapsed row (clipped by the row's own `.clipped()`), with
+            // an opacity fade. Avoids the "vacuum" feel of the prior
+            // `.scale(0.001, anchor: .top)` while still preventing the
+            // upstream-overlap bug `.move(edge: .top)` had.
             if isExpanded {
                 Divider()
                     .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
@@ -290,7 +277,7 @@ struct KBOExpandedView: View {
                     .padding(.horizontal, KBOLayoutTokens.rowHorizontalPadding)
                     .padding(.vertical, KBOLayoutTokens.rowVerticalPadding)
                     .transition(
-                        .scale(scale: 0.001, anchor: .top)
+                        .move(edge: .bottom)
                             .combined(with: .opacity)
                     )
             }

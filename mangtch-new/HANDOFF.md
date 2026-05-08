@@ -1,6 +1,59 @@
 # mangtch-new — Handoff
 
-> Status (2026-05-08, branch `mangtch-new-wip`, tip `9419922` — phase 10a wip): measurement-driven panel height restored from a4d492d era. **Three open KBO panel issues** carry over (see §0). Otherwise phases 1–9a + 9c complete.
+> Status (2026-05-08, branch `mangtch-new-wip`, tip `cae8f5b` + 1 — phase 10b wip): KBO panel UX bugs from §0 partially closed (pre-game expand pin, panel grow-on-expand, post-expand bottom slack). Linescore close-then-open animation jitter and pure-empty-day clipping still open. Otherwise phases 1–9a + 9c complete.
+
+---
+
+## 0a. Phase 10b — closed in this session (2026-05-08, `mangtch-new-wip`)
+
+Three coupled bugs in the KBO expanded panel, surfaced when opening pre-game (scheduled) rows like SSG vs 두산 today.
+
+### Bug 1 — pre-game row loses its blue pin one poll later
+
+**Symptom.** Tap a scheduled row → row briefly accents blue (pin fill) → on the next 60s poll, the accent vanishes even though the row stays expanded.
+
+**Root cause.** `KBOViewModel.fetchNow` auto-unpinned on `!pinned.isLive`. The original intent (per the comment) was "live → finished/cancelled transition", but `!isLive` also matches `isScheduled` — so any pre-game row whose pin got set by `toggleExpand` (which pins-on-tap) was wiped by the next schedule poll.
+
+**Fix.** Narrow the condition to `pinned.isFinished || pinned.cancel`. Scheduled→live transitions now keep the pin; only true end-states clear it.
+
+### Bug 2 — panel doesn't grow on expansion when there's no linescore yet
+
+**Symptom.** Expand a scheduled row → inline detail "경기 시작 전이라 아직 기록이 없어요" renders **outside** the row chrome (panel didn't grow), and the row's blue border doesn't extend around the detail.
+
+**Root cause.** `KBOWidget.heightRange` added `panelHeightLinescoreSection (110)` only when `viewModel.viewingLinescore != nil`. Pre-game rows (and fetch-failure rows) have `viewingGameID` set but `viewingLinescore == nil` — so the formula didn't reserve any expansion space, and `KBOExpandedView.inlineDetail`'s placeholder `Text` overflowed the panel's collapsed height.
+
+**Fix.** Drive the +110 allowance off `viewModel.viewingGameID != nil`. The expansion area exists whenever a row is expanded, regardless of whether linescore JSON has landed.
+
+### Bug 3 — empty band below expanded row card
+
+**Symptom.** Expand a row that *does* have a linescore → grid renders correctly inside the row card → but ~20–40pt of empty dark space sits below the card. Visible in the 2026-05-08 09:51 screenshot (오석주/오러클린 키움 vs 삼성 expanded).
+
+**Root cause — three layers stacked.**
+
+1. **Formula over-allocates.** `panelHeightLinescoreSection = 110` is a constant budget. The actual rendered linescore section is closer to ~85pt (3 rows × ~22pt + divider + row vertical padding). The 110 was tuned to fit the worst case (extra-inning grids, long Korean starter names), so most rows leave headroom.
+
+2. **`gamesList` was a flexible frame.** `KBOExpandedView.gamesList` had `.frame(maxHeight: gamesListMaxHeight, alignment: .top)` where `gamesListMaxHeight = min(700, screenSafeFraction × screen.height)` ≈ 600+. SwiftUI's flex-frame semantics: when the parent proposes a height ≥ intrinsic, the frame **expands to fill the proposal up to maxHeight**, pinning content to `.top` and leaving the slack at the bottom.
+
+3. **Self-fulfilling measurement loop.** The `GeometryReader` on `expandedContent` (`ContentView.swift:120–138`) reads `proxy.size.height` — which is whatever the parent proposed, *because step 2 absorbed it*. That value flows to `measuredExpandedContentHeight → effectiveTotalHeight → outer .frame(height:)`, which proposes the same height back next layout pass. Stable, but **locked at the formula's pessimistic budget instead of the real intrinsic**.
+
+**Fix.** Strip `.frame(maxHeight:)` and `.clipped()` from `gamesList`. The `VStack` now reports its actual intrinsic height, GR measures the truth, the panel snaps to it, and the formula's 110pt allowance becomes a harmless ceiling that's only consulted on the very first frame before measurement settles.
+
+KBO regular season caps at 5 games/day so the cap was always a no-op in production; the 9c-era ScrollView fallback is unnecessary at that game count. Pathological mock data > `panelAbsoluteMaxHeight (700)` will now over-extend instead of clipping — acceptable trade-off documented inline.
+
+### Why tuning the 110 token couldn't fix Bug 3
+
+Lowering `panelHeightLinescoreSection` to ~85 would close it for the common case but break extra-inning grids (12 innings × 20pt cells = 240pt wide × 3 rows ≈ 130pt tall). The flex-frame absorbed any over-allocation regardless of token value, so the only durable fix is removing the absorbing layer.
+
+### Files touched
+
+- `mangtch-new/boringNotch/components/KBO/KBOViewModel.swift` — auto-unpin condition
+- `mangtch-new/boringNotch/components/KBO/KBOWidget.swift` — heightRange trigger
+- `mangtch-new/boringNotch/components/KBO/KBOExpandedView.swift` — `gamesList` flex-frame removed
+
+### Commits
+
+- `cae8f5b` — `fix(mangtch-new): keep pre-game pin + grow panel on any expansion` (Bugs 1+2)
+- (next) — `fix(mangtch-new): drop greedy maxHeight on KBO gamesList` (Bug 3)
 
 ---
 
