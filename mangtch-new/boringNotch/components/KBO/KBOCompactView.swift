@@ -31,13 +31,13 @@ struct KBOCompactView: View {
                     .padding(.vertical, KBOLayoutTokens.compactBackgroundVerticalInset)
             )
             .animation(.easeInOut(duration: 0.18), value: isHovering)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .onAppear { pulse = true }
         } else {
             Image(systemName: "baseball")
                 .font(TypographyTokens.expandedCaptionLarge)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

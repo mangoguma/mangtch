@@ -30,6 +30,7 @@ struct KBORightWingContainer: View {
             Image(systemName: "baseball")
                 .font(.system(size: 14))  // wing placeholder glyph (one-off)
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }
