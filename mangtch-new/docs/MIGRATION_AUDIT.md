@@ -354,9 +354,10 @@ boring.notch 의 `OpenNotchHUD` / `InlineHUD` 가 phase 2 에서 삭제됨 — �
 | ~~1~~ | ~~좌측 wing AudioVisualizer 부활~~ | §4.1 | done | `92332bb`. `AudioSpectrumView` 4-bar 14×12 + 좌/우 wing 정렬 정리. |
 | ~~2~~ | ~~트랙 변경 알림~~ | §4.3 | done | `eac7fda` (구현체) + `8ef6166` (텍스트 clamp + Timer wing 절반). 배너 안 띄우고 wing 폭 일시 확장 — Mangtch `previewWingWidth` 패턴. 자세한 내용은 §7.1 참고. |
 | 1 | LyricsPanel 거취 결정 | §4.2 | 정책 | 룰 §1 엄격 적용시 코드 삭제. 살리려면 `MusicManager.fetchLyrics` 채워야 하는데 룰이 LRCLIB/NetEase 직접 fetch 를 의도적 드롭으로 명시 → **사용자 결정 필요**. |
-| 2 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
+| 2 | Spotify 하트(Liked Songs) 거취 결정 | 신규 | 정책 | `SpotifyController.setFavorite` 가 `// Placeholder`, `supportsFavorite: false`. Mangtch 는 `Sources/SystemBridge/Spotify/SpotifyAPI.swift` 로 OAuth + `me/tracks` API 호출해서 동작. 룰 §1 에 Spotify Web API 명시 없음 — LRCLIB/NetEase 만 드롭으로 명시됨. (a) 드롭 유지 + doc 명시 / (b) `SpotifyAPI` 포팅 (토큰 저장 + `/me/tracks/contains` GET + `PUT/DELETE /me/tracks`). Apple Music / YouTube Music 은 이미 동작. **사용자 결정 필요**. |
+| 3 | FileShelf 위젯 어댑터 | §4.4 | TBD | boring.notch `Shelf*` 시리즈를 `NotchWidget` 으로 감싸 `WidgetRegistry` 에 등록. 본 마이그레이션 스코프 밖이지만 추적 가치 있음. |
 | ~~3~~ | ~~Debug 오버레이 (zone 시각화)~~ | §4.5 | done | `b9bf1d9`. 4 색 정적 zone + 오렌지 wing-button hit zones. Settings → General → Notch behavior → "Debug zone overlay" 토글. `.closed` 에서는 오렌지 미렌더. 자세한 내용은 §7.1 참고. |
-| 3 | (옵션) 매우 긴 제목 marquee | §4.3 후속 | ~30 LOC | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(8ef6166 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll fallback. |
+| 4 | (옵션) 매우 긴 제목 marquee | §4.3 후속 | ~30 LOC | 현재 preview cap=640pt(=open-panel max). 제목+아티스트가 그 이상 필요해도 cap 에서 막혀 잘림 — 사용자 동의(8ef6166 직후). 더 길게 보여주고 싶으면 (a) cap 상향 또는 (b) cap 닿은 상태에서 boring.notch `MarqueeTextView` 로 scroll fallback. |
 
 ### 7.3 다음 작업자에게
 
