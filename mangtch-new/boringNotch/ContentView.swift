@@ -28,6 +28,19 @@ private struct ExpandedContentHeightKey: PreferenceKey {
     }
 }
 
+// MARK: - Album Art Namespace Environment
+
+private struct AlbumArtNamespaceKey: EnvironmentKey {
+    static let defaultValue: Namespace.ID? = nil
+}
+
+extension EnvironmentValues {
+    var albumArtNamespace: Namespace.ID? {
+        get { self[AlbumArtNamespaceKey.self] }
+        set { self[AlbumArtNamespaceKey.self] = newValue }
+    }
+}
+
 // MARK: - ContentView
 
 @MainActor
@@ -48,6 +61,12 @@ struct ContentView: View {
     // MARK: - Outer boring-notch concave radius
     private var wingTopOuterRadius: CGFloat { vm.metrics.wingWidth > 0 ? LayoutTokens.wingTopOuterRadius : 0 }
 
+    // MARK: - Animation
+    @Namespace var albumArtNamespace
+    private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
+    private var openAnimation: Animation { .spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0) }
+    private var closeAnimation: Animation { .spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0) }
+
     var body: some View {
         GeometryReader { _ in
             ZStack(alignment: .top) {
@@ -65,6 +84,7 @@ struct ContentView: View {
         }
         .ignoresSafeArea()
         .environment(\.notchHostWindow, hostWindow)
+        .environment(\.albumArtNamespace, albumArtNamespace)
         .background(dragDetector)
         .preferredColorScheme(.dark)
         // 7d: clamp Dynamic Type so a user with xLarge accessibility
@@ -143,7 +163,7 @@ struct ContentView: View {
                 .frame(height: vm.notchState == .open ? vm.effectiveTotalHeight : 0, alignment: .top)
                 .clipped()
                 .allowsHitTesting(vm.notchState == .open)
-                .animation(.easeInOut(duration: 0.22), value: vm.notchState)
+                .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
         }
         .frame(width: m.panelWidth)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -152,7 +172,7 @@ struct ContentView: View {
         // this the outer frame snaps while wings ease — the HStack briefly
         // overflows or under-fills its container and the wings look like
         // they're "filling from the outside" instead of widening evenly.
-        .animation(.easeInOut(duration: 0.22), value: m.panelWidth)
+        .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: m.panelWidth)
     }
 
     // MARK: - Wings Row
@@ -180,6 +200,7 @@ struct ContentView: View {
                     )
                 )
                 .clipped()
+                .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: m.wingWidth)
 
             // Notch bar (covers the hardware notch gap)
             ThemeTokens.wingFill(systemDark: vm.systemIsDark)
@@ -210,6 +231,7 @@ struct ContentView: View {
                     )
                 )
                 .clipped()
+                .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: m.wingWidth)
         }
         // Collect wing hit zones reported by child views.
         .onPreferenceChange(WingHitZonesKey.self) { zones in
@@ -244,7 +266,7 @@ struct ContentView: View {
                                  widget.id == activeID)
             }
         }
-        .animation(.easeInOut(duration: 0.22), value: activeID)
+        .animation(animationSpring, value: activeID)
     }
 
     @ViewBuilder
@@ -260,7 +282,7 @@ struct ContentView: View {
                                  widget.id == activeID)
             }
         }
-        .animation(.easeInOut(duration: 0.22), value: activeID)
+        .animation(animationSpring, value: activeID)
     }
 
     // MARK: - Expanded Content
