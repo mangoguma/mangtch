@@ -6,6 +6,27 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.1</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.1</h2>
+        <h3>KBO 라이브 중계 right wing</h3>
+        <ul>
+          <li>fix: 투수/타자 이름이 right wing에 표시되지 않던 문제 수정</li>
+          <li>fix: 중계 텍스트 스크롤과 TTS 음성 속도 동기화 (한국어 ~8자/초 기준)</li>
+          <li>fix: 텍스트 스크롤 완료 직후 투수/타자 이름 즉시 복귀 (이전: 5초 대기)</li>
+          <li>fix: 선수 교체·타자 소개 플레이도 ticker에 표시 (이전: TTS만 재생)</li>
+          <li>fix: 이닝 전환 시 동일 플레이가 두 번 표시되는 중복 버그 수정</li>
+        </ul>
+      ]]></description>
+      <pubDate>Sat, 10 May 2026 17:30:00 +0900</pubDate>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.1/Mangtch-0.10.1.zip"
+                 length="8623689"
+                 sparkle:edSignature="K6bFwK/FdR4IdTY6MtPyyyHtgKqbQq5CiE36f/tF/Rh+QHhr8a4fRee0pWKrT7vlA/jwpqTyhxQ/g1luV7EuBw=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.7.1</title>
       <description><![CDATA[
         <h2>Mangtch 0.7.1</h2>
