@@ -49,12 +49,18 @@ struct KBOLiveStateView: View {
     /// column with a horizontally-scrolling ticker so the user reads the
     /// play outcome without losing the diamond/count context.
     var playText: String? = nil
+    /// Called when the ticker's oneShot scroll animation finishes so the
+    /// pitcher/batter column can re-appear without waiting for latestPlayText
+    /// to be nil-ed by the queue runner's 5s sleep.
+    var onPlayScrollDone: (() -> Void)? = nil
     /// Primary club colour for the side currently pitching / batting.
     /// nil falls back to a neutral fill so a missing attackingSide doesn't
     /// render as an unrelated team's colour. Resolved at the call site
     /// because the view doesn't have access to KBOGame's team codes.
     var pitcherTeamColor: Color? = nil
     var batterTeamColor: Color? = nil
+
+    @State private var tickerDone = false
 
     var body: some View {
         if compact { compactBody } else { wingBody }
@@ -115,19 +121,29 @@ struct KBOLiveStateView: View {
                               order: state.batOrder,
                               tint: batterTeamColor)
                 }
-                .opacity(playText == nil ? 1 : 0)
+                // Reveal pitcher/batter as soon as the ticker finishes
+                // scrolling (tickerDone), not only when playText becomes nil.
+                .opacity(playText == nil || tickerDone ? 1 : 0)
 
                 if let playText {
                     KBOTickerText(playText,
                                   font: .system(size: 10, weight: .medium),
                                   speed: 28,
                                   isActive: true,
-                                  oneShot: true)
+                                  oneShot: true,
+                                  onScrollDone: {
+                                      tickerDone = true
+                                      onPlayScrollDone?()
+                                  })
+                        .opacity(tickerDone ? 0 : 1)
                         .foregroundStyle(KBOThemeTokens.liveText)
                         .transition(.opacity)
+                        .onAppear { tickerDone = false }
+                        .onChange(of: playText) { tickerDone = false }
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: playText)
+            .animation(.easeInOut(duration: 0.3), value: tickerDone)
             .frame(minWidth: 50)
 
             VStack(alignment: .leading, spacing: KBOLayoutTokens.liveWingCountVerticalSpacing) {

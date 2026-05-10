@@ -503,10 +503,18 @@ final class KBOViewModel {
 
             // Merge backfill before current plays so the queue sees events
             // in chronological order: end-of-previous-half → new-half.
+            // Deduplicate by seqno: the same boundary play can appear in
+            // both the backfill relay and the linescore allPlays response.
             let currentPlays = result?.allPlays ?? []
-            let allPlays = backfillPlays.isEmpty
-                ? currentPlays
-                : (backfillPlays + currentPlays).sorted { $0.seqno < $1.seqno }
+            let allPlays: [KBOLinescore.Play]
+            if backfillPlays.isEmpty {
+                allPlays = currentPlays
+            } else {
+                var seen = Set<Int>()
+                allPlays = (backfillPlays + currentPlays)
+                    .filter { seen.insert($0.seqno).inserted }
+                    .sorted { $0.seqno < $1.seqno }
+            }
 
             if !allPlays.isEmpty {
                 self.handleNewPlays(allPlays, gameID: gameId)
@@ -633,8 +641,14 @@ final class KBOViewModel {
             $0.importance >= .medium || $0.naverType == 2 || $0.naverType == 8
         }
         if !displayable.isEmpty {
-            playQueue.append(contentsOf: displayable)
-            startQueueRunnerIfNeeded()
+            // Guard against the same seqno reaching the queue twice (e.g.
+            // via a concurrent backfill + immediate-refetch race).
+            let queuedSeqnos = Set(playQueue.map(\.seqno))
+            let toAdd = displayable.filter { !queuedSeqnos.contains($0.seqno) }
+            if !toAdd.isEmpty {
+                playQueue.append(contentsOf: toAdd)
+                startQueueRunnerIfNeeded()
+            }
         }
 
         // Immediately re-fetch after new plays land so rapidly-arriving
@@ -690,11 +704,8 @@ final class KBOViewModel {
                     )
                 }
 
-                // Substitution (type 2) and batter intro (type 8): TTS
-                // announces the change but the visual ticker stays quiet
-                // to avoid cluttering it with non-play lines.
                 let isTTSOnly = play.naverType == 2 || play.naverType == 8
-                if self.tickerEnabled && !isTTSOnly {
+                if self.tickerEnabled {
                     self.latestPlayText = play.text
                 }
 
