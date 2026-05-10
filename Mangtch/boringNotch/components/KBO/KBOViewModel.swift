@@ -471,13 +471,12 @@ final class KBOViewModel {
                 self.liveScores[gameId] = (away: away, home: home)
             }
 
-            // Non-tracked games: update BSO directly from linescore snapshot.
-            // Tracked game: BSO is synced per-play in the queue runner so
-            // the diamond/count updates stay in lockstep with the ticker.
-            let isTracked = gameId == self.trackedGame?.gameId
-            if !isTracked {
-                self.liveStates[gameId] = result?.liveState
-            }
+            // Always seed liveState from the full relay response — it carries
+            // resolved pitcher/batter names that play-level snapshots omit.
+            // The tracked game's BSO will be updated again by handleNewPlays
+            // (per-play snapshots), while the name-preservation fix in both
+            // handleNewPlays and the queue runner keeps names intact.
+            self.liveStates[gameId] = result?.liveState
 
             self.cacheStarters(from: result, gameId: gameId)
 
@@ -592,8 +591,23 @@ final class KBOViewModel {
             currentAttackingSide = last.attackingSide
             // Apply the latest play's BSO snapshot immediately so the
             // tracked game's diamond/count is never more than one poll stale.
+            // Preserve pitcher/batter names — play snapshots carry nil names
+            // (no per-play pcode lookup) so they must come from the previous
+            // liveState, which fetchLinescoreNow seeds with resolved names.
             if let snap = last.liveSnapshot {
-                liveStates[gameID] = snap
+                let prev = liveStates[gameID]
+                liveStates[gameID] = KBOLinescore.LiveState(
+                    balls: snap.balls,
+                    strikes: snap.strikes,
+                    outs: snap.outs,
+                    onFirst: snap.onFirst,
+                    onSecond: snap.onSecond,
+                    onThird: snap.onThird,
+                    batterName: snap.batterName ?? prev?.batterName,
+                    batOrder: snap.batOrder ?? prev?.batOrder,
+                    pitcherName: snap.pitcherName ?? prev?.pitcherName,
+                    attackingSide: snap.attackingSide ?? prev?.attackingSide
+                )
             }
         }
 
@@ -656,8 +670,24 @@ final class KBOViewModel {
 
                 // Sync BSO to the snapshot captured at play time so the
                 // diamond/count advances in lockstep with the ticker text.
+                // Preserve pitcher/batter names from the previous state —
+                // collectPlays snapshots carry nil names (no pcode lookup
+                // per-play) and would otherwise wipe the names that
+                // fetchLinescoreNow resolved on the most recent full fetch.
                 if let snap = play.liveSnapshot, let gid = self.trackedGame?.gameId {
-                    self.liveStates[gid] = snap
+                    let prev = self.liveStates[gid]
+                    self.liveStates[gid] = KBOLinescore.LiveState(
+                        balls: snap.balls,
+                        strikes: snap.strikes,
+                        outs: snap.outs,
+                        onFirst: snap.onFirst,
+                        onSecond: snap.onSecond,
+                        onThird: snap.onThird,
+                        batterName: snap.batterName ?? prev?.batterName,
+                        batOrder: snap.batOrder ?? prev?.batOrder,
+                        pitcherName: snap.pitcherName ?? prev?.pitcherName,
+                        attackingSide: snap.attackingSide ?? prev?.attackingSide
+                    )
                 }
 
                 // Substitution (type 2) and batter intro (type 8): TTS
