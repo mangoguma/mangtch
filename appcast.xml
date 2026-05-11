@@ -19,11 +19,11 @@
         </ul>
       ]]></description>
       <pubDate>Sat, 10 May 2026 17:30:00 +0900</pubDate>
-      <sparkle:version>2</sparkle:version>
+      <sparkle:version>12</sparkle:version>
       <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
       <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.1/Mangtch-0.10.1.zip"
-                 length="8623689"
-                 sparkle:edSignature="K6bFwK/FdR4IdTY6MtPyyyHtgKqbQq5CiE36f/tF/Rh+QHhr8a4fRee0pWKrT7vlA/jwpqTyhxQ/g1luV7EuBw=="
+                 length="8623691"
+                 sparkle:edSignature="Tm2k0xD5tK0Q4f0prbGNno22bVdpBuMiHH5CciXDqX/9hlZVbUM4ZQPJIfcRXdkaqbMdgZrJxG4Oywyo43wpCQ=="
                  type="application/octet-stream"/>
     </item>
     <item>
