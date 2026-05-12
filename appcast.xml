@@ -6,6 +6,27 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.2</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.2</h2>
+        <h3>패널 펼침 성능</h3>
+        <ul>
+          <li>fix: 패널을 펼칠 때 좌상단에서 풀려나오는 듯한 시각 결함 및 전반적인 버벅임 수정 — NSPanel envelope을 단방향 grow로 고정해 SwiftUI 단일 트랙으로 애니메이션</li>
+        </ul>
+        <h3>KBO</h3>
+        <ul>
+          <li>fix: 구장 매핑 오류 — 삼성(SS) 대전→대구, 한화(HH) 인천→대전, 키움(WO) 대구→고척</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 12 May 2026 22:40:00 +0900</pubDate>
+      <sparkle:version>13</sparkle:version>
+      <sparkle:shortVersionString>0.10.2</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.2/Mangtch-0.10.2.zip"
+                 length="8622345"
+                 sparkle:edSignature="X91ZC6oginWv7CENqdHHyixp9f4hTCAZORW4z6aJcRwde/ONI9z5fkQz0XH0KBskuimBOg1LStMjYwwMDxVUBw=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.1</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.1</h2>
