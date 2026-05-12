@@ -592,13 +592,13 @@ struct KBOExpandedView: View {
         case "OB": return "잠실"
         case "LG": return "잠실"
         case "NC": return "창원"
-        case "SS": return "대전"
+        case "SS": return "대구"
         case "HT": return "광주"
-        case "HH": return "인천"
+        case "HH": return "대전"
         case "KT": return "수원"
         case "SK": return "문학"
         case "LT": return "사직"
-        case "WO": return "대구"
+        case "WO": return "고척"
         default:   return "—"
         }
     }
