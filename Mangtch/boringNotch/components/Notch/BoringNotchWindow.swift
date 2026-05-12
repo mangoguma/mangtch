@@ -65,49 +65,43 @@ class BoringNotchWindow: NSPanel {
 
     // MARK: - Content-driven resize
 
-    /// Resize the panel window to fit the active widget's metrics, anchored
-    /// to the top edge so the notch strip stays glued to the menu bar.
+    /// Grow the panel window's envelope to fit the active widget's open
+    /// metrics, anchored to the top edge. Window only ever grows within
+    /// a session — never shrinks.
     ///
-    /// Both width and height track `metrics`. To keep SwiftUI's
-    /// `.easeInOut(0.22)` wing/panel-width animation visually synced with
-    /// the NSWindow frame animation, we drive `NSAnimationContext` with the
-    /// exact bezier control points SwiftUI's `easeInOut` uses
-    /// (`(0.42, 0, 0.58, 1.0)`) for the same 0.22s duration. CoreAnimation's
-    /// named `.easeInEaseOut` is *almost* the same curve but not identical —
-    /// using the explicit control points eliminates the edge-wobble that
-    /// killed phase-5b's first attempt at content-driven width.
+    /// Upstream boring.notch keeps the NSPanel at a fixed envelope and
+    /// renders every visible transition inside the transparent panel via
+    /// SwiftUI. We do the same: SwiftUI's centered `.frame(width:)` +
+    /// `.frame(maxWidth: .infinity, alignment: .center)` produces a
+    /// symmetric expand/collapse purely from layout.
+    ///
+    /// Shrinking the window — even instantly — produces a visible artifact:
+    /// SwiftUI sees the new `notchState` before the deferred `setFrame`
+    /// fires (Combine `.receive(on: RunLoop.main)` + `Task { @MainActor }`
+    /// adds 1–2 runloop turns), so it re-centers content against the *old*
+    /// host bounds for one frame, then jumps after the resize lands. That
+    /// reads as "expanding from the top-left." Holding the envelope at the
+    /// maximum width/height seen so far avoids all of it.
     @MainActor
     func resizeWindow(metrics: PanelLayoutMetrics,
                       notchHeight: CGFloat,
                       isOpen: Bool,
                       animated: Bool = true) {
-        let height: CGFloat = isOpen
-            ? notchHeight + metrics.totalHeight + LayoutTokens.shadowPadding
-            : notchHeight + LayoutTokens.shadowPadding
-        let width: CGFloat = metrics.panelWidth
+        let openHeight = notchHeight + metrics.totalHeight + LayoutTokens.shadowPadding
+        let targetWidth = metrics.panelWidth
 
         let anchorScreen = self.screen ?? NSScreen.main
         guard let screenFrame = anchorScreen?.frame else { return }
-        let topY = screenFrame.maxY
-        let originX = screenFrame.midX - width / 2
-        let originY = topY - height
-        let newFrame = NSRect(x: originX, y: originY, width: width, height: height)
 
-        // Skip the no-op case so a flurry of identical metrics doesn't keep
-        // restarting the implicit animation context.
+        let envelopeWidth = max(self.frame.width, targetWidth)
+        let envelopeHeight = max(self.frame.height, openHeight)
+
+        let originX = screenFrame.midX - envelopeWidth / 2
+        let originY = screenFrame.maxY - envelopeHeight
+        let newFrame = NSRect(x: originX, y: originY,
+                              width: envelopeWidth, height: envelopeHeight)
+
         if NSEqualRects(self.frame, newFrame) { return }
-
-        if animated {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.22
-                ctx.timingFunction = CAMediaTimingFunction(
-                    controlPoints: 0.42, 0, 0.58, 1.0
-                )
-                ctx.allowsImplicitAnimation = true
-                self.animator().setFrame(newFrame, display: true)
-            }
-        } else {
-            self.setFrame(newFrame, display: true)
-        }
+        self.setFrame(newFrame, display: true)
     }
 }
