@@ -6,12 +6,19 @@ macOS 노치(notch) 패널 앱. SwiftUI + AppKit 인터롭, `.nonactivatingPanel
 
 코드 수정 후에는 **항상** 빌드 → 재설치 → 재실행까지 알아서 끝낸다. 사용자에게 빌드해달라고 요청하지 말 것.
 
+> **서명 주의 (중요):** ad-hoc(`CODE_SIGN_IDENTITY=-`)로 빌드하면 매 빌드마다 코드 서명이 바뀌어
+> ① Spotify Keychain 토큰 접근 ② 손쉬운 사용(TCC) 권한이 매번 깨진다. 반드시 **고정 자체서명
+> `Mangtch Code Signing` + 샌드박스 제거 override**(`Mangtch/dev-local.entitlements`, gitignore됨)로 빌드한다.
+> 이 entitlements는 로컬 전용이며 repo의 릴리스 entitlements(`boringNotch/boringNotch.entitlements`)는 건드리지 않는다.
+
 ```bash
 cd /Users/sarang/Projects/mangtch/Mangtch
 xcodebuild -project boringNotch.xcodeproj \
   -scheme boringNotch -configuration Release \
   -derivedDataPath ./build \
-  CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGN_IDENTITY="Mangtch Code Signing" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+  PROVISIONING_PROFILE_SPECIFIER="" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGN_ENTITLEMENTS=./dev-local.entitlements \
   build 2>&1 | tail -5
 pkill -9 -x Mangtch 2>/dev/null; sleep 0.3
 rm -rf /Applications/Mangtch.app
@@ -22,7 +29,7 @@ open /Applications/Mangtch.app
 한 줄로 (선호):
 
 ```bash
-cd /Users/sarang/Projects/mangtch/Mangtch && xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Release -derivedDataPath ./build CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5 && pkill -9 -x Mangtch 2>/dev/null; sleep 0.3; rm -rf /Applications/Mangtch.app && cp -R ./build/Build/Products/Release/Mangtch.app /Applications/Mangtch.app && open /Applications/Mangtch.app
+cd /Users/sarang/Projects/mangtch/Mangtch && xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Release -derivedDataPath ./build CODE_SIGN_IDENTITY="Mangtch Code Signing" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" PROVISIONING_PROFILE_SPECIFIER="" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS=./dev-local.entitlements build 2>&1 | tail -5 && pkill -9 -x Mangtch 2>/dev/null; sleep 0.3; rm -rf /Applications/Mangtch.app && cp -R ./build/Build/Products/Release/Mangtch.app /Applications/Mangtch.app && open /Applications/Mangtch.app
 ```
 
 빌드가 "input file ... was modified during the build" 에러로 실패하면 (사용자가 동시 편집 중일 때) 한 번 더 시도.
