@@ -263,7 +263,7 @@ struct LyricsPanel: View {
         // Re-tick at ~4Hz while playing — same cadence the inline lyric
         // line in MusicControlsView uses, so highlights stay in sync
         // without spinning a Timer.
-        TimelineView(.animation(minimumInterval: music.isPlaying ? 0.25 : nil)) { timeline in
+        TimelineView(.animation(minimumInterval: 0.25, paused: !music.isPlaying)) { timeline in
             let elapsed = currentElapsed(at: timeline.date)
             let activeIdx = currentIndex(for: elapsed, in: lines) ?? -1
             let highlight = Color(nsColor: music.avgColor)

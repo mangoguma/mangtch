@@ -17,6 +17,17 @@ final class GestureHandler {
     private var globalMonitor: Any?
     private var localMonitor: Any?
 
+    /// Last point we actually processed a mouse-moved for. Used to drop the
+    /// stream of coalesced/duplicate moves the OS delivers at 60–120 Hz so we
+    /// don't recompute hover geometry for sub-pixel jitter.
+    private var lastMouseMovedPoint: NSPoint?
+
+    /// Vertical band (in points, from each screen's top edge) within which the
+    /// notch/wing hover zones can possibly live while closed. Cursor moves
+    /// below this band, with every panel closed, are rejected before any
+    /// screen lookup or geometry work.
+    private static let closedHoverBandHeight: CGFloat = 200
+
     private init() {}
 
     // MARK: - Setup / Teardown
@@ -43,14 +54,17 @@ final class GestureHandler {
         globalMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.mouseMoved, .leftMouseDown]
         ) { [weak self] event in
-            let eventType = event.type
-            let mouseLocation = NSEvent.mouseLocation
-            Task { @MainActor in
-                switch eventType {
+            // Global monitor callbacks are delivered on the main run loop, so
+            // we can stay on the main actor directly instead of allocating a
+            // `Task` per event — at 60–120 mouse-moved events/sec that
+            // allocation + actor hop was the app's biggest idle drain.
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                switch event.type {
                 case .mouseMoved:
-                    self?.handleMouseMoved(at: mouseLocation)
+                    self.onMouseMoved(at: NSEvent.mouseLocation)
                 case .leftMouseDown:
-                    self?.handleGlobalClick(at: mouseLocation)
+                    self.handleGlobalClick(at: NSEvent.mouseLocation)
                 default:
                     break
                 }
@@ -64,7 +78,7 @@ final class GestureHandler {
         localMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.mouseMoved, .leftMouseDown, .keyDown, .scrollWheel]
         ) { [weak self] event in
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 self?.handleLocalEvent(event)
             }
             return event
@@ -74,7 +88,7 @@ final class GestureHandler {
     private func handleLocalEvent(_ event: NSEvent) {
         switch event.type {
         case .mouseMoved:
-            handleMouseMoved(at: NSEvent.mouseLocation)
+            onMouseMoved(at: NSEvent.mouseLocation)
         case .leftMouseDown:
             // .nonactivatingPanel routing: clicks can arrive via either path.
             handleGlobalClick(at: NSEvent.mouseLocation)
@@ -135,7 +149,29 @@ final class GestureHandler {
     // MARK: - Mouse Handling
 
     func recheckCurrentPosition() {
+        // Force a recompute regardless of dedupe/early-out caches.
+        lastMouseMovedPoint = nil
         handleMouseMoved(at: NSEvent.mouseLocation)
+    }
+
+    /// Cheap pre-filter in front of `handleMouseMoved`, run for every raw
+    /// mouse-moved event. Drops duplicates and, while every panel is closed,
+    /// rejects cursor positions that can't be near any notch before doing any
+    /// screen lookup or geometry.
+    private func onMouseMoved(at point: NSPoint) {
+        if let last = lastMouseMovedPoint, last == point { return }
+        lastMouseMovedPoint = point
+
+        // When nothing is open, the only work handleMouseMoved can do is reveal
+        // a hover affordance — impossible unless the cursor is in the top band
+        // of some screen. Reject everything else without touching NSScreen.
+        let anyOpen = allViewModels.contains { $0.notchState != .closed }
+        if !anyOpen {
+            let nearAnyTop = NSScreen.screens.contains { point.y >= $0.frame.maxY - Self.closedHoverBandHeight }
+            if !nearAnyTop { return }
+        }
+
+        handleMouseMoved(at: point)
     }
 
     private func handleMouseMoved(at point: NSPoint) {
