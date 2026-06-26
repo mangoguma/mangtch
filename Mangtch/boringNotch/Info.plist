@@ -21,5 +21,16 @@
 	<array>
 		<dict/>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mangoguma.mangtch.spotify-callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mangtch</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
