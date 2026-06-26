@@ -52,6 +52,19 @@
 
 Grab the latest `.app` from the [**Releases**](https://github.com/mangoguma/mangtch/releases) page, drop it into `/Applications`, and launch.
 
+> **첫 실행 시 "확인되지 않은 개발자" 경고가 뜹니다 (정상)**
+>
+> Mangtch는 Apple Developer ID로 공증(notarize)되지 않은 빌드라, 처음 열 때 macOS가
+> *"확인되지 않은 개발자… 악성 소프트웨어인지 확인할 수 없습니다"* 라며 실행을 막습니다.
+> 한 번만 아래로 우회하면 이후로는 그냥 실행됩니다.
+>
+> 1. `/Applications`의 **Mangtch.app**을 **우클릭(Control+클릭) → 열기 → 열기**
+> 2. 안 되면 **시스템 설정 → 개인정보 보호 및 보안** 맨 아래 *"확인 없이 열기"* 버튼 클릭
+> 3. 터미널 한 줄로도 가능: `xattr -dr com.apple.quarantine /Applications/Mangtch.app`
+>
+> 또한 **앱이 새 버전으로 업데이트되면** Spotify 로그인이 한 번 풀리고 손쉬운 사용 권한을
+> 다시 물어볼 수 있습니다 — 서명 신원이 버전마다 바뀌기 때문이며, 다시 로그인/허용하면 됩니다.
+
 ### Build from source
 
 ```bash
