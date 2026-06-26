@@ -6,6 +6,27 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.3</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.3</h2>
+        <h3>배터리</h3>
+        <ul>
+          <li>perf: 음악 일시정지·유휴 상태에서 CPU 점유를 크게 줄임 — 마우스 글로벌 모니터의 불필요한 작업 제거, 안 보이는 깜빡임 타이머 누수 수정, 진행바/가사 TimelineView가 멈춤 상태에서 매 프레임 다시 그리던 문제 수정 (일시정지 시 ~5% → 1% 미만)</li>
+        </ul>
+        <h3>Spotify</h3>
+        <ul>
+          <li>fix: 로그인 후 앱으로 복귀가 안 되던 문제 수정 — <code>mangtch://</code> URL scheme 등록. 이제 Web API 로그인이 완료되어 좋아요(하트) 버튼을 쓸 수 있음</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 26 Jun 2026 14:03:56 +0900</pubDate>
+      <sparkle:version>14</sparkle:version>
+      <sparkle:shortVersionString>0.10.3</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.3/Mangtch-0.10.3.zip"
+                 length="8622735"
+                 sparkle:edSignature="sGmo8sqDsyt2fxYQj/MHExYsClGU3YkZ4xk33SFZu9zcd3XqDyQTCGk4Kc2OhPCOme7lLM8Fo+jh4iieKOPDCA=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.2</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.2</h2>
