@@ -18,7 +18,7 @@ xcodebuild -project boringNotch.xcodeproj \
   -derivedDataPath ./build \
   CODE_SIGN_IDENTITY="Mangtch Code Signing" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
   PROVISIONING_PROFILE_SPECIFIER="" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES \
-  CODE_SIGN_ENTITLEMENTS=./dev-local.entitlements \
+  CODE_SIGN_ENTITLEMENTS=/Users/sarang/Projects/mangtch/Mangtch/dev-local.entitlements \
   build 2>&1 | tail -5
 pkill -9 -x Mangtch 2>/dev/null; sleep 0.3
 rm -rf /Applications/Mangtch.app
@@ -29,7 +29,7 @@ open /Applications/Mangtch.app
 한 줄로 (선호):
 
 ```bash
-cd /Users/sarang/Projects/mangtch/Mangtch && xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Release -derivedDataPath ./build CODE_SIGN_IDENTITY="Mangtch Code Signing" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" PROVISIONING_PROFILE_SPECIFIER="" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS=./dev-local.entitlements build 2>&1 | tail -5 && pkill -9 -x Mangtch 2>/dev/null; sleep 0.3; rm -rf /Applications/Mangtch.app && cp -R ./build/Build/Products/Release/Mangtch.app /Applications/Mangtch.app && open /Applications/Mangtch.app
+cd /Users/sarang/Projects/mangtch/Mangtch && xcodebuild -project boringNotch.xcodeproj -scheme boringNotch -configuration Release -derivedDataPath ./build CODE_SIGN_IDENTITY="Mangtch Code Signing" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" PROVISIONING_PROFILE_SPECIFIER="" CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_ENTITLEMENTS=/Users/sarang/Projects/mangtch/Mangtch/dev-local.entitlements build 2>&1 | tail -5 && pkill -9 -x Mangtch 2>/dev/null; sleep 0.3; rm -rf /Applications/Mangtch.app && cp -R ./build/Build/Products/Release/Mangtch.app /Applications/Mangtch.app && open /Applications/Mangtch.app
 ```
 
 빌드가 "input file ... was modified during the build" 에러로 실패하면 (사용자가 동시 편집 중일 때) 한 번 더 시도.
