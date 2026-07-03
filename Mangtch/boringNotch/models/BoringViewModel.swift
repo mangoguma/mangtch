@@ -505,6 +505,8 @@ class BoringViewModel: NSObject, ObservableObject {
         self.isBatteryPopoverActive = false
         self.coordinator.sneakPeek.show = false
         self.edgeAutoOpenActive = false
+        // Notify widgets (e.g. KBOViewModel) that the panel collapsed.
+        NotificationCenter.default.post(name: .boringNotchDidClose, object: nil)
 
         // Set the current view to shelf if it contains files and the user enables openShelfByDefault
         // Otherwise, if the user has not enabled openLastShelfByDefault, set the view to home

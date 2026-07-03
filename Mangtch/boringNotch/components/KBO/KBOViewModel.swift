@@ -13,6 +13,12 @@ final class KBOViewModel {
     private(set) var isLoading: Bool = false
     private(set) var lastError: String?
 
+    /// Whether the notch panel is currently open. Gates the "hold wings on a
+    /// non-today date" behavior so KBO only squats on the collapsed wings while
+    /// the user is actively browsing — not with a date that drifted stale
+    /// (e.g. across a KST midnight rollover) while the panel was closed.
+    private(set) var isNotchOpen: Bool = false
+
     /// Date the UI is rendering. Lags `pendingDate` until a fetch lands —
     /// so the header label, "오늘" button visibility, and games list all
     /// flip in lockstep instead of the label snapping ahead of the
@@ -199,7 +205,16 @@ final class KBOViewModel {
             .publisher(for: .boringNotchDidOpen)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                self?.isNotchOpen = true
                 self?.rewindDateOnly()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default
+            .publisher(for: .boringNotchDidClose)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.isNotchOpen = false
             }
             .store(in: &cancellables)
     }
@@ -785,4 +800,7 @@ extension Notification.Name {
     /// Posted by BoringViewModel.open() so widgets can react to panel opening.
     /// Replaces Mangtch's EventBus.stateChanges(.expanded) publisher.
     static let boringNotchDidOpen = Notification.Name("boringNotchDidOpen")
+    /// Posted by BoringViewModel.close() — the collapse counterpart so widgets
+    /// can tell they're no longer being actively browsed.
+    static let boringNotchDidClose = Notification.Name("boringNotchDidClose")
 }

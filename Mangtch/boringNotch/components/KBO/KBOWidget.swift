@@ -13,12 +13,16 @@ final class KBOWidget: NotchWidget {
     /// started a countdown — that's the most foreground intent).
     let wingPriority: Int = 10
 
-    /// Hold the wings while the user is browsing a non-today date — they're
-    /// clearly in the KBO context and flipping to Music under a KBO panel
-    /// is jarring. Otherwise only claim when a selected game is live.
+    /// Hold the wings while the user is *actively browsing* a non-today date
+    /// (panel open) — they're clearly in the KBO context and flipping to Music
+    /// under a KBO panel is jarring. Gated on `isNotchOpen` so a stale date
+    /// left behind while collapsed (e.g. after a KST midnight rollover, where
+    /// `displayedDate` only re-anchors on the next open) doesn't squat on the
+    /// wings all day with no live game. When collapsed we only claim for a
+    /// live pinned game.
     @MainActor
     var claimsWings: Bool {
-        if !viewModel.isShowingToday { return true }
+        if viewModel.isNotchOpen && !viewModel.isShowingToday { return true }
         return viewModel.selectedGame?.isLive == true
     }
 
