@@ -154,6 +154,9 @@ extension Defaults.Keys {
     static let waitInterval = Key<Double>("waitInterval", default: 3)
     static let showShuffleAndRepeat = Key<Bool>("showShuffleAndRepeat", default: false)
     static let enableLyrics = Key<Bool>("enableLyrics", default: false)
+    // Drop browser-sourced media (YouTube etc.) from the 'Now Playing' source
+    // so the panel stays reserved for real music apps. Only affects .nowPlaying.
+    static let hideBrowserMedia = Key<Bool>("hideBrowserMedia", default: true)
     static let musicControlSlots = Key<[MusicControlButton]>(
         "musicControlSlots",
         default: MusicControlButton.defaultLayout

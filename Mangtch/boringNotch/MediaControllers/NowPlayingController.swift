@@ -7,6 +7,7 @@
 
 import AppKit
 import Combine
+import Defaults
 import Foundation
 
 final class NowPlayingController: ObservableObject, MediaControllerProtocol {
@@ -95,6 +96,29 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
 
     private var lastMusicItem:
         (title: String, artist: String, album: String, duration: TimeInterval, artworkData: Data?)?
+
+    /// Browsers publish system now-playing for any tab (YouTube, SoundCloud
+    /// web, etc.), which floods the panel with non-music sources. The global
+    /// MediaRemote stream has no per-app filter, so we drop these here and keep
+    /// the panel reserved for real music apps.
+    private static let excludedBundleIdentifiers: Set<String> = [
+        "com.apple.Safari",
+        "com.apple.SafariTechnologyPreview",
+        "com.google.Chrome",
+        "com.google.Chrome.canary",
+        "com.google.Chrome.beta",
+        "com.google.Chrome.dev",
+        "com.microsoft.edgemac",
+        "com.microsoft.edgemac.Beta",
+        "company.thebrowser.Browser", // Arc
+        "app.zen-browser.zen",
+        "org.mozilla.firefox",
+        "org.mozilla.firefoxdeveloperedition",
+        "com.brave.Browser",
+        "com.brave.Browser.beta",
+        "com.operasoftware.Opera",
+        "com.vivaldi.Vivaldi",
+    ]
 
     // MARK: - Media Remote Functions
     private let mediaRemoteBundle: CFBundle
@@ -328,7 +352,19 @@ final class NowPlayingController: ObservableObject, MediaControllerProtocol {
             payload.bundleIdentifier ??
             (diff ? self.playbackState.bundleIdentifier : "")
         )
-        
+
+        // Drop browser-sourced media (YouTube etc.) — surface as idle so the
+        // panel stays reserved for real music apps. Toggleable in settings.
+        // Retain the browser bundle id (don't blank it): the adapter streams
+        // subsequent progress as diffs that omit the bundle, so keeping it lets
+        // those diffs resolve back to the browser and stay suppressed instead
+        // of slipping through as an empty-but-playing state.
+        if Defaults[.hideBrowserMedia],
+           Self.excludedBundleIdentifiers.contains(newPlaybackState.bundleIdentifier) {
+            self.playbackState = PlaybackState(bundleIdentifier: newPlaybackState.bundleIdentifier)
+            return
+        }
+
         newPlaybackState.volume = payload.volume ?? (diff ? self.playbackState.volume : 0.5)
         
         self.playbackState = newPlaybackState

@@ -565,6 +565,7 @@ struct Media: View {
     @Default(.sneakPeekStyles) var sneakPeekStyles
 
     @Default(.enableLyrics) var enableLyrics
+    @Default(.hideBrowserMedia) private var hideBrowserMedia
 
     var body: some View {
         Form {
@@ -579,6 +580,9 @@ struct Media: View {
                         name: Notification.Name.mediaControllerChanged,
                         object: nil
                     )
+                }
+                if mediaController == .nowPlaying {
+                    Toggle("Ignore browser media (YouTube, etc.)", isOn: $hideBrowserMedia)
                 }
             } header: {
                 Text("Media Source")
