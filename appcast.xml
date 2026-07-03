@@ -6,6 +6,27 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.4</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.4</h2>
+        <h3>음악</h3>
+        <ul>
+          <li>fix: 브라우저(유튜브 등) 미디어가 재생중 패널에 뜨던 문제 수정 — 'Now Playing' 소스가 이제 실제 음악 앱만 표시. 진행 중 diff가 빈 재생 상태로 새어 나오던 버그도 함께 수정. 설정 → Media → Media Source의 "Ignore browser media" 토글로 끌 수 있음(기본 켜짐)</li>
+        </ul>
+        <h3>KBO</h3>
+        <ul>
+          <li>fix: 중계 없는 날에도 접힌 위젯이 야구를 기본으로 물고 있던 문제 수정 — 자정(KST)이 지나거나 과거 날짜를 보고 패널을 닫으면 날짜가 어제로 고정돼 발생. 이제 노치를 열어 과거 날짜를 보는 중에만 wing을 유지하고, 접힌 상태에선 라이브 경기가 있을 때만 표시</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 03 Jul 2026 13:24:37 +0900</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>0.10.4</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.4/Mangtch-0.10.4.zip"
+                 length="8626634"
+                 sparkle:edSignature="AZ1zhk4+4ZnqOhStR4KpkDI6UTh6aDYxxAkZT35YoDONjL/Xb6IdodZJwCLrJrmU4gSbeoZzrbWnEQ/NhkviDw=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.3</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.3</h2>
