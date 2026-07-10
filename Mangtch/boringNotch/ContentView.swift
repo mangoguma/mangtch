@@ -143,7 +143,8 @@ struct ContentView: View {
                 .frame(height: vm.notchState == .open ? vm.effectiveTotalHeight : 0, alignment: .top)
                 .clipped()
                 .allowsHitTesting(vm.notchState == .open)
-                .animation(.easeInOut(duration: 0.22), value: vm.notchState)
+                .animation(vm.notchState == .open ? .openMorph : .closeMorph,
+                           value: vm.notchState)
         }
         .frame(width: m.panelWidth)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -152,7 +153,10 @@ struct ContentView: View {
         // this the outer frame snaps while wings ease — the HStack briefly
         // overflows or under-fills its container and the wings look like
         // they're "filling from the outside" instead of widening evenly.
-        .animation(.easeInOut(duration: 0.22), value: m.panelWidth)
+        // Width changes while closed (track preview / hover boosts) take
+        // the close spring — snappy suits those small reflows.
+        .animation(vm.notchState == .open ? .openMorph : .closeMorph,
+                   value: m.panelWidth)
     }
 
     // MARK: - Wings Row

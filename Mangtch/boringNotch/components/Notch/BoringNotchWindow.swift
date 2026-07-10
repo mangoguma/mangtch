@@ -93,7 +93,12 @@ class BoringNotchWindow: NSPanel {
         let anchorScreen = self.screen ?? NSScreen.main
         guard let screenFrame = anchorScreen?.frame else { return }
 
-        let envelopeWidth = max(self.frame.width, targetWidth)
+        // Width slack absorbs the open-morph spring's overshoot (damping
+        // 0.92 ≈ +1–2% past target). Height already has shadowPadding.
+        // The envelope is transparent and content stays centered, so the
+        // extra width is invisible.
+        let springOvershootSlack: CGFloat = 16
+        let envelopeWidth = max(self.frame.width, targetWidth + springOvershootSlack)
         let envelopeHeight = max(self.frame.height, openHeight)
 
         let originX = screenFrame.midX - envelopeWidth / 2
