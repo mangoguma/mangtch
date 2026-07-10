@@ -38,6 +38,13 @@ struct ContentView: View {
 
     @State private var anyDropDebounceTask: Task<Void, Never>?
 
+    /// Open-morph choreography: the panel shape grows alone first, then
+    /// the expanded content fades in (opacity + small downward slide).
+    /// Opacity-only — the content must stay mounted so the GeometryReader
+    /// height measurement that drives panel sizing keeps reporting.
+    @State private var expandedContentVisible = false
+    @State private var contentRevealTask: Task<Void, Never>?
+
     /// The host window — injected by AppDelegate so WingHitZone can convert
     /// SwiftUI-global rects to screen coordinates from *this* window.
     var hostWindow: NSWindow? = nil
@@ -102,6 +109,35 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: vm.notchState) { _, state in
+            contentRevealTask?.cancel()
+            if state == .open {
+                // Drag-driven opens skip the stagger — the user is holding
+                // files over the shelf and needs live drop targets now, not
+                // after a choreographed reveal.
+                if vm.anyDropZoneTargeting || vm.dragDetectorTargeting || vm.dropEvent {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        expandedContentVisible = true
+                    }
+                    return
+                }
+                contentRevealTask = Task { @MainActor in
+                    // 180ms ≈ the open spring's fast phase; the content
+                    // arrives while the shape performs its final settle.
+                    try? await Task.sleep(for: .milliseconds(180))
+                    guard !Task.isCancelled, vm.notchState == .open else { return }
+                    withAnimation(.contentReveal) {
+                        expandedContentVisible = true
+                    }
+                }
+            } else {
+                // Exits get out of the way: content drops fast while the
+                // close morph (0.30 response) is still in its first frames.
+                withAnimation(.easeOut(duration: 0.10)) {
+                    expandedContentVisible = false
+                }
+            }
+        }
     }
 
     // MARK: - Panel Content
@@ -113,6 +149,12 @@ struct ContentView: View {
             wingsRow
                 .overlay(alignment: .topLeading) { debugZonesOverlay }
             expandedContent
+                // Fade/slide only the content — backgrounds attached below
+                // (panel chrome) track the layout frame, which offset does
+                // not move, so the chrome grows under the morph while the
+                // content arrives separately.
+                .opacity(expandedContentVisible ? 1 : 0)
+                .offset(y: expandedContentVisible ? 0 : -8)
                 .frame(width: m.panelWidth, alignment: .top)
                 // Measure the **entire** expanded panel intrinsic height
                 // (Divider + WidgetSwitcherBar + widget body). The outer
@@ -142,7 +184,10 @@ struct ContentView: View {
                 }
                 .frame(height: vm.notchState == .open ? vm.effectiveTotalHeight : 0, alignment: .top)
                 .clipped()
-                .allowsHitTesting(vm.notchState == .open)
+                // Gate on visibility too — during the reveal delay the
+                // content is transparent but already laid out, and an
+                // invisible button taking a click reads as a dead panel.
+                .allowsHitTesting(vm.notchState == .open && expandedContentVisible)
                 .animation(vm.notchState == .open ? .openMorph : .closeMorph,
                            value: vm.notchState)
         }

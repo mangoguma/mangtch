@@ -40,4 +40,9 @@ extension Animation {
     /// out of the user's way, not presenting content. Undershoot on close
     /// can't clip (the envelope never shrinks), so damping can sit lower.
     static let closeMorph = Animation.spring(response: 0.30, dampingFraction: 0.9)
+
+    /// Strong ease-out (cubic-bezier 0.23, 1, 0.32, 1) for the expanded
+    /// content fade-in that trails the open morph. A spring here would
+    /// double-bounce against the still-settling panel shape.
+    static let contentReveal = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28)
 }
