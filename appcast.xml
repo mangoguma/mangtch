@@ -6,6 +6,24 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.5</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.5</h2>
+        <h3>패널</h3>
+        <ul>
+          <li>feat: 패널 숨기기 추가 — wing 이 메뉴바 위에 그려져서 그 아래 메뉴바 항목을 누를 수 없던 문제. 숨기면 창을 화면에서 내려 클릭 경로에서 빠지고, 숨긴 동안엔 노치 근처를 지나도 wing 이 넓어지지 않음. 켜고 끄는 길 셋: 메뉴바 아이콘 메뉴의 Hide/Show Panel, 단축키 <code>⌘⇧B</code>(설정 → Shortcuts 에서 변경), 펼친 패널 탭줄 오른쪽의 눈 아이콘. 숨긴 상태는 재시작해도 유지되며, 돌아올 길을 남기려고 숨길 때 메뉴바 아이콘을 자동으로 켬</li>
+          <li>fix: 패널을 펼칠 때 높이가 도중에 다시 겨냥되며 생기던 떨림 제거 — 확장 콘텐츠를 열림 목표 너비로 미리 배치해 모프 시작 전에 최종 높이가 정해지게 함</li>
+        </ul>
+      ]]></description>
+      <pubDate>Fri, 21 Aug 2026 10:30:00 +0900</pubDate>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>0.10.5</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.5/Mangtch-0.10.5.zip"
+                 length="8646588"
+                 sparkle:edSignature="kQtAzPpCUV1/oD3nhKbcgB30ssNbtuMSbh4n+wDHcrqoaGXMckfhmOAOmrsyScTNjaHVktbBue99T4DQZnRfCA=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.4</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.4</h2>
