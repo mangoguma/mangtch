@@ -149,19 +149,16 @@ struct ContentView: View {
             wingsRow
                 .overlay(alignment: .topLeading) { debugZonesOverlay }
             expandedContent
-                // Fade/slide only the content — backgrounds attached below
-                // (panel chrome) track the layout frame, which offset does
-                // not move, so the chrome grows under the morph while the
-                // content arrives separately.
-                .opacity(expandedContentVisible ? 1 : 0)
-                .offset(y: expandedContentVisible ? 0 : -8)
-                .frame(width: m.panelWidth, alignment: .top)
+                // Lay the content out at the OPEN target width even while
+                // closed. The measured height below is then final before
+                // the morph ever starts — the height animation never
+                // retargets mid-flight (formula→measured swap, or
+                // width-driven re-wrap), and the content doesn't re-layout
+                // on every frame of the width morph.
+                .frame(width: vm.expandedTargetPanelWidth, alignment: .top)
                 // Measure the **entire** expanded panel intrinsic height
-                // (Divider + WidgetSwitcherBar + widget body). The outer
-                // `.frame(height:)` below uses `.infinity` when open so it
-                // doesn't propose a smaller height back into this chain —
-                // breaks the feedback loop where GR would read whatever
-                // constrained height the formula bootstrap had proposed.
+                // (Divider + WidgetSwitcherBar + widget body) at the final
+                // width, independent of the animated envelope below.
                 .background(
                     GeometryReader { proxy in
                         Color.clear.preference(
@@ -170,6 +167,19 @@ struct ContentView: View {
                         )
                     }
                 )
+                // Fade/slide only the content — the chrome (background +
+                // clip shape) attaches to the animated envelope below, so
+                // it grows under the morph while the content arrives
+                // separately.
+                .opacity(expandedContentVisible ? 1 : 0)
+                .offset(y: expandedContentVisible ? 0 : -8)
+                // Animated envelope: width tracks the wing morph, height
+                // does the open/close reveal. The wider fixed-layout
+                // content overflows it symmetrically (centered) and gets
+                // clipped, so the reveal stays center-out like the wings.
+                .frame(width: m.panelWidth,
+                       height: vm.notchState == .open ? vm.effectiveTotalHeight : 0,
+                       alignment: .top)
                 .background(ThemeTokens.panelBackground(systemDark: vm.systemIsDark))
                 .clipShape(
                     ExpandedPanelShape(
@@ -177,13 +187,12 @@ struct ContentView: View {
                         bottomRadius: panelCornerRadius
                     )
                 )
+                .clipped()
                 .onPreferenceChange(ExpandedContentHeightKey.self) { h in
                     Task { @MainActor in
                         vm.updateMeasuredExpandedContentHeight(h)
                     }
                 }
-                .frame(height: vm.notchState == .open ? vm.effectiveTotalHeight : 0, alignment: .top)
-                .clipped()
                 // Gate on visibility too — during the reveal delay the
                 // content is transparent but already laid out, and an
                 // invisible button taking a click reads as a dead panel.

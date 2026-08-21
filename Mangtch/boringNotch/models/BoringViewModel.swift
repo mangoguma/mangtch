@@ -106,6 +106,21 @@ class BoringViewModel: NSObject, ObservableObject {
                                           previewPanelWidth: preview)
     }
 
+    /// Panel width the expanded panel will occupy once fully open,
+    /// resolved for the user-picked expanded widget regardless of the
+    /// current state. ContentView lays the expanded content out at this
+    /// width even while closed, so the measured height is already final
+    /// when the open morph starts — no mid-flight height retarget when
+    /// the formula estimate is replaced by the measurement, and no
+    /// per-frame re-wrap as the width animates.
+    @MainActor
+    var expandedTargetPanelWidth: CGFloat {
+        let widget = WidgetRegistry.shared.widget(for: currentExpandedWidgetID)
+        return PanelLayoutMetrics.resolve(widget: widget,
+                                          notchSize: notchSize,
+                                          state: .open).panelWidth
+    }
+
     /// Mirror of `metrics` published via Combine — observers (NSPanel
     /// resize wiring in `boringNotchApp.swift`) react to changes here.
     /// Triggered by:
