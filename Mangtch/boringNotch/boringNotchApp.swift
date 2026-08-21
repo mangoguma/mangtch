@@ -28,6 +28,7 @@ private struct ResolvedFrame: Equatable {
 struct DynamicNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Default(.menubarIcon) var showMenuBarIcon
+    @Default(.notchHidden) var notchHidden
     @Environment(\.openWindow) var openWindow
 
     let updaterController: SPUStandardUpdaterController
@@ -41,7 +42,15 @@ struct DynamicNotchApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("boring.notch", systemImage: "sparkle", isInserted: $showMenuBarIcon) {
+        MenuBarExtra("boring.notch", systemImage: notchHidden ? "eye.slash" : "sparkle", isInserted: $showMenuBarIcon) {
+            // The wings overlap the menu bar, so items underneath them
+            // can't be clicked. This is the escape hatch.
+            Button(notchHidden ? "Show Panel" : "Hide Panel") {
+                DispatchQueue.main.async {
+                    AppDelegate.shared?.setPanelHidden(!Defaults[.notchHidden])
+                }
+            }
+            Divider()
             Button("Settings") {
                 DispatchQueue.main.async {
                     SettingsWindowController.shared.showWindow()
@@ -217,7 +226,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .environmentObject(viewModel)
         window.contentView = FirstMouseHostingView(rootView: contentView)
 
-        window.orderFrontRegardless()
+        // A window created while hidden (screen reconfig, display added)
+        // must not pop back onto the menu bar.
+        if !Defaults[.notchHidden] {
+            window.orderFrontRegardless()
+        }
         NotchSpaceManager.shared.notchSpace.windows.insert(window)
 
         // Drive NSPanel resize from publishedMetrics + notchState. The first
@@ -446,6 +459,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        KeyboardShortcuts.onKeyDown(for: .toggleNotchHidden) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.setPanelHidden(!Defaults[.notchHidden])
+            }
+        }
+
         if !Defaults[.showOnAllDisplays] {
             let viewModel = self.vm
             let window = createBoringNotchWindow(
@@ -578,6 +597,55 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    // MARK: - Hide / show the whole panel
+    //
+    // The notch panel's wings render on top of the menu bar, which makes
+    // the menu-bar items they cover unclickable. Hiding orders every
+    // notch window out (rather than just zeroing alpha) so nothing of
+    // ours sits in the click path.
+
+    @MainActor
+    func setPanelHidden(_ hidden: Bool) {
+        Defaults[.notchHidden] = hidden
+
+        if hidden {
+            // Without the menu-bar icon there'd be no way back except the
+            // global shortcut — don't let the user strand themselves.
+            Defaults[.menubarIcon] = true
+            closeNotchTask?.cancel()
+            closeNotchTask = nil
+            for viewModel in allViewModels where viewModel.notchState != .closed {
+                viewModel.close()
+            }
+        }
+
+        applyPanelHiddenState()
+    }
+
+    /// Re-asserts the hidden state on every window. Called after any path
+    /// that can order a window back in (window creation, screen reconfig).
+    @MainActor
+    func applyPanelHiddenState() {
+        let hidden = Defaults[.notchHidden]
+        var targets = Set(windows.values.map { ObjectIdentifier($0) })
+        var all = Array(windows.values)
+        if let window, !targets.contains(ObjectIdentifier(window)) {
+            targets.insert(ObjectIdentifier(window))
+            all.append(window)
+        }
+        for window in all {
+            if hidden {
+                window.orderOut(nil)
+            } else {
+                window.orderFrontRegardless()
+            }
+        }
+    }
+
+    private var allViewModels: [BoringViewModel] {
+        Defaults[.showOnAllDisplays] ? Array(viewModels.values) : [vm]
     }
 
     @objc func togglePopover(_ sender: Any?) {

@@ -159,6 +159,9 @@ final class GestureHandler {
     /// rejects cursor positions that can't be near any notch before doing any
     /// screen lookup or geometry.
     private func onMouseMoved(at point: NSPoint) {
+        // Hidden means "get out of the way entirely" — no hover reveal,
+        // no wing widening over the menu bar the user is trying to click.
+        if Defaults[.notchHidden] { return }
         if let last = lastMouseMovedPoint, last == point { return }
         lastMouseMovedPoint = point
 
@@ -258,6 +261,7 @@ final class GestureHandler {
     }
 
     private func handleGlobalClick(at point: NSPoint) {
+        if Defaults[.notchHidden] { return }
         guard let vm = viewModel(under: point) else {
             for vm in allViewModels where vm.notchState != .closed {
                 vm.close()

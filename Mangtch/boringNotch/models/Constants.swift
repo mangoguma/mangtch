@@ -88,6 +88,11 @@ extension Defaults.Keys {
 
     // MARK: General
     static let menubarIcon = Key<Bool>("menubarIcon", default: true)
+    /// User-toggled "get out of the way" state. The panel's wings sit on
+    /// top of the menu bar, so menu-bar items underneath them are
+    /// unclickable — hiding orders every notch window out until toggled
+    /// back from the menu-bar icon or the global shortcut.
+    static let notchHidden = Key<Bool>("notchHidden", default: false)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")

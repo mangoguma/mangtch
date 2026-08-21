@@ -329,13 +329,22 @@ struct ContentView: View {
             Divider()
                 .padding(.horizontal, LayoutTokens.dividerHorizontalInset)
 
-            WidgetSwitcherBar(
-                widgets: widgetRegistry.enabledWidgets,
-                currentID: Binding(
-                    get: { vm.currentExpandedWidgetID },
-                    set: { vm.currentExpandedWidgetID = $0 }
+            // Switcher stays centered; the hide button rides the trailing
+            // edge so it never shifts the tab row as widgets come and go.
+            ZStack {
+                WidgetSwitcherBar(
+                    widgets: widgetRegistry.enabledWidgets,
+                    currentID: Binding(
+                        get: { vm.currentExpandedWidgetID },
+                        set: { vm.currentExpandedWidgetID = $0 }
+                    )
                 )
-            )
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    hideButton
+                }
+            }
+            .padding(.horizontal, LayoutTokens.panelHorizontalInset)
 
             Group {
                 if let widget = widgetRegistry.widget(for: vm.currentExpandedWidgetID),
@@ -363,6 +372,26 @@ struct ContentView: View {
             .padding(.horizontal, LayoutTokens.panelHorizontalInset)
             .padding(.bottom, LayoutTokens.panelBottomInset)
         }
+    }
+
+    // MARK: - Hide Button
+
+    /// The wings sit on top of the menu bar, so whatever menu-bar item
+    /// they cover can't be clicked. This gets the whole panel out of the
+    /// way; it comes back from the menu-bar icon or the global shortcut.
+    @ViewBuilder
+    private var hideButton: some View {
+        Button {
+            AppDelegate.shared?.setPanelHidden(true)
+        } label: {
+            Image(systemName: "eye.slash")
+                .font(TypographyTokens.switcherIcon)
+                .frame(width: 26, height: 22)
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Hide the panel so the menu bar is clickable")
     }
 
     // MARK: - Debug Zones Overlay

@@ -1672,6 +1672,12 @@ struct Shortcuts: View {
             }
             Section {
                 KeyboardShortcuts.Recorder("Toggle Notch Open:", name: .toggleNotchOpen)
+                KeyboardShortcuts.Recorder("Hide/Show Panel:", name: .toggleNotchHidden)
+            } footer: {
+                Text("Hiding removes the panel from the screen so the menu bar items underneath it are clickable.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
             }
         }
         .accentColor(.effectiveAccent)
