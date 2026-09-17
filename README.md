@@ -42,7 +42,7 @@
 | **macOS** | 14.0 (Sonoma) or later |
 | **Hardware** | Notched MacBook for the hardware-pill look; non-notched displays (older MacBooks, external monitors) get a menu-bar–height floating pill instead |
 | **Chip** | Apple Silicon recommended; Intel is best-effort |
-| **Build** | Xcode 15+ (for the Apple Development signing identity) or `swift` CLI 5.9+ |
+| **Build** | Xcode 15+ or `swift` CLI 5.9+ |
 
 ---
 
@@ -52,18 +52,14 @@
 
 Grab the latest `.app` from the [**Releases**](https://github.com/mangoguma/mangtch/releases) page, drop it into `/Applications`, and launch.
 
-> **첫 실행 시 "확인되지 않은 개발자" 경고가 뜹니다 (정상)**
+> **0.10.6부터 Developer ID 로 서명하고 Apple 공증(notarize)을 받습니다.** 받아서 바로 열면 됩니다.
 >
-> Mangtch는 Apple Developer ID로 공증(notarize)되지 않은 빌드라, 처음 열 때 macOS가
-> *"확인되지 않은 개발자… 악성 소프트웨어인지 확인할 수 없습니다"* 라며 실행을 막습니다.
-> 한 번만 아래로 우회하면 이후로는 그냥 실행됩니다.
+> 0.10.5 이하 빌드는 서명이 없어서, 처음 열 때 *"확인되지 않은 개발자"* 경고로 막힙니다.
+> `/Applications`의 **Mangtch.app**을 **우클릭 → 열기 → 열기**로 한 번 열거나
+> `xattr -dr com.apple.quarantine /Applications/Mangtch.app` 을 실행하세요.
 >
-> 1. `/Applications`의 **Mangtch.app**을 **우클릭(Control+클릭) → 열기 → 열기**
-> 2. 안 되면 **시스템 설정 → 개인정보 보호 및 보안** 맨 아래 *"확인 없이 열기"* 버튼 클릭
-> 3. 터미널 한 줄로도 가능: `xattr -dr com.apple.quarantine /Applications/Mangtch.app`
->
-> 또한 **앱이 새 버전으로 업데이트되면** Spotify 로그인이 한 번 풀리고 손쉬운 사용 권한을
-> 다시 물어볼 수 있습니다 — 서명 신원이 버전마다 바뀌기 때문이며, 다시 로그인/허용하면 됩니다.
+> 0.10.5 이하에서 0.10.6 이상으로 올라가는 첫 업데이트에서는 서명 주체가 바뀌므로 Spotify 로그인과
+> 손쉬운 사용 권한을 한 번 다시 줘야 합니다. 그 뒤로는 업데이트해도 유지됩니다.
 
 ### Build from source
 
@@ -81,7 +77,7 @@ open /Applications/Mangtch.app
 
 Or open `Mangtch/boringNotch.xcodeproj` in Xcode, pick the **boringNotch** scheme + **My Mac**, and hit `Cmd+R`. The product is named **Mangtch.app**; the internal target name is still `boringNotch` (binary at `…/MacOS/boringNotch`).
 
-> macOS TCC permissions (Apple Events for Spotify control, Accessibility for fullscreen detection) are bound to the binary's cdhash. Re-signing with the same identity preserves them; ad-hoc rebuilds invalidate them and require re-granting.
+> macOS TCC permissions (Apple Events for Spotify control, Accessibility for fullscreen detection) and the Spotify Keychain token follow the app's code-signing identity. Ad-hoc builds get a new identity on every build, so the permissions have to be granted again each time. Builds signed with the same Developer ID team and bundle ID keep them.
 
 ---
 
