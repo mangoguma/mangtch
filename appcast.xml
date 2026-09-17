@@ -6,6 +6,24 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.6</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.6</h2>
+        <h3>배포</h3>
+        <ul>
+          <li>Developer ID 로 서명하고 Apple 공증을 받은 첫 빌드입니다. 새로 받아 열 때 "확인되지 않은 개발자" 경고가 더 이상 뜨지 않습니다</li>
+          <li>이번 업데이트에서만 서명 주체가 바뀌어 Spotify 로그인과 손쉬운 사용 권한을 한 번 다시 줘야 합니다. 이후 업데이트에서는 유지됩니다</li>
+        </ul>
+      ]]></description>
+      <pubDate>Thu, 17 Sep 2026 13:40:00 +0900</pubDate>
+      <sparkle:version>17</sparkle:version>
+      <sparkle:shortVersionString>0.10.6</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.6/Mangtch-0.10.6.zip"
+                 length="8673625"
+                 sparkle:edSignature="ztg7m89fXFHOumSiIq8phwGq5m7wPVj93NhC6occn3CB4jT0sy6T6h92caWAyLr+LFDiutuTcVihzs9GJpgMBQ=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.5</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.5</h2>
