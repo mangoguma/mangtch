@@ -6,6 +6,40 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.7</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.7</h2>
+        <h3>브랜딩</h3>
+        <ul>
+          <li>앱 아이콘과 메뉴 막대 아이콘을 Mangtch 로고(M + 노치)로 바꿨습니다. About 화면의 링크와 출처 고지도 정리했습니다</li>
+        </ul>
+        <h3>패널</h3>
+        <ul>
+          <li>feat: File Shelf 복구 — 위젯 구조로 바꾸면서 빠져 있던 셸프 화면을 탭에 되살렸습니다. 파일을 노치로 끌어오면 셸프가 열리고, 놓은 항목은 재시작해도 남습니다</li>
+          <li>fix: 화면 잠금·해제나 모니터 연결 해제를 반복하면 메모리가 늘던 문제(윈도우 순환 참조)를 고쳤습니다</li>
+        </ul>
+        <h3>안정성</h3>
+        <ul>
+          <li>fix: 설정에서 비주얼라이저를 추가할 때 URL 을 비우면 앱이 종료되던 문제. 이제 URL 이 없으면 Add 버튼이 비활성화됩니다</li>
+          <li>fix: KBO 경기 목록·중계 주소를 만들 때 예외 상황에서 종료될 수 있던 경로 정리</li>
+        </ul>
+        <h3>배포·권한</h3>
+        <ul>
+          <li>Intel Mac 도 지원합니다 (arm64 + x86_64 유니버설 빌드)</li>
+          <li>실행할 때마다 뜨던 손쉬운 사용(Accessibility) 권한 요청을 없앴습니다. 이 권한을 쓰는 기능이 없었습니다</li>
+          <li>쓰지 않던 카메라·캘린더·미리알림 권한 선언을 제거했습니다</li>
+          <li>macOS 14 에서 실행이 실패할 수 있던 프레임워크 링크 문제를 고쳤습니다</li>
+        </ul>
+      ]]></description>
+      <pubDate>Tue, 29 Sep 2026 16:45:00 +0900</pubDate>
+      <sparkle:version>18</sparkle:version>
+      <sparkle:shortVersionString>0.10.7</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.7/Mangtch-0.10.7.zip"
+                 length="7861381"
+                 sparkle:edSignature="NcDMH3MpajLjLerui5DrmegtrlD9C+nJnyvijEemaOHfXXfq3dr8ARK8pHg+sEAPbmye8N3FBqYhstVb+LPeAQ=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.6</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.6</h2>
