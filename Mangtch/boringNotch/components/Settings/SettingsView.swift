@@ -785,7 +785,7 @@ struct About: View {
                 HStack(spacing: 30) {
                     Spacer(minLength: 0)
                     Button {
-                        if let url = URL(string: "https://github.com/TheBoredTeam/boring.notch") {
+                        if let url = URL(string: "https://github.com/mangoguma/mangtch") {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
@@ -804,8 +804,11 @@ struct About: View {
             }
             VStack(spacing: 0) {
                 Divider()
-                Text("Made with 🫶🏻 by not so boring not.people")
+                // GPL-3.0 attribution: Mangtch is a fork of boring.notch, so the
+                // upstream credit and link stay here even though the branding changed.
+                Text("Made by mangoguma. Based on [boring.notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam (GPL-3.0).")
                     .foregroundStyle(.secondary)
+                    .tint(.secondary)
                     .padding(.top, 5)
                     .padding(.bottom, 7)
                     .multilineTextAlignment(.center)

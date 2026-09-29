@@ -42,7 +42,7 @@ struct DynamicNotchApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("boring.notch", systemImage: notchHidden ? "eye.slash" : "sparkle", isInserted: $showMenuBarIcon) {
+        MenuBarExtra(isInserted: $showMenuBarIcon) {
             // The wings overlap the menu bar, so items underneath them
             // can't be clicked. This is the escape hatch.
             Button(notchHidden ? "Show Panel" : "Hide Panel") {
@@ -66,6 +66,14 @@ struct DynamicNotchApp: App {
                 NSApplication.shared.terminate(self)
             }
             .keyboardShortcut(KeyEquivalent("Q"), modifiers: .command)
+        } label: {
+            // Template asset so the glyph follows the menu bar's light/dark tint.
+            // eye.slash stays as the "panel hidden" cue.
+            if notchHidden {
+                Label("Mangtch", systemImage: "eye.slash")
+            } else {
+                Label { Text("Mangtch") } icon: { Image("MenuBarIcon") }
+            }
         }
     }
 }
