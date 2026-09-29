@@ -455,7 +455,8 @@ struct MusicSliderView: View {
         VStack {
             CustomSlider(
                 value: $sliderValue,
-                range: 0...duration,
+                // ClosedRange traps when upper < lower; players can briefly report a negative duration.
+                range: 0...max(0, duration),
                 color: Defaults[.sliderColor] == SliderColorEnum.albumArt
                     ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.8)
                     : Defaults[.sliderColor] == SliderColorEnum.accent ? .effectiveAccent : .white,

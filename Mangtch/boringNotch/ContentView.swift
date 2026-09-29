@@ -47,7 +47,9 @@ struct ContentView: View {
 
     /// The host window — injected by AppDelegate so WingHitZone can convert
     /// SwiftUI-global rects to screen coordinates from *this* window.
-    var hostWindow: NSWindow? = nil
+    /// Weak because the window owns this view through its hosting view;
+    /// a strong back-reference would keep closed windows alive.
+    weak var hostWindow: NSWindow? = nil
 
     // MARK: - Panel corner radius (matches boring.notch defaults)
     private let panelCornerRadius: CGFloat = LayoutTokens.panelCornerRadius
@@ -88,7 +90,7 @@ struct ContentView: View {
                 // pre-expanded state — .hovering counts as "not yet open"
                 // here, the user intent is dropping files into the shelf.
                 if vm.notchState != .open {
-                    coordinator.currentView = .shelf
+                    vm.currentExpandedWidgetID = ShelfWidget.widgetID
                     vm.open()
                 }
                 return

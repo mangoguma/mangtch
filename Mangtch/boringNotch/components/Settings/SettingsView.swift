@@ -5,13 +5,11 @@
 //  Created by Richard Kunkli on 07/08/2024.
 //
 
-import AVFoundation
 import Defaults
 import KeyboardShortcuts
 import LaunchAtLogin
 import Sparkle
 import SwiftUI
-import SwiftUIIntrospect
 
 struct SettingsView: View {
     @State private var selectedTab = "General"
@@ -1076,7 +1074,6 @@ struct Shelf: View {
 
 struct Appearance: View {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
-    @Default(.mirrorShape) var mirrorShape
     @Default(.sliderColor) var sliderColor
     @Default(.useMusicVisualizer) var useMusicVisualizer
     @Default(.customVisualizers) var customVisualizers
@@ -1276,10 +1273,12 @@ struct Appearance: View {
                             }
 
                             Button {
+                                // The field is free text; an empty or malformed URL must not crash Settings.
+                                guard let parsed = URL(string: url) else { return }
                                 let visualizer: CustomVisualizer = .init(
                                     UUID: UUID(),
                                     name: name,
-                                    url: URL(string: url)!,
+                                    url: parsed,
                                     speed: speed
                                 )
 
@@ -1293,6 +1292,7 @@ struct Appearance: View {
                                     .frame(maxWidth: .infinity, alignment: .center)
                             }
                             .buttonStyle(BorderedProminentButtonStyle())
+                            .disabled(URL(string: url) == nil || name.isEmpty)
                         }
                     }
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -1310,16 +1310,6 @@ struct Appearance: View {
             }
 
             Section {
-                Defaults.Toggle(key: .showMirror) {
-                    Text("Enable boring mirror")
-                }
-                    .disabled(!checkVideoInput())
-                Picker("Mirror shape", selection: $mirrorShape) {
-                    Text("Circle")
-                        .tag(MirrorShapeEnum.circle)
-                    Text("Square")
-                        .tag(MirrorShapeEnum.rectangle)
-                }
                 Defaults.Toggle(key: .showNotHumanFace) {
                     Text("Show cool face animation while inactive")
                 }
@@ -1331,14 +1321,6 @@ struct Appearance: View {
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Appearance")
-    }
-
-    func checkVideoInput() -> Bool {
-        if AVCaptureDevice.default(for: .video) != nil {
-            return true
-        }
-
-        return false
     }
 }
 

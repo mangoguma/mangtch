@@ -131,6 +131,9 @@ final class KBOViewModel {
     /// the most recent one.
     private var playQueue: [KBOLinescore.Play] = []
     private var queueRunnerTask: Task<Void, Never>?
+    /// Identifies the runner `queueRunnerTask` currently points at, so a
+    /// cancelled runner finishing late cannot clear a newer runner's handle.
+    private var queueRunnerID: UUID?
     /// How long each play stays on the ticker before the runner advances.
     /// Tuned to match the previous single-line clear delay.
     private static let playDisplayInterval: Duration = .seconds(5)
@@ -691,6 +694,8 @@ final class KBOViewModel {
     /// append to `playQueue` and re-arm without worrying about overlap.
     private func startQueueRunnerIfNeeded() {
         guard queueRunnerTask == nil else { return }
+        let runID = UUID()
+        queueRunnerID = runID
         queueRunnerTask = Task { @MainActor in
             try? await Task.sleep(for: Self.playDisplayInterval)
             while !playQueue.isEmpty {
@@ -741,7 +746,10 @@ final class KBOViewModel {
             if !Task.isCancelled {
                 self.latestPlayText = nil
             }
-            self.queueRunnerTask = nil
+            if self.queueRunnerID == runID {
+                self.queueRunnerTask = nil
+                self.queueRunnerID = nil
+            }
         }
     }
 

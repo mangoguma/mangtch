@@ -24,7 +24,8 @@ final class KBOSoundManager {
         let path = "/System/Library/Sounds/\(sound.rawValue).aiff"
         let url = URL(fileURLWithPath: path)
         guard let p = try? AVAudioPlayer(contentsOf: url) else { return }
-        p.volume = 1.5
+        // AVAudioPlayer's documented range is 0.0...1.0.
+        p.volume = 1.0
         p.prepareToPlay()
         player = p
         p.play()

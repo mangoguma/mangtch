@@ -25,6 +25,7 @@ final class WidgetRegistry {
         register(MusicPlayerWidget())
         register(TimerWidget())
         register(KBOWidget())
+        register(ShelfWidget())
         applyPersistedOrder()
     }
 

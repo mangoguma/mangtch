@@ -17,6 +17,17 @@ enum TempFileType {
 
 class TemporaryFileStorageService {
     static let shared = TemporaryFileStorageService()
+
+    // Only directories created by this process are tracked, so quit-time
+    // cleanup can never touch anything else living in the shared temp dir.
+    private var createdDirectories: Set<URL> = []
+    private let createdDirectoriesLock = NSLock()
+
+    private func trackCreatedDirectory(_ url: URL) {
+        createdDirectoriesLock.lock()
+        createdDirectories.insert(url.standardizedFileURL)
+        createdDirectoriesLock.unlock()
+    }
     
     // MARK: - Public Interface
     
@@ -55,6 +66,24 @@ class TemporaryFileStorageService {
         }
     }
     
+    /// Removes every directory this service created during this run.
+    /// Directories containing any of `keptURLs` are skipped: temporary shelf
+    /// items are persisted across launches and still point into them.
+    func removeAllTemporaryFiles(keeping keptURLs: [URL] = []) {
+        createdDirectoriesLock.lock()
+        let directories = createdDirectories
+        createdDirectories.removeAll()
+        createdDirectoriesLock.unlock()
+
+        let keptPaths = keptURLs.map { $0.standardizedFileURL.path }
+        for dir in directories {
+            let dirPrefix = dir.path.hasSuffix("/") ? dir.path : dir.path + "/"
+            if keptPaths.contains(where: { $0.hasPrefix(dirPrefix) }) { continue }
+            guard FileManager.default.fileExists(atPath: dir.path) else { continue }
+            try? FileManager.default.removeItem(at: dir)
+        }
+    }
+
     // MARK: - Private Implementation
     
     private func createTempFile(for type: TempFileType) -> URL? {
@@ -69,6 +98,7 @@ class TemporaryFileStorageService {
             
             do {
                 try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
+                trackCreatedDirectory(dirURL)
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
@@ -88,6 +118,7 @@ class TemporaryFileStorageService {
             
             do {
                 try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
+                trackCreatedDirectory(dirURL)
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
@@ -108,6 +139,7 @@ class TemporaryFileStorageService {
             
             do {
                 try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true)
+                trackCreatedDirectory(dirURL)
                 try data.write(to: fileURL)
                 return fileURL
             } catch {
@@ -133,6 +165,7 @@ class TemporaryFileStorageService {
 
         do {
             try FileManager.default.createDirectory(at: workingDir, withIntermediateDirectories: true)
+            trackCreatedDirectory(workingDir)
         } catch {
             print("❌ Failed to create zip working directory: \(error)")
             return nil

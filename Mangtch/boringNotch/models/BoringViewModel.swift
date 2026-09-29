@@ -170,6 +170,10 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var dropEvent: Bool = false
     @Published var anyDropZoneTargeting: Bool = false
     var cancellables: Set<AnyCancellable> = []
+    // Held separately from `cancellables`: the host window can be recreated
+    // for the same view model, and reassigning here cancels the previous
+    // window's resize sink instead of accumulating one per recreation.
+    var windowResizeCancellable: AnyCancellable?
     
     @Published var hideOnClosed: Bool = true
 
@@ -192,7 +196,6 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var notchSize: CGSize = getClosedNotchSize()
     @Published var closedNotchSize: CGSize = getClosedNotchSize()
     
-    @Published var isCameraExpanded: Bool = false
     @Published var isRequestingAuthorization: Bool = false
 
     // MARK: - System appearance
@@ -225,6 +228,7 @@ class BoringViewModel: NSObject, ObservableObject {
     func destroy() {
         cancellables.forEach { $0.cancel() }
         cancellables.removeAll()
+        windowResizeCancellable = nil
     }
 
     init(screenUUID: String? = nil) {
@@ -527,6 +531,9 @@ class BoringViewModel: NSObject, ObservableObject {
         // Otherwise, if the user has not enabled openLastShelfByDefault, set the view to home
     if !ShelfStateViewModel.shared.isEmpty && Defaults[.openShelfByDefault] {
             coordinator.currentView = .shelf
+            // The expanded panel is widget-driven; pre-select the shelf so
+            // the next open lands on it, matching the setting's promise.
+            currentExpandedWidgetID = ShelfWidget.widgetID
         } else if !coordinator.openLastTabByDefault {
             coordinator.currentView = .home
         }

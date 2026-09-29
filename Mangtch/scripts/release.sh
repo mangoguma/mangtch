@@ -31,9 +31,21 @@ LOG="$ROOT/build-release/xcodebuild.log"
 mkdir -p "$ROOT/build-release"
 xcodebuild -project "$ROOT/boringNotch.xcodeproj" -scheme boringNotch \
   -configuration Release -derivedDataPath "$ROOT/build-release" \
+  ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
   CODE_SIGNING_ALLOWED=NO build >"$LOG" 2>&1 \
   || { tail -30 "$LOG"; exit 1; }
 grep -q "BUILD SUCCEEDED" "$LOG" || { tail -30 "$LOG"; exit 1; }
+
+BIN="$APP/Contents/MacOS/Mangtch"
+archs="$(lipo -info "$BIN")"
+[[ "$archs" == *x86_64* && "$archs" == *arm64* ]] \
+  || { echo "not universal: $archs" >&2; exit 1; }
+# MediaRemoteAdapter (minos 15.0) is loaded by path from a perl child process;
+# linking it into the app would make launch fail below macOS 15.
+if otool -L "$BIN" | grep -q MediaRemoteAdapter; then
+  echo "app binary links MediaRemoteAdapter; remove it from the Frameworks build phase" >&2
+  exit 1
+fi
 
 built="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 [ "$built" = "$VERSION" ] || { echo "built $built but asked for $VERSION (bump MARKETING_VERSION first)" >&2; exit 1; }

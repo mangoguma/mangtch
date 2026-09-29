@@ -42,15 +42,20 @@ final class MediaChecker: Sendable {
                 }
                 group.addTask {
                     try await Task.sleep(for: .seconds(10))
-                    if process.isRunning {
-                        process.terminate()
-                    }
                     return false // Timed out
                 }
+                // Terminate here rather than in the timer task: terminate()
+                // makes waitUntilExit() return normally, so if the timer
+                // killed the process the waiter's `true` would be read as a
+                // clean exit and the timeout would be lost.
                 for try await exited in group {
                     if exited {
                         group.cancelAll()
                         return true
+                    }
+                    if process.isRunning {
+                        process.terminate()
+                        return false
                     }
                 }
                 throw MediaCheckerError.timeout

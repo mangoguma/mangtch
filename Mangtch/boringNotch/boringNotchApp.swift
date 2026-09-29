@@ -111,6 +111,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         MusicManager.shared.destroy()
         cleanupDragDetectors()
         cleanupWindows()
+        // Temporary shelf items are persisted and restored on next launch,
+        // so their backing files must survive quit.
+        let keptTempURLs = MainActor.assumeIsolated {
+            let shelf = ShelfStateViewModel.shared
+            return shelf.items.filter(\.isTemporary).compactMap { shelf.resolveFileURL(for: $0) }
+        }
+        TemporaryFileStorageService.shared.removeAllTemporaryFiles(keeping: keptTempURLs)
     }
 
     @MainActor
@@ -207,11 +214,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let uuid = screen.displayUUID else { return }
 
         if Defaults[.showOnAllDisplays], let viewModel = viewModels[uuid] {
+            viewModel.currentExpandedWidgetID = ShelfWidget.widgetID
             viewModel.open()
-            coordinator.currentView = .shelf
         } else if !Defaults[.showOnAllDisplays], let windowScreen = window?.screen, screen == windowScreen {
+            vm.currentExpandedWidgetID = ShelfWidget.widgetID
             vm.open()
-            coordinator.currentView = .shelf
         }
     }
 
@@ -269,7 +276,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .removeDuplicates()
 
-        resolvedFrame
+        viewModel.windowResizeCancellable = resolvedFrame
             .receive(on: RunLoop.main)
             .sink { [weak window] f in
                 guard let window = window as? BoringNotchWindow else { return }
@@ -286,7 +293,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                                     isOpen: f.state == .open,
                                     animated: true)
             }
-            .store(in: &viewModel.cancellables)
 
         // Observe when the window's screen changes so we can update drag detectors
         windowScreenDidChangeObserver = NotificationCenter.default.addObserver(
@@ -319,8 +325,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // See `AppDelegate.shared` doc — SwiftUI wraps the delegate, so
         // we publish ourselves explicitly for non-SwiftUI consumers.
         AppDelegate.shared = self
-
-        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
 
         // LSUIElement apps don't get application(_:open:), so we register
         // an Apple Event handler for the Spotify OAuth callback (mangtch://).
@@ -466,11 +470,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if !Defaults[.showOnAllDisplays] {
-            let viewModel = self.vm
-            let window = createBoringNotchWindow(
-                for: NSScreen.main ?? NSScreen.screens.first!, with: viewModel)
-            self.window = window
-            adjustWindowPosition(changeAlpha: true)
+            // A launch with no display attached must not crash. Only the
+            // window is skipped (not the rest of launch setup): the
+            // screen-parameters observer creates it once a display appears.
+            if let screen = NSScreen.main ?? NSScreen.screens.first {
+                let viewModel = self.vm
+                let window = createBoringNotchWindow(for: screen, with: viewModel)
+                self.window = window
+                adjustWindowPosition(changeAlpha: true)
+            }
         } else {
             adjustWindowPosition(changeAlpha: true)
         }
