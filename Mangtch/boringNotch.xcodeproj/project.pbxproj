@@ -25,6 +25,7 @@
 		112B0EB82E30DD0F00562D6C /* MediaRemoteAdapterTestClient in Resources */ = {isa = PBXBuildFile; fileRef = 112B0EB52E30DD0F00562D6C /* MediaRemoteAdapterTestClient */; };
 		112B0EB92E30DD0F00562D6C /* mediaremote-adapter.pl in Resources */ = {isa = PBXBuildFile; fileRef = 112B0EB32E30DD0F00562D6C /* mediaremote-adapter.pl */; };
 		112FB7352CCF16F70015238C /* NotchSpaceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112FB7342CCF16F70015238C /* NotchSpaceManager.swift */; };
+		AA11BB22CC33DD44EE55FF02 /* MenuBarHider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF01 /* MenuBarHider.swift */; };
 		1132E5122E777B6E0068732D /* YouTubeMusicModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1132E5102E777B6E0068732D /* YouTubeMusicModels.swift */; };
 		1132E5142E777B920068732D /* YouTubeMusicNetworking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1132E5132E777B920068732D /* YouTubeMusicNetworking.swift */; };
 		1132E5162E777C140068732D /* YouTubeMusicAuthentication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1132E5152E777C140068732D /* YouTubeMusicAuthentication.swift */; };
@@ -205,6 +206,7 @@
 		112B0EB52E30DD0F00562D6C /* MediaRemoteAdapterTestClient */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = MediaRemoteAdapterTestClient; sourceTree = "<group>"; };
 		112B0EBA2E30DD5000562D6C /* MediaRemoteAdapter.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaRemoteAdapter.framework; path = "mediaremote-adapter/MediaRemoteAdapter.framework"; sourceTree = "<group>"; };
 		112FB7342CCF16F70015238C /* NotchSpaceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchSpaceManager.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF01 /* MenuBarHider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarHider.swift; sourceTree = "<group>"; };
 		1132E5102E777B6E0068732D /* YouTubeMusicModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicModels.swift; sourceTree = "<group>"; };
 		1132E5132E777B920068732D /* YouTubeMusicNetworking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicNetworking.swift; sourceTree = "<group>"; };
 		1132E5152E777C140068732D /* YouTubeMusicAuthentication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeMusicAuthentication.swift; sourceTree = "<group>"; };
@@ -528,6 +530,7 @@
 				11D58EA12E760AE100FA8377 /* ImageService.swift */,
 
 				112FB7342CCF16F70015238C /* NotchSpaceManager.swift */,
+				AA11BB22CC33DD44EE55FF01 /* MenuBarHider.swift */,
 				147163992C5D35FF0068B555 /* MusicManager.swift */,
 
 
@@ -1052,6 +1055,7 @@
 				11F748842ECB27DC00F841DB /* MusicSlotConfigurationView.swift in Sources */,
 				9A0887352C7AFF8E00C160EA /* TabSelectionView.swift in Sources */,
 				112FB7352CCF16F70015238C /* NotchSpaceManager.swift in Sources */,
+				AA11BB22CC33DD44EE55FF02 /* MenuBarHider.swift in Sources */,
 				14FC6E502C7DED5600C7BEA5 /* DataTypes+Extensions.swift in Sources */,
 				1153BD982D9881F900979FB0 /* AppleScriptHelper.swift in Sources */,
 

@@ -477,6 +477,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        KeyboardShortcuts.onKeyDown(for: .toggleMenuBarItems) {
+            Task { @MainActor in
+                MenuBarHider.shared.toggle()
+            }
+        }
+        MenuBarHider.shared.start()
+
         if !Defaults[.showOnAllDisplays] {
             // A launch with no display attached must not crash. Only the
             // window is skipped (not the rest of launch setup): the

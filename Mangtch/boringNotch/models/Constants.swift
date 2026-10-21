@@ -93,6 +93,10 @@ extension Defaults.Keys {
     /// unclickable — hiding orders every notch window out until toggled
     /// back from the menu-bar icon or the global shortcut.
     static let notchHidden = Key<Bool>("notchHidden", default: false)
+    /// Hidden Bar–style collapse of menu bar items (see `MenuBarHider`).
+    /// Opt-in because it adds two status items to the user's menu bar.
+    static let menuBarHiderEnabled = Key<Bool>("menuBarHiderEnabled", default: false)
+    static let menuBarHiderAutoCollapse = Key<Bool>("menuBarHiderAutoCollapse", default: true)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")

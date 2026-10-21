@@ -144,6 +144,7 @@ struct GeneralSettings: View {
     @Default(.automaticallySwitchDisplay) var automaticallySwitchDisplay
     @Default(.enableGestures) var enableGestures
     @Default(.openNotchOnHover) var openNotchOnHover
+    @Default(.menuBarHiderEnabled) var menuBarHiderEnabled
     
 
     var body: some View {
@@ -187,6 +188,23 @@ struct GeneralSettings: View {
                     .disabled(showOnAllDisplays)
             } header: {
                 Text("System features")
+            }
+
+            Section {
+                Defaults.Toggle(key: .menuBarHiderEnabled) {
+                    Text("Hide menu bar items")
+                }
+                Defaults.Toggle(key: .menuBarHiderAutoCollapse) {
+                    Text("Hide again automatically after 10 seconds")
+                }
+                .disabled(!menuBarHiderEnabled)
+            } header: {
+                Text("Menu bar")
+            } footer: {
+                Text("Adds a chevron to the menu bar. Hold ⌘ and drag icons to the left of the chevron (on macOS 26 and earlier, the thin line next to it) to hide them, then click the chevron to show or hide them. On macOS 27, Mangtch needs Accessibility permission to see where icons are.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
             }
 
             Section {
@@ -1660,6 +1678,14 @@ struct Shortcuts: View {
                 KeyboardShortcuts.Recorder("Hide/Show Panel:", name: .toggleNotchHidden)
             } footer: {
                 Text("Hiding removes the panel from the screen so the menu bar items underneath it are clickable.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+            Section {
+                KeyboardShortcuts.Recorder("Hide/Show Menu Bar Items:", name: .toggleMenuBarItems)
+            } footer: {
+                Text("Works when \"Hide menu bar items\" is turned on in General.")
                     .multilineTextAlignment(.trailing)
                     .foregroundStyle(.secondary)
                     .font(.caption)
