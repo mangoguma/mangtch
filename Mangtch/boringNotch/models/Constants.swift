@@ -97,6 +97,7 @@ extension Defaults.Keys {
     /// Opt-in because it adds two status items to the user's menu bar.
     static let menuBarHiderEnabled = Key<Bool>("menuBarHiderEnabled", default: false)
     static let menuBarHiderAutoCollapse = Key<Bool>("menuBarHiderAutoCollapse", default: true)
+    static let clipboardMaxItems = Key<Int>("clipboardMaxItems", default: 50)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")

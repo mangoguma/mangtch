@@ -696,6 +696,7 @@ struct Media: View {
 
 struct WidgetsSettings: View {
     @Bindable private var registry = WidgetRegistry.shared
+    @Default(.clipboardMaxItems) private var clipboardMaxItems
 
     var body: some View {
         Form {
@@ -718,6 +719,19 @@ struct WidgetsSettings: View {
                 Text("Active Widgets")
             } footer: {
                 Text("Drag to reorder. Toggle to show/hide a widget in the panel.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Picker("Items to keep", selection: $clipboardMaxItems) {
+                    ForEach([20, 50, 100, 200, 500], id: \.self) { count in
+                        Text("\(count)").tag(count)
+                    }
+                }
+            } header: {
+                Text("Clipboard")
+            } footer: {
+                Text("The oldest items are removed once the history is full. History is stored in ~/Library/Application Support/Mangtch/Clipboard.")
                     .foregroundStyle(.secondary)
             }
         }

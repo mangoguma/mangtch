@@ -10,6 +10,7 @@
 
 import AppKit
 import Combine
+import Defaults
 
 struct ClipboardItem: Identifiable, Codable, Equatable {
     enum Kind: String, Codable {
@@ -32,7 +33,6 @@ struct ClipboardItem: Identifiable, Codable, Equatable {
 final class ClipboardHistoryStore: ObservableObject {
     static let shared = ClipboardHistoryStore()
 
-    private static let maxItems = 50
     private static let pollInterval: TimeInterval = 0.5
     /// nspasteboard.org markers password managers and system services put on
     /// secrets and throwaway data; those must never be written to disk.
@@ -52,6 +52,7 @@ final class ClipboardHistoryStore: ObservableObject {
     private var timer: Timer?
     private let directory: URL
     private let historyURL: URL
+    private var observers: Set<AnyCancellable> = []
 
     private init() {
         let fm = FileManager.default
@@ -62,6 +63,11 @@ final class ClipboardHistoryStore: ObservableObject {
         historyURL = directory.appendingPathComponent("history.json")
         lastChangeCount = pasteboard.changeCount
         load()
+        // Lowering the limit in Settings trims right away rather than on
+        // the next copy.
+        Defaults.publisher(.clipboardMaxItems, options: [])
+            .sink { _ in Task { @MainActor in ClipboardHistoryStore.shared.trimToLimit() } }
+            .store(in: &observers)
     }
 
     func startMonitoring() {
@@ -197,8 +203,17 @@ final class ClipboardHistoryStore: ObservableObject {
         var item = ClipboardItem(id: UUID(), kind: kind, copiedAt: Date())
         fill(&item)
         items.insert(item, at: 0)
-        while items.count > Self.maxItems {
-            deleteImageFile(of: items.removeLast())
+        trimToLimit()
+        save()
+    }
+
+    private func trimToLimit() {
+        let limit = max(1, Defaults[.clipboardMaxItems])
+        guard items.count > limit else { return }
+        while items.count > limit {
+            let removed = items.removeLast()
+            selectedIDs.remove(removed.id)
+            deleteImageFile(of: removed)
         }
         save()
     }
