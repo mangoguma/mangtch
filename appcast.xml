@@ -6,6 +6,26 @@
     <description>Mangtch app updates</description>
     <language>en</language>
     <item>
+      <title>Version 0.10.9</title>
+      <description><![CDATA[
+        <h2>Mangtch 0.10.9</h2>
+        <h3>클립보드</h3>
+        <ul>
+          <li>feat: 클립보드 모아두기 — 설정 → Widgets 에서 Clipboard 를 켜면 복사한 텍스트·이미지·파일이 패널의 Clipboard 탭에 모입니다. 재시작해도 남고, 저장 개수는 같은 화면에서 20~500개 중 고릅니다(기본 50)</li>
+          <li>카드를 누르면 다시 복사됩니다. 이미지는 미리보기가 열리고, 마우스를 올리면 나오는 복사 버튼으로 복사합니다</li>
+          <li>⌘ 클릭으로 여러 개를 고른 뒤 ⌘C 를 누르면 한 번에 복사합니다</li>
+          <li>비밀번호 관리자가 숨김 처리한 항목은 저장하지 않습니다. 패널을 여는 단축키는 설정 → Shortcuts 에서 지정합니다</li>
+        </ul>
+      ]]></description>
+      <pubDate>Wed, 21 Oct 2026 13:42:15 +0900</pubDate>
+      <sparkle:version>20</sparkle:version>
+      <sparkle:shortVersionString>0.10.9</sparkle:shortVersionString>
+      <enclosure url="https://github.com/mangoguma/mangtch/releases/download/v0.10.9/Mangtch-0.10.9.zip"
+                 length="8029449"
+                 sparkle:edSignature="01UDmSTnh8erQiecA620y6Gi4TvtS/Wsm6SZbt5wI/Vnc27LKL4HByYStsroJq8jREUZe6/GmcYan1b6+v5CDQ=="
+                 type="application/octet-stream"/>
+    </item>
+    <item>
       <title>Version 0.10.8</title>
       <description><![CDATA[
         <h2>Mangtch 0.10.8</h2>
