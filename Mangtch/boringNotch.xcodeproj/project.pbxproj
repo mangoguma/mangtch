@@ -153,6 +153,8 @@
 		FA001003FA001003FA001003 /* MusicLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001002FA001002FA001002 /* MusicLayoutTokens.swift */; };
 		FA002001FA002001FA002001 /* TimerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002000FA002000FA002000 /* TimerWidget.swift */; };
 		FA00A001FA00A001FA00A001 /* ShelfWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA00A000FA00A000FA00A000 /* ShelfWidget.swift */; };
+		CB00C002CB00C002CB00C002 /* ClipboardHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB00C001CB00C001CB00C001 /* ClipboardHistoryStore.swift */; };
+		CB00C004CB00C004CB00C004 /* ClipboardWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB00C003CB00C003CB00C003 /* ClipboardWidget.swift */; };
 		FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002003FA002003FA002003 /* TimerViewModel.swift */; };
 		FA002006FA002006FA002006 /* TimerExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002007FA002007FA002007 /* TimerExpandedView.swift */; };
 		FA002009FA002009FA002009 /* TimerLayoutTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA002008FA002008FA002008 /* TimerLayoutTokens.swift */; };
@@ -330,6 +332,8 @@
 		FA001000FA001000FA001000 /* MusicPlayerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayerWidget.swift; sourceTree = "<group>"; };
 		FA001002FA001002FA001002 /* MusicLayoutTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLayoutTokens.swift; sourceTree = "<group>"; };
 		FA00A000FA00A000FA00A000 /* ShelfWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfWidget.swift; sourceTree = "<group>"; };
+		CB00C001CB00C001CB00C001 /* ClipboardHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryStore.swift; sourceTree = "<group>"; };
+		CB00C003CB00C003CB00C003 /* ClipboardWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardWidget.swift; sourceTree = "<group>"; };
 		FA002000FA002000FA002000 /* TimerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerWidget.swift; sourceTree = "<group>"; };
 		FA002003FA002003FA002003 /* TimerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerViewModel.swift; sourceTree = "<group>"; };
 		FA002007FA002007FA002007 /* TimerExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerExpandedView.swift; sourceTree = "<group>"; };
@@ -504,6 +508,7 @@
 				B1C448992C97375A001F0858 /* Tips */,
 				14C08BB72C8DE49E000F8AA0 /* Calendar */,
 				9A987A042C73CA66005CA465 /* Shelf */,
+				CB00C0AACB00C0AACB00C0AA /* Clipboard */,
 				149E0B982C737D26006418B1 /* Webcam */,
 				B18654312C6F45AE000B926A /* Live activities */,
 				B18654302C6F4590000B926A /* Settings */,
@@ -665,6 +670,15 @@
 			
 			);
 			path = Tabs;
+			sourceTree = "<group>";
+		};
+		CB00C0AACB00C0AACB00C0AA /* Clipboard */ = {
+			isa = PBXGroup;
+			children = (
+				CB00C001CB00C001CB00C001 /* ClipboardHistoryStore.swift */,
+				CB00C003CB00C003CB00C003 /* ClipboardWidget.swift */,
+			);
+			path = Clipboard;
 			sourceTree = "<group>";
 		};
 		9A987A042C73CA66005CA465 /* Shelf */ = {
@@ -1081,6 +1095,8 @@
 				FA001003FA001003FA001003 /* MusicLayoutTokens.swift in Sources */,
 				FA002001FA002001FA002001 /* TimerWidget.swift in Sources */,
 				FA00A001FA00A001FA00A001 /* ShelfWidget.swift in Sources */,
+				CB00C002CB00C002CB00C002 /* ClipboardHistoryStore.swift in Sources */,
+				CB00C004CB00C004CB00C004 /* ClipboardWidget.swift in Sources */,
 				FA002002FA002002FA002002 /* TimerViewModel.swift in Sources */,
 				FA002006FA002006FA002006 /* TimerExpandedView.swift in Sources */,
 				FA002009FA002009FA002009 /* TimerLayoutTokens.swift in Sources */,

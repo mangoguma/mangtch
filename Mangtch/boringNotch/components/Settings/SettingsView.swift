@@ -1683,6 +1683,14 @@ struct Shortcuts: View {
                     .font(.caption)
             }
             Section {
+                KeyboardShortcuts.Recorder("Show Clipboard History:", name: .clipboardHistoryPanel)
+            } footer: {
+                Text("Works when the Clipboard widget is turned on in Widgets.")
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
+            }
+            Section {
                 KeyboardShortcuts.Recorder("Hide/Show Menu Bar Items:", name: .toggleMenuBarItems)
             } footer: {
                 Text("Works when \"Hide menu bar items\" is turned on in General.")

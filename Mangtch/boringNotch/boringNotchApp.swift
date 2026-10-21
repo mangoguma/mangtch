@@ -218,6 +218,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         detector.startMonitoring()
     }
 
+    /// With "show on all displays" each screen has its own panel; act on the
+    /// one the user is looking at.
+    private func viewModelUnderMouse() -> BoringViewModel {
+        guard Defaults[.showOnAllDisplays] else { return vm }
+        let mouseLocation = NSEvent.mouseLocation
+        for screen in NSScreen.screens where screen.frame.contains(mouseLocation) {
+            if let uuid = screen.displayUUID, let screenViewModel = viewModels[uuid] {
+                return screenViewModel
+            }
+        }
+        return vm
+    }
+
     private func handleDragEntersNotchRegion(onScreen screen: NSScreen) {
         guard let uuid = screen.displayUUID else { return }
 
@@ -476,6 +489,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.setPanelHidden(!Defaults[.notchHidden])
             }
         }
+
+        KeyboardShortcuts.onKeyDown(for: .clipboardHistoryPanel) { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      WidgetRegistry.shared.widget(for: ClipboardWidget.widgetID)?.isEnabled == true
+                else { return }
+                // Unlike toggleNotchOpen there is no auto-close: picking a
+                // clip takes longer than a glance. The same key closes it.
+                let viewModel = self.viewModelUnderMouse()
+                if viewModel.notchState == .open,
+                   viewModel.currentExpandedWidgetID == ClipboardWidget.widgetID {
+                    viewModel.close()
+                } else {
+                    self.closeNotchTask?.cancel()
+                    self.closeNotchTask = nil
+                    viewModel.currentExpandedWidgetID = ClipboardWidget.widgetID
+                    viewModel.open()
+                }
+            }
+        }
+
+        KeyboardShortcuts.onKeyDown(for: .clipboardCopySelection) {
+            Task { @MainActor in
+                ClipboardHistoryStore.shared.copySelected()
+            }
+        }
+        // Registering the handler enables the hotkey; it must stay off until
+        // there is a selection, or every app would lose ⌘C.
+        KeyboardShortcuts.disable(.clipboardCopySelection)
 
         KeyboardShortcuts.onKeyDown(for: .toggleMenuBarItems) {
             Task { @MainActor in

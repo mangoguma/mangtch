@@ -26,6 +26,7 @@ final class WidgetRegistry {
         register(TimerWidget())
         register(KBOWidget())
         register(ShelfWidget())
+        register(ClipboardWidget())
         applyPersistedOrder()
     }
 
